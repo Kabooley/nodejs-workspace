@@ -275,6 +275,16 @@ $ nodenv install 0.10.26
 
 完了
 
+#### 寄り道：Ubuntu起動のたびに`exec $SHELL -l`しないといけない
+
+起動のたびに、`anyenv`ってなに？という旨のエラーが発生する。
+
+そのたびに`exec $SHELL -l`する必要がある（のかな？）
+
+TODO: これを解決したい。
+
+
+
 #### 寄り道；WSL2でVSCodeを使えるようにする
 
 https://docs.microsoft.com/ja-jp/windows/wsl/tutorials/wsl-vscode
