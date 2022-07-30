@@ -36,13 +36,12 @@ const pngDownloader = (dir: string, filename: string): void => {
             return;
         }
     
-        // res.setEncoding('utf8');
+        res.setEncoding('binary');
         let rawData = '';
         res.on('data', (chunk) => { rawData += chunk; });
         res.on('end', () => {
             try {
                 console.log("end");
-                console.log(rawData);
                 _writeFile(dir, filename, rawData);
             }
             catch(e) {
@@ -78,7 +77,9 @@ const _mkdir = async (dirname: string): Promise<void> => {
 
 const _writeFile = async (to: string, filename: string, data: any): Promise<void> => {
     try {
-        await fspromises.writeFile(path.join(to, filename), data);
+        await fspromises.writeFile(path.join(to, filename), data, {
+            encoding: "binary"
+        });
     }
     catch(e) {
         console.error(e);

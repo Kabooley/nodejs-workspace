@@ -68,13 +68,12 @@ const pngDownloader = (dir, filename) => {
             res.resume();
             return;
         }
-        // res.setEncoding('utf8');
+        res.setEncoding('binary');
         let rawData = '';
         res.on('data', (chunk) => { rawData += chunk; });
         res.on('end', () => {
             try {
                 console.log("end");
-                console.log(rawData);
                 _writeFile(dir, filename, rawData);
             }
             catch (e) {
@@ -107,7 +106,9 @@ const _mkdir = (dirname) => __awaiter(void 0, void 0, void 0, function* () {
 });
 const _writeFile = (to, filename, data) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        yield fspromises.writeFile(path.join(to, filename), data);
+        yield fspromises.writeFile(path.join(to, filename), data, {
+            encoding: "binary"
+        });
     }
     catch (e) {
         console.error(e);
