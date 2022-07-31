@@ -1,4 +1,16 @@
-# Note
+# Stream 
+
+Note about Stream of Node.js v16.x API
+
+## 目次
+
+- [HTTP経由で得られるストリーム](#HTTP経由で得られるストリーム)
+- [streamが終わったのをどうやって知ればいいのか](#streamが終わったのをどうやって知ればいいのか)
+- [fsで得られるストリーム](#fsで得られるストリーム)
+- [](#)
+- [](#)
+- [](#)
+
 
 
 ## 公式の例を少しいじって画像をダウンロードして保存する
@@ -155,3 +167,69 @@ TODO: 置き換わってしまわないか要確認。
 - 読取、書込各ストリームにでは`encoding`という情報の符号化を適切に指定しなくてはならない
 - 読み取りストリームで取得したデータは一旦変数として確保できる
 - 読み取ったものをどこかへ書き込むにはデータを書込ストリームへ渡せばいい
+
+## 走り書き
+
+- HTTP request on the clientは本当にwritable streamなのか？
+
+```TypeScript
+// http.d.ts @types/node
+
+// http.request()
+    function request(options: RequestOptions | string | URL, callback?: (res: IncomingMessage) => void): ClientRequest;
+    function request(url: string | URL, options: RequestOptions, callback?: (res: IncomingMessage) => void): ClientRequest;
+
+// http.ClientRequest
+    class ClientRequest extends OutgoingMessage {}
+
+// OutgoingMessage
+    class OutgoingMessage extends stream.Writable {}
+```
+
+- Class: fs.WriteStream:
+
+https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#class-fswritestream
+
+https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#fscreatewritestreampath-options
+
+```TypeScript
+const writable = fs.createWriteStream();
+
+// fs.d.ts
+
+// fs.createWriteStream()
+    export function createWriteStream(path: PathLike, options?: BufferEncoding | StreamOptions): WriteStream;
+
+// WriteStream
+    export class WriteStream extends stream.Writable {}
+```
+
+## fsで得られるストリーム
+
+
+
+#### 書込ストリーム
+
+fsには用途に応じて同じようなメソッドを用途別に用意してある。
+
+callbackAPI
+PromisesAPI
+SynchronousAPI
+
+同じwriteメソッドでも、上記のように用途別に用意されていたりする。
+
+中身の違いについては、
+
+ここでの説明はそれ等の違いに配慮しない。
+
+またClassの違いもここでは同様に配慮しない。
+
+書き込みメソッド：
+
+- `fileHandle.createWriteStream()`
+- `fileHandle.write(buffer)`
+- `fileHandle.write(string)`
+- `fileHandle.writeFile()`
+- `fsPromise.writeFile(file)`
+- `fs.appendFile()`
+- `fs.createWriteStream()`

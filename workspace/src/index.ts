@@ -1,7 +1,9 @@
 import { IncomingMessage } from "http";
-import https from "https";
-import * as path from "path";
+import https from "node:https";
+import http from "node:http";
+import * as path from "node:path";
 import * as fspromises from 'node:fs/promises';
+import * as fs from 'node:fs';
 
 const url: string = "https://raw.githubusercontent.com/wiki/Microsoft/DirectXTK/images/cat.png";
 
@@ -91,3 +93,6 @@ const _writeFile = async (to: string, filename: string, data: any): Promise<void
     await _mkdir("out");
     pngDownloader(path.join(__dirname, "out"), "cat.png");
 })()
+
+
+const writable = fs.createWriteStream()
