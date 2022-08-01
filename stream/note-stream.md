@@ -218,13 +218,11 @@ SynchronousAPI
 
 同じwriteメソッドでも、上記のように用途別に用意されていたりする。
 
-中身の違いについては、
-
-ここでの説明はそれ等の違いに配慮しない。
+中身の違いについては、ここでは配慮しない。
 
 またClassの違いもここでは同様に配慮しない。
 
-書き込みメソッド：
+(独断と偏見による)書き込みメソッド：
 
 - `fileHandle.createWriteStream()`
 - `fileHandle.write(buffer)`
@@ -233,3 +231,143 @@ SynchronousAPI
 - `fsPromise.writeFile(file)`
 - `fs.appendFile()`
 - `fs.createWriteStream()`
+- `fs.write(buffer)`
+- `fs.write(string)`
+- `fs.writeFile()`
+
+上記の主なメソッドのそれぞれの違いについて触れながらメソッドをまとめる
+
+##### `createWriteStream`
+
+普段使うときは`fileHandle`の方は無視して`fs.createWriteStream`だけ知っていればいいんだと思う
+
+```TypeScript
+// fs.d.ts
+    export function createWriteStream(
+        path: PathLike, 
+        options?: 
+            BufferEncoding 
+            | StreamOptions
+    ): WriteStream;
+```
+`encoding`で指定できるのは`Buffer`型で指定しているものを指定できる。
+
+`error`時または`finish`時に autoClose が true (デフォルトの動作) に設定されている場合、ファイル記述子は自動的に閉じられます。
+
+`autoClose` が `false` の場合、エラーが発生してもファイル記述子は閉じられません。
+
+**アプリケーションを閉じて、ファイル記述子のリークがないことを確認するのは、アプリケーションの責任です。**
+
+デフォルトとして、streamは自身が破棄されたら`close`イベントを発行します。
+
+これは`emitClose`オプションを`false`にすることで変更できます。
+
+`options`の代わりにstringを渡すとその文字列は`encoding`指定として処理される。
+
+`fd`オプションを指定していたら、`path`引数は無視される。代わりにfile descriptorを使う。
+
+`fs` オプションを指定することで、open, write, writev, close に対応する fs の実装をオーバーライドすることが可能です。writev() を指定せずに write() をオーバーライドすると、一部の最適化 (_writev()) が無効となり、パフォーマンスが低下することがあります。fs オプションを指定する場合、write と writev の少なくとも一方をオーバーライドする必要がある。fdオプションが与えられない場合、openのオーバーライドも必要です。autoCloseがtrueの場合、closeのオーバーライドも必要である。
+
+`fs.WriteStream`を返す。
+
+`fs.WriteStream`:
+
+```TypeScript
+    export class WriteStream extends stream.Writable {
+        /**
+         * Closes `writeStream`. Optionally accepts a
+         * callback that will be executed once the `writeStream`is closed.
+         * @since v0.9.4
+         */
+        close(callback?: (err?: NodeJS.ErrnoException | null) => void): void;
+        /**
+         * The number of bytes written so far. Does not include data that is still queued
+         * for writing.
+         * @since v0.4.7
+         */
+        bytesWritten: number;
+        /**
+         * The path to the file the stream is writing to as specified in the first
+         * argument to {@link createWriteStream}. If `path` is passed as a string, then`writeStream.path` will be a string. If `path` is passed as a `Buffer`, then`writeStream.path` will be a
+         * `Buffer`.
+         * @since v0.1.93
+         */
+        path: string | Buffer;
+        /**
+         * This property is `true` if the underlying file has not been opened yet,
+         * i.e. before the `'ready'` event is emitted.
+         * @since v11.2.0
+         */
+        pending: boolean;
+        /**
+         * events.EventEmitter
+         *   1. open
+         *   2. close
+         *   3. ready
+         */
+        addListener(event: 'close', listener: () => void): this;
+        addListener(event: 'drain', listener: () => void): this;
+        addListener(event: 'error', listener: (err: Error) => void): this;
+        addListener(event: 'finish', listener: () => void): this;
+        addListener(event: 'open', listener: (fd: number) => void): this;
+        addListener(event: 'pipe', listener: (src: stream.Readable) => void): this;
+        addListener(event: 'ready', listener: () => void): this;
+        addListener(event: 'unpipe', listener: (src: stream.Readable) => void): this;
+        addListener(event: string | symbol, listener: (...args: any[]) => void): this;
+        on(event: 'close', listener: () => void): this;
+        on(event: 'drain', listener: () => void): this;
+        on(event: 'error', listener: (err: Error) => void): this;
+        on(event: 'finish', listener: () => void): this;
+        on(event: 'open', listener: (fd: number) => void): this;
+        on(event: 'pipe', listener: (src: stream.Readable) => void): this;
+        on(event: 'ready', listener: () => void): this;
+        on(event: 'unpipe', listener: (src: stream.Readable) => void): this;
+        on(event: string | symbol, listener: (...args: any[]) => void): this;
+        once(event: 'close', listener: () => void): this;
+        once(event: 'drain', listener: () => void): this;
+        once(event: 'error', listener: (err: Error) => void): this;
+        once(event: 'finish', listener: () => void): this;
+        once(event: 'open', listener: (fd: number) => void): this;
+        once(event: 'pipe', listener: (src: stream.Readable) => void): this;
+        once(event: 'ready', listener: () => void): this;
+        once(event: 'unpipe', listener: (src: stream.Readable) => void): this;
+        once(event: string | symbol, listener: (...args: any[]) => void): this;
+        prependListener(event: 'close', listener: () => void): this;
+        prependListener(event: 'drain', listener: () => void): this;
+        prependListener(event: 'error', listener: (err: Error) => void): this;
+        prependListener(event: 'finish', listener: () => void): this;
+        prependListener(event: 'open', listener: (fd: number) => void): this;
+        prependListener(event: 'pipe', listener: (src: stream.Readable) => void): this;
+        prependListener(event: 'ready', listener: () => void): this;
+        prependListener(event: 'unpipe', listener: (src: stream.Readable) => void): this;
+        prependListener(event: string | symbol, listener: (...args: any[]) => void): this;
+        prependOnceListener(event: 'close', listener: () => void): this;
+        prependOnceListener(event: 'drain', listener: () => void): this;
+        prependOnceListener(event: 'error', listener: (err: Error) => void): this;
+        prependOnceListener(event: 'finish', listener: () => void): this;
+        prependOnceListener(event: 'open', listener: (fd: number) => void): this;
+        prependOnceListener(event: 'pipe', listener: (src: stream.Readable) => void): this;
+        prependOnceListener(event: 'ready', listener: () => void): this;
+        prependOnceListener(event: 'unpipe', listener: (src: stream.Readable) => void): this;
+        prependOnceListener(event: string | symbol, listener: (...args: any[]) => void): this;
+    }
+```
+
+
+ということで`fs.createWriteStream()`を使う場合、`fs.WriteStream`のインスタンスを取得することになり、
+
+streamで発生するあらゆるイベントを制御できるようになるのである。
+
+ここが他の書き込みメソッドと異なる部分だとおもう。
+
+
+
+
+##### `fs.writeFile()`
+
+https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#fswritefilefile-data-options-callback
+
+```TypeScript
+// fs.d.ts
+    export function writeFile(file: PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options: WriteFileOptions, callback: NoParamCallback): void;
+```
