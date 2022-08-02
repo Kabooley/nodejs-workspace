@@ -94,4 +94,5 @@ const _writeFile = async (to: string, filename: string, data: any): Promise<void
     pngDownloader(path.join(__dirname, "out"), "cat.png");
 })()
 
-const fd = fs.createWriteStream()
+
+http.request()

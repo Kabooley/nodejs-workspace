@@ -4,13 +4,24 @@ Note about Stream of Node.js v16.x API
 
 ## 目次
 
-- [HTTP経由で得られるストリーム](#HTTP経由で得られるストリーム)
+- [node:http](#node:http)
+- [node:fs](#node:fs)
 - [streamが終わったのをどうやって知ればいいのか](#streamが終わったのをどうやって知ればいいのか)
-- [fsで得られるストリーム](#fsで得られるストリーム)
-- [](#)
+- [streamを使う利点](#streamを使う利点)
 - [](#)
 - [](#)
 
+
+## 目標
+
+HTTP経由で大きなファイルをダウンロードして、ローカルファイルとして保存する。
+
+その際、RAMの使用は最小限に抑えたい。
+
+そんなダウンロードプログラムを作る。
+
+node:https APIで読取、
+node:fs APIで書き込む。
 
 
 ## 公式の例を少しいじって画像をダウンロードして保存する
@@ -168,17 +179,25 @@ TODO: 置き換わってしまわないか要確認。
 - 読み取りストリームで取得したデータは一旦変数として確保できる
 - 読み取ったものをどこかへ書き込むにはデータを書込ストリームへ渡せばいい
 
-## 走り書き
 
-- HTTP request on the clientは本当にwritable streamなのか？
+## node:http
+
+HTTP APIで使える読み取りストリームについて
+
+#### `http.request()`
+
 
 ```TypeScript
-// http.d.ts @types/node
+// http.d.ts
 
-// http.request()
     function request(options: RequestOptions | string | URL, callback?: (res: IncomingMessage) => void): ClientRequest;
-    function request(url: string | URL, options: RequestOptions, callback?: (res: IncomingMessage) => void): ClientRequest;
 
+// requestのコールバック関数が受け取る引数の型
+    class IncomingMessage extends stream.Readable {
+        constructor(socket: Socket);
+    }
+
+// requestメソッドの戻り値の型
 // http.ClientRequest
     class ClientRequest extends OutgoingMessage {}
 
@@ -186,26 +205,61 @@ TODO: 置き換わってしまわないか要確認。
     class OutgoingMessage extends stream.Writable {}
 ```
 
-- Class: fs.WriteStream:
+型を見るに、
 
-https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#class-fswritestream
+`request`したらコールバックの方に読み取りストリームが、
 
-https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#fscreatewritestreampath-options
+戻り値の方に書き込みストリームが取得できる。
 
-```TypeScript
-const writable = fs.createWriteStream();
+それぞれ何を読み取って何を書き込んでいるのか。
 
-// fs.d.ts
+- `options`
 
-// fs.createWriteStream()
-    export function createWriteStream(path: PathLike, options?: BufferEncoding | StreamOptions): WriteStream;
+割愛。公式見た方が速いね。
 
-// WriteStream
-    export class WriteStream extends stream.Writable {}
-```
+- オプショナル引数`callback`
 
-## fsで得られるストリーム
+> `response`イベントで一度きりのイベントリスナとして機能する。
 
+`callback`では`IncomingMessage`インスタンスを取得する。
+
+これは読取ストリームなので、`ReadableStream.on()`で`data`イベントをリスンして
+
+ストリーム元を読み取る。
+
+読み取ったデータは変数にまとめないといけないのか？
+
+
+
+#### Class:`http.ClientRequest`
+
+`http.request()`の戻り値。
+
+https://nodejs.org/dist/latest-v16.x/docs/api/http.html#class-httpclientrequest
+
+
+
+
+#### `stream.Readable`
+
+https://nodejs.org/api/stream.html#class-streamreadable
+
+- Event:`data`
+
+オブジェクトモードでない場合は、`chunk`は文字列型かBuffer型になる。
+
+> data' イベントは、ストリームがデータチャンクの所有権をコンシューマに譲渡する際に発行されます。これは、readable.pipe() や readable.resume() を呼び出したり、リスナーコールバックを 'data' イベントにアタッチしたりして、ストリームがフローティングモードに切り替わるときに発生します。また、readable.read() メソッドが呼ばれ、データのチャンクを返すことができるようになると、 'data' イベントが発行されます。
+
+> 明示的に一時停止されていないストリームに 'data' イベントリスナーをアタッチすると、ストリームがフローティングモードに切り替わります。そして、データが利用可能になるとすぐにデータが渡されます。
+
+> リスナーコールバックは、readable.setEncoding() メソッドを使用してストリームにデフォルトエンコーディングが指定されている場合、データのチャンクを文字列として渡されます。
+
+
+## node:fs
+
+
+
+https://nodejs.org/dist/latest-v16.x/docs/api/http.html#httprequesturl-options-callback
 
 
 #### 書込ストリーム
@@ -362,7 +416,6 @@ streamで発生するあらゆるイベントを制御できるようになる�
 
 
 
-
 ##### `fs.writeFile()`
 
 https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#fswritefilefile-data-options-callback
@@ -371,3 +424,35 @@ https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#fswritefilefile-data-optio
 // fs.d.ts
     export function writeFile(file: PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options: WriteFileOptions, callback: NoParamCallback): void;
 ```
+
+## 実践：streamを使ってHTTP経由で大きなファイルをダウンロードする
+
+ずばりな質問をしてくれた先人：
+
+https://stackoverflow.com/questions/44896984/what-is-the-best-way-to-download-a-big-file-in-nodejs
+
+
+必要な知識：
+
+- HTTP.request
+- stream
+- File System
+
+
+#### streamを使う利点
+
+ずばりメモリを節約できること。
+
+たとえば`fs.writeFile()`と`fs.createWriteStream()`の違いは、
+
+前者は書き込むファイルをすべてRAMへ展開するが、
+
+後者は処理内容をカスタマイズすればRAMの使用を節約することができる。
+
+たとえば10gbのファイルサイズを移動しようと思って、
+
+`fs.writeFile`を使おうものならばメモリが足りなくてクラッシュする可能性がある。
+
+ということで、
+
+streamを使うならいかに効率的にメモリを節約するかが重要になってくる。
