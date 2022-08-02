@@ -1,98 +1,57 @@
-import { IncomingMessage } from "http";
-import https from "node:https";
-import http from "node:http";
-import * as path from "node:path";
-import * as fspromises from 'node:fs/promises';
+/*****
+ * Readable streamの挙動を確認するプログラム
+ * 
+ * dist/in/cat.pngをdist/out/cat.pngへコピーする
+ * */ 
+
+import * as stream from 'node:stream';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 
-const url: string = "https://raw.githubusercontent.com/wiki/Microsoft/DirectXTK/images/cat.png";
+const from: string = './dist/in';
 
-/**
- * https://nodejs.org/dist/latest-v16.x/docs/api/http.html#httpgeturl-options-callback
- * 
- * > ほとんどのリクエストは本文のない GET リクエストであるため、Node.js はこの便利なメソッドを提供します。
- * > このメソッドと http.request() の唯一の違いは、メソッドを GET に設定し、
- * > req.end() を自動的に呼び出すことです。
- * > コールバックは、http.ClientRequest セクションに記載されている理由により、
- * > 応答データを消費するように注意する必要があります。 
- * > コールバックは、http.IncomingMessage のインスタンスである単一の引数で呼び出されます。
- * */ 
-const pngDownloader = (dir: string, filename: string): void => {
-    https.get(url, (res: IncomingMessage) => {
-        const { statusCode } = res;
-        const contentType = res.headers['content-type'];
-    
-        let error;
-    
-        if(statusCode !== 200) {
-            error = new Error('Request Failed.\n' +
-            `Status Code: ${statusCode}`);
-        } else if (contentType !== undefined && !/^image\/png/.test(contentType)) {
-            error = new Error('Invalid content-type.\n' +
-                    `Expected image/png but received ${contentType}`);
-        }
-        if (error) {
-            console.error(error.message);
-            // Consume response data to free up memory
-            res.resume();
-            return;
-        }
-    
-        res.setEncoding('binary');
-        let rawData = '';
-        res.on('data', (chunk) => { rawData += chunk; });
-        res.on('end', () => {
-            try {
-                console.log("end");
-                _writeFile(dir, filename, rawData);
-            }
-            catch(e) {
-                console.error(e);
-            }
-        })
-    }).on('error', (e) => {
-        console.error(e);
-    });
-}
+let data = '';
+
+const rfs: fs.ReadStream = fs.createReadStream(path.join(__dirname, 'in'));
 
 
-/**
- * https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#fspromisesmkdirpath-options
- * 
- * `../dist/out`が作成される。
- * 
- * このファイルがコンパイル後に実行される関係から、
- * __dirnameは必然的にdist/になる
- * 
- * なのでout/が作られるのがそこになるという話。
- * 
- * */ 
-const _mkdir = async (dirname: string): Promise<void> => {
-    try {
-        await fspromises.mkdir(path.join(__dirname, dirname), { recursive: true });
-        console.log("mkdir complete");
-    }
-    catch(e) {
-        console.error(e)
-    }
-}
+rfs.on('open', () => {
+    console.log("readable stream has benn opened");
+});
 
-const _writeFile = async (to: string, filename: string, data: any): Promise<void> => {
-    try {
-        await fspromises.writeFile(path.join(to, filename), data, {
-            encoding: "binary"
-        });
-    }
-    catch(e) {
-        console.error(e);
-    }
-}
+rfs.on('ready', () => {
+    console.log("readable stream is ready");
+});
+
+rfs.on('close', () => {
+    console.log('readable stream has been closed');
+});
+
+rfs.on('data', (chunk: string | Buffer) => {
+    console.log(`Received ${chunk.length} bytes of data.`);
+});
+
+rfs.on('end', () => {
+    console.log('There is no more data to be consumed from the stream');
+});
+
+// readable.readableFlowing !== trueの時に発火する
+rfs.on('resume', () => {
+    console.log('There is no more data to be consumed from the stream');
+});
 
 
-(async function() {
-    await _mkdir("out");
-    pngDownloader(path.join(__dirname, "out"), "cat.png");
-})()
+// readableイベントはdataイベントハンドラを無効にするのでどっちか選べ
+// 
+// rfs.on('readable', () => {
+//     // There is some data to read now.
+//     let data;
+  
+//     while ((data = rfs.read()) !== null) {
+//       console.log(`readable cosumed: ${data}`);
+//     }
+// });
 
-
-http.request()
+rfs.on('error', (e: Error) => {
+    console.error(e.message);
+});

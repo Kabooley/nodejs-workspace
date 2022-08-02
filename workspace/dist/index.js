@@ -1,4 +1,9 @@
 "use strict";
+// /*****
+//  * Readable streamの挙動を確認するプログラム
+//  * 
+//  * 
+//  * */ 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -35,8 +40,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const https_1 = __importDefault(require("https"));
-const path = __importStar(require("path"));
+const node_https_1 = __importDefault(require("node:https"));
+const path = __importStar(require("node:path"));
 const fspromises = __importStar(require("node:fs/promises"));
 const url = "https://raw.githubusercontent.com/wiki/Microsoft/DirectXTK/images/cat.png";
 /**
@@ -50,7 +55,7 @@ const url = "https://raw.githubusercontent.com/wiki/Microsoft/DirectXTK/images/c
  * > コールバックは、http.IncomingMessage のインスタンスである単一の引数で呼び出されます。
  * */
 const pngDownloader = (dir, filename) => {
-    https_1.default.get(url, (res) => {
+    node_https_1.default.get(url, (res) => {
         const { statusCode } = res;
         const contentType = res.headers['content-type'];
         let error;
