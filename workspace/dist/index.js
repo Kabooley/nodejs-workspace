@@ -1,5 +1,7 @@
 "use strict";
 /*****
+ * file to file stream
+ *
  * Readable streamの挙動を確認するプログラム
  *
  * dist/in/cat.pngをdist/out/cat.pngへコピーする
@@ -29,16 +31,26 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+/*
+Readable stream　まとめ
+
+Readable streamには２つの運用モードがある
+
+flowing mode: データの読み取りはシステムが行ってくれるのでお任せできる。取得してデータはEventEmitterインタフェイスを通じたイベントハンドラによって取得できる
+
+paused mode: `stream.read()`を明示的に呼び出すことでデータを取得できる
+
+Readableストリームは初めは必ずpausedモードで始まり、`data`イベントハンドラを追加するなど特別なことをすることでflowingモードへ自動的に切り替わる。
+
+また一方で、ストリームの書き込み先がないときに、`stream.pause()`を呼び出すなどするとpausedモードに切り替わる。
+
+`fs.createReadableStream()`も、
+
+`fs.createWritableStream()`も`highWaterMark`を指定できるので
+
+内部バッファへの閾値を設定しながら読み取ってみる。
+*/
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const crypto = __importStar(require("node:crypto"));
@@ -90,152 +102,201 @@ const createRfs = () => {
         highWaterMark: 1024 /* default: 64 * 1024 */
     });
 };
-const createWfs = () => {
-    if (!isDirExist(outPath))
-        throw new Error(`The path: ${outPath} does not exist.`);
-    return fs.createWriteStream(path.join(outPath, "cat" + randomString + ".png"), {
-        encoding: 'binary',
-        autoClose: true,
-        emitClose: true,
-        highWaterMark: 1024 /* default: 64 * 1024 */
-    });
-};
+// const createWfs = (): fs.WriteStream => {
+//     if(!isDirExist(outPath)) throw new Error(`The path: ${outPath} does not exist.`);
+//     return fs.createWriteStream(
+//         path.join(outPath, "cat" + randomString(4) + ".png"), 
+//         { 
+//             encoding: 'binary',     /* default: 'utf8' */
+//             autoClose: true,
+//             emitClose: true,
+//             highWaterMark: 1024     /* default: 64 * 1024 */
+//     });
+// }
+// (async function() {
+//     const rfs: fs.ReadStream = createRfs();
+//     const wfs: fs.WriteStream = createWfs();
+//     // --- Readable Event Handlers ------------
+//     rfs.on('open', (): void => {
+//         console.log("readable stream has been opened");
+//     });
+//     rfs.on('ready', (): void => {
+//         console.log("readable stream is ready");
+//     });
+//     /***
+//      * 「close」イベントは、ストリームとその基になるリソース (ファイル記述子など) が
+//      * 閉じられたときに発行されます。
+//      * このイベントは、
+//      * これ以上イベントが発行されず、それ以上の計算が行われないことを示します。
+//      * 
+//      * */ 
+//     rfs.on('close', (): void => {
+//         console.log('readable stream has been closed');
+//         wfs.end();
+//     });
+//     /***
+//      * 「終了」イベントは、ストリームから消費されるデータがなくなると発行されます。 
+//      * **データが完全に消費されない限り、「終了」イベントは発行されません。**
+//      * これは、ストリームをフロー モードに切り替えるか、
+//      * すべてのデータが消費されるまで stream.read() を繰り返し呼び出すことで実現できます。
+//      * 
+//      * つまり読み取りストリームの読み取り先から読み取るものがもうないことを示すのかな
+//      * */ 
+//     rfs.on('end', (): void => {
+//         console.log('End read stream');
+//         console.log('There is no more data to be consumed from the stream');
+//     });
+//     // readable.readableFlowing !== trueの時に発火する
+//     /**
+//      * `resume`イベントは、
+//      * 
+//      * `stream.resume()`が呼び出さたとき、
+//      * 
+//      * または`readable.readableFlowing`がtrueでないときに
+//      * 
+//      * 発火する
+//      * 
+//      * */ 
+//     rfs.on('resume', (): void => {
+//         console.log('resume');
+//     });
+//     /**
+//      * 単独Errorオブジェクトを渡す。
+//      * 
+//      * */ 
+//     rfs.on('error', (e: Error): void => {
+//         wfs.destroy(e); // this will emit 'error' and 'close'
+//         // // or
+//         // wfs.destroy();    // this will emit 'close'
+//         // // or
+//         // wfs.end();        // this will emit 'finish'
+//         console.error(e.message);
+//         rfs.resume();
+//     });
+//     /***
+//      * `pause`イベントは`stream.pause()`が呼び出されたとき、
+//      * 
+//      * または`readable.readableFlowing`が`false`出ないときに
+//      * 
+//      * 発火する
+//      * 
+//      * */ 
+//     rfs.on('pause', (): void => {
+//         console.log("readable paused");
+//     })
+//     // --- Writable Event Handlers -----
+//     /**
+//      * `close`:
+//      * ファイル記述子などが閉じられたりストリームが閉じられたら発行されるイベント
+//      * 
+//      * このイベント以降何のイベントも発行されない。
+//      * */ 
+//     wfs.on('close', (): void => {
+//         console.log("Writable stream closed");
+//     });
+//     /**
+//      * `drain`:
+//      * 
+//      * stream.write(chunk) への呼び出しが false を返す場合、
+//      * ストリームへのデータの書き込みを再開するのが適切なときに
+//      * 「drain」イベントが発行されます。
+//      * 
+//      * ということで書込みが「再開できるとき」にこのイベントハンドラが発火する
+//      * */ 
+//     wfs.on('drain', (): void => {
+//         console.log("Drained");
+//     });
+//     /**
+//      * `finish`
+//      * `stream.end()`が呼び出されたら、もしくは全てのデータがシステムへフラッシュされたら発行されるイベント。
+//      * 
+//      * */ 
+//     wfs.on('finish', (): void => {
+//         console.log("Finished");
+//     });
+//     /***
+//      * `pipe`
+//      * 
+//      * readableストリームで`stream.pipe()`が呼び出されたら発行されるイベント。
+//      * 
+//      * 
+//      * */ 
+//     wfs.on('pipe', (): void => {
+//         console.log("PIPED!");
+//     });
+//     wfs.on('unpiped', (): void => {
+//         console.log("UNPIPED!!");
+//     })
+//     /**
+//      * `error`
+//      * 
+//      * 書込み中かデータをパイプしているときにエラーが発生したら発行されるイベント。
+//      * 
+//      * ストリームを生成したときに`autoDestroy`を`false`に設定しておかない限り、
+//      * 
+//      * `error`イベントが発行されるとストリームは閉じられる。
+//      * 
+//      * `error`イベント後は`close`イベント以外は発生しない。
+//      * */ 
+//     wfs.on('error', (e: Error): void => {
+//         console.error(e.message);
+//         // 念のために明示的にストリームを破棄させる。
+//         if(wfs.destroyed) wfs.destroy();
+//     });
+//     /**
+//      * `data`の消費者がいないかぎりReadableストリームはデータを取得しない
+//      * 
+//      * また、flowingモードでデータを制御するハンドラがない場合、データは失われる。
+//      * 
+//      * 上記は`data`イベントハンドラなしで`readable.resume()`が呼び出されたときに起る。
+//      * 
+//      * TODO: 検証：読み取ったchunkを直接渡して大丈夫か？
+//      * */ 
+//     rfs.on('data', (chunk: string | Buffer): void => {
+//         console.log('data read!');
+//         console.log(`state: ${rfs.readableFlowing}`);
+//         console.log(`Received ${chunk.length} bytes of data.`);
+//         /****
+//          * https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#writablewritechunk-encoding-callback
+//          * 
+//          * コールバックは、データの書き込みがすべて完了したら呼び出される。
+//          * エラーが起こった場合には引数にエラーオブジェクトが渡される。
+//          * */ 
+//         wfs.write(chunk, (e: Error | null | undefined): void => {
+//             if(e) console.error(e.message);
+//             else console.log("Write data has been completed");
+//         });
+//     });
+// })();
 (function () {
-    return __awaiter(this, void 0, void 0, function* () {
-        const rfs = createRfs();
-        const wfs = createWfs();
-        // --- Readable Event Handlers ------------
-        rfs.on('open', () => {
-            console.log("readable stream has benn opened");
-        });
-        rfs.on('ready', () => {
-            console.log("readable stream is ready");
-        });
-        rfs.on('close', () => {
-            console.log('readable stream has been closed');
-        });
-        /**
-         * `data`の消費者がいないかぎりReadableストリームはデータを取得しない
-         *
-         * また、flowingモードでデータを制御するハンドラがない場合、データは失われる。
-         *
-         * 上記は`data`イベントハンドラなしで`readable.resume()`が呼び出されたときに起る。
-         *
-         * TODO: 検証：読み取ったchunkを直接渡して大丈夫か？
-         * */
-        rfs.on('data', (chunk) => {
-            console.log('data read!');
-            console.log(`state: ${rfs.readableFlowing}`);
-            console.log(`Received ${chunk.length} bytes of data.`);
-            /****
-             * https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#writablewritechunk-encoding-callback
-             *
-             * コールバックは、データの書き込みがすべて完了したら呼び出される。
-             * エラーが起こった場合には引数にエラーオブジェクトが渡される。
-             * */
-            wfs.write(chunk, (e) => {
-                if (e)
-                    console.error(e.message);
-                else
-                    console.log("Write data has been completed");
-            });
-        });
-        rfs.on('end', () => {
-            console.log('End read stream');
-            console.log('There is no more data to be consumed from the stream');
-        });
-        // readable.readableFlowing !== trueの時に発火する
-        /**
-         * `resume`イベントは、
-         *
-         * `stream.resume()`が呼び出さたとき、
-         *
-         * または`readable.readableFlowing`がtrueでないときに
-         *
-         * 発火する
-         *
-         * */
-        rfs.on('resume', () => {
-            console.log('There is no more data to be consumed from the stream');
-        });
-        /**
-         * 単独Errorオブジェクトを渡す。
-         *
-         * */
-        rfs.on('error', (e) => {
-            console.error(e.message);
-            rfs.resume();
-        });
-        /***
-         * `pause`イベントは`stream.pause()`が呼び出されたとき、
-         *
-         * または`readable.readableFlowing`が`false`出ないときに
-         *
-         * 発火する
-         *
-         * */
-        rfs.on('pause', () => {
-            console.log("readable paused");
-        });
-        // --- Writable Event Handlers -----
-        /**
-         * `close`:
-         * ファイル記述子などが閉じられたりストリームが閉じられたら発行されるイベント
-         *
-         * このイベント以降何のイベントも発行されない。
-         * */
-        wfs.on('close', () => {
-            console.log("Writable stream closed");
-        });
-        /**
-         * `drain`:
-         *
-         * stream.write(chunk) への呼び出しが false を返す場合、
-         * ストリームへのデータの書き込みを再開するのが適切なときに
-         * 「drain」イベントが発行されます。
-         *
-         * ということで書込みが「再開できるとき」にこのイベントハンドラが発火する
-         * */
-        wfs.on('drain', () => {
-            console.log("Drained");
-        });
-        /**
-         * `finish`
-         * `stream.end()`が呼び出されたら、もしくは全てのデータがシステムへフラッシュされたら発行されるイベント。
-         *
-         * */
-        wfs.on('finish', () => {
-            console.log("");
-        });
-        /***
-         * `pipe`
-         *
-         * readableストリームで`stream.pipe()`が呼び出されたら発行されるイベント。
-         *
-         *
-         * */
-        wfs.on('pipe', () => {
-            console.log("PIPED!");
-        });
-        wfs.on('unpiped', () => {
-            console.log("UNPIPED!!");
-        });
-        /**
-         * `error`
-         *
-         * 書込み中かデータをパイプしているときにエラーが発生したら発行されるイベント。
-         *
-         * ストリームを生成したときに`autoDestroy`を`false`に設定しておかない限り、
-         *
-         * `error`イベントが発行されるとストリームは閉じられる。
-         *
-         * `error`イベント後は`close`イベント以外は発生しない。
-         * */
-        wfs.on('error', (e) => {
-            console.error(e.message);
-            // 念のために明示的にストリームを破棄させる。
-            if (wfs.destroyed)
-                wfs.destroy();
-        });
+    const rfs = createRfs();
+    rfs.on('open', () => {
+        console.log("readable stream has been opened");
+    });
+    rfs.on('ready', () => {
+        console.log("readable stream is ready");
+    });
+    rfs.on('close', () => {
+        console.log('readable stream has been closed');
+    });
+    rfs.on('end', () => {
+        console.log('End read stream');
+        console.log('There is no more data to be consumed from the stream');
+    });
+    rfs.on('resume', () => {
+        console.log('resume');
+        console.log(`readaleFlowing: ${rfs.readableFlowing}`);
+    });
+    rfs.on('error', (e) => {
+        console.error(e.message);
+        rfs.resume();
+    });
+    rfs.on('pause', () => {
+        console.log("readable paused");
+    });
+    rfs.on('data', (chunk) => {
+        console.log('data read!');
+        console.log(`state: ${rfs.readableFlowing}`);
+        console.log(`Received ${chunk.length} bytes of data.`);
     });
 })();
