@@ -4,12 +4,13 @@ Note about Stream of Node.js v16.x API
 
 ## 目次
 
+- [node:stream](#node:stream)
 - [node:http](#node:http)
 - [node:fs](#node:fs)
 - [streamが終わったのをどうやって知ればいいのか](#streamが終わったのをどうやって知ればいいのか)
 - [streamを使う利点](#streamを使う利点)
-- [](#)
-- [](#)
+- [疑問](#疑問)
+- [実践](#実践)
 
 
 ## 目標
@@ -179,6 +180,58 @@ TODO: 置き換わってしまわないか要確認。
 - 読み取りストリームで取得したデータは一旦変数として確保できる
 - 読み取ったものをどこかへ書き込むにはデータを書込ストリームへ渡せばいい
 
+
+## node:stream
+
+#### Buffering
+
+https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#buffering
+
+`highWaterMark`という重要な概念。
+
+`Writable`, `Readable`両ストリームはデータを内部バッファへ保存する。
+
+保存されるデータの量は、streamのコンストラクタへわたされるオプションの一つの、`highWaterMark`に基づいて決められる。
+
+通常のストリームでは、`highWaterMark`は「総バイト量」（TODO: ここよくわからん）を指定している。
+
+読み取りストリーム：
+
+実装が`stream.push(chunk)`を呼び出すことでReadableストリームへデータがバッファされる。
+
+もしもストリームが`stream.read()`を呼び出さなかったら、データは内部のキューに格納されて消費されるのを待つことになる。
+
+ストリームが読み取り中に一度でも内部バッファにたまった総バイト量が`highWaterMark`で指定した閾値に到達したら、
+
+現状内部バッファに保存されているデータが消費されるまで、ストリームは一時的にデータの読み取りを終了する。
+
+(内部的には、`readable._read()`の呼出を停止することを意味する)
+
+
+書き込みストリーム：
+
+書き込みストリームへバッファされるデータは、継続的に`writable.write(chunk)`を呼び出すことで書き込みストリームの内部バッファへ格納される。
+
+内部バッファの格納量が`highWaterMark`に到達したら`writabel.write(chunk)`はfalseを返す。到達していないならtrueを返す。
+
+
+ーーーー＞
+
+＞＞まとめると＜＜
+
+読取、書込両ストリームは各々内部バッファをもつ。
+
+内部バッファには閾値を設定することができて、それは各ストリームのコンストラクタで`highWaterMark`として指定できる。
+
+読取ストリームならば、読み取りデータ量がその閾値に到達すれば読取を中止し、
+
+書込ストリームならば、書き込みデータ量がその閾値に到達すれば`writable.write()`がfalseを返す。
+
+`highWaterMark`は各ストリームの取得スピードの制御プロパティである。
+
+こうしてみると、読取側の閾値は書き込み側の閾値より少し低い方がいいのかも？
+
+＜ーーーー
 
 ## node:http
 
@@ -529,8 +582,139 @@ https://stackoverflow.com/questions/44896984/what-is-the-best-way-to-download-a-
 
 たとえば10gbのファイルサイズを移動しようと思って、
 
-`fs.writeFile`を使おうものならばメモリが足りなくてクラッシュする可能性がある。
+`fs.writeFile`を使ったならばメモリに10gb展開してからそこからファイルに10gb書き込む。
+
+その間ブロッキングが発生するのでプログラムが止まる。
+
+streamがメモリを節約できるのはhighWaterMarkで読取、書込ストリームが取得量を制御できるからである。
+
+読み取る量と書き込む量を毎度highwatermarkで少しずつに制限（厳密には制限でないけれど）することでメモリを節約できているのである。
+
+
+## 疑問
+
+#### readableストリームから読み取ったものをメモリの消費を最小に抑えたままwritableストリームへ渡す方法とは？
+
+ストリームを使えばRAMの消費が効率的になる！というのがストリームの売りのはずだけど、
+
+読取ストリームがflowingモードでchunkを取得していって、
+
+そのchunkの積み上げを変数に格納していったら結局同じことになる気がする。
+
+なので「ある程度」の量がたまったら、もしくは右から左へchunkを書き込みストリームへ流せば効率が守られると思うけれど、
+
+そうするにはpipeを使うしかないのだろうか？
+
+
+
+ーー＞
+
+streamは読取、書込み時にそれぞれの内部バッファへ取得したデータを格納する。
+
+で、
+
+内部バッファへの格納量はストリームの`highWaterMark`で制御できる。
+
+読取ストリームは`highWaterMark`を超えたらいったん読み取りを停止するので
+
+たとえば2GBあるファイルを消費される前にすべて内部バッファへ格納するといったことは起こらなくなるはず。
+
+(ちゃんとhighWaterMarkを適切に指定すれば)
+
+一旦停止したら再開させるまでにデータを消費する処理を実装しておけばよい。
+
+この消費処理が書込みストリームへ渡す処理になると思う。
+
+で、
+
+この書込みストリームも`highWaterMark`を指定できるので
+
+内部バッファがある程度になったらそれを検知することができる。
+
+なので検知で来たら内部バッファを消費する処理を呼出せばよい。
 
 ということで、
 
-streamを使うならいかに効率的にメモリを節約するかが重要になってくる。
+如何にhighWaterMarkを適切に設定するかで効率的なメモリの運用ができるようになるはず。
+
+
+
+## 実践
+
+#### File Systemで画像をコピーするプログラム
+
+ログ
+
+```bash
+tream
+[start:*run] readable stream has benn opened
+[start:*run] readable stream is ready
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 1024 bytes of data.
+[start:*run] Write data has been completed
+[start:*run] data read!
+[start:*run] state: true
+[start:*run] Received 905 bytes of data.
+[start:*run] End read stream
+[start:*run] There is no more data to be consumed from the stream
+[start:*run] Write data has been completed
+[start:*run] Write data has been completed
+[start:*run] readable stream has been closed
+[start:*run] Drained
+[start:*run] Write data has been completed
+[start:*run] [nodemon] clean exit - waiting for changes before restart
+^C[start:*run] npm run start:run exited with code SIGINT
+[start:*build] npm run start:build exited with code SIGINT
+
+```
