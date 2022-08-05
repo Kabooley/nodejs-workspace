@@ -9,6 +9,7 @@ Note about Stream of Node.js v16.x API
 - [node:fs](#node:fs)
 - [streamが終わったのをどうやって知ればいいのか](#streamが終わったのをどうやって知ればいいのか)
 - [streamを使う利点](#streamを使う利点)
+- [streamの使い分け](#streamの使い分け)
 - [疑問](#疑問)
 - [実践](#実践)
 
@@ -589,6 +590,26 @@ https://stackoverflow.com/questions/44896984/what-is-the-best-way-to-download-a-
 streamがメモリを節約できるのはhighWaterMarkで読取、書込ストリームが取得量を制御できるからである。
 
 読み取る量と書き込む量を毎度highwatermarkで少しずつに制限（厳密には制限でないけれど）することでメモリを節約できているのである。
+
+## streamの使い分け
+
+### Readableストリームの使い分け
+
+公式より：
+https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#choose-one-api-style
+
+> 
+
+https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#two-reading-modes
+
+> `readable.pipe()`や`data`イベントハンドラをアタッチする方が`readable`を使うよりもわかりやすいです
+
+とはいえ、`readable`イベントを利用する方法（pausedモード）はスループットを向上させることができるかも
+
+とのこと
+
+スループット：コンピュータが単位時間あたりに処理できるデータ量のこと
+
 
 
 ## 疑問

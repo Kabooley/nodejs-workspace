@@ -226,9 +226,9 @@ readableストリームが正常に閉じられる
 の説明通りに提供すれば大丈夫
 
 
-## 実験記録
 
-### File Systemで画像をコピーするプログラム
+
+### 実践：File Systemで画像をコピーするプログラム
 
 `stream/file-to-file-stream.ts`
 
@@ -962,3 +962,159 @@ closeイベント発せしねーじゃん史ね
 結果：書き込みストリームは閉じられた
 
 なんやねん
+
+### paused モード
+
+覚えておくべきこと：
+
+- `stream.pause()`を必ず明示的に呼び出さなくてはならない
+
+- `data`イベントハンドラを呼び出してはならない
+
+- `stream.resume()`を呼出してはならない
+
+- `readable.pipe()`ではpausedモードにできない
+
+- ストリームの接続先がないときに、`stream.pase()`を呼び出すとpausedモードになる
+
+- pipeされているときに、pipeを除去することでpausedモードになる
+
+- `data`イベントハンドラをリムーブしてもただちにpausedモードになるわけではない
+
+- パイプされた宛先がある場合、 stream.pause() を呼び出しても、それらの宛先が排出されて追加のデータが要求されると、ストリームが一時停止したままになるとは限りません。
+
+- flowingモードでも`readable`イベントハンドラを追加するとflowingモードが解除される
+
+- pausedモードだと`readable.readableFlowing === false`になる
+
+- (共通)一つのストリームからの消費者を複数用意してはならない。
+
+必ず`on('data')`, `on('readble')`, `pipe()`いずれか一つを選ぶこと
+
+- `stream.pause()`は`readable`イベントリスナがあるところでは何の効果もない。
+
+- `readable.read()`はReadableがpausedモードの時だけ使うこと
+
+#### 実践：pausedモード
+
+```TypeScript
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
+const isDirExit = () => {
+    // Find out the directory is exists.
+}
+
+const createRfs = (): fs.ReadStream => {
+    if(!isDirExist(inPath)) throw new Error(`The path: ${inPath} does not exist.`);
+
+    return fs.createReadStream(
+        path.join(inPath, "text.txt"), 
+        {
+            encoding: 'utf8',     /* default: 'utf8' */
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 12     /* default: 64 * 1024 */
+        }
+    );
+}
+
+const rfs: fs.ReadStream = createRfs();
+
+rfs.on('error', (e: Error) => {
+    console.error(e.message);
+    // Destroy stream explicitly
+    /***
+     * オプショナルで`error`と`close`イベントを発行する
+     * 
+     * destroy() が呼び出されると、それ以降の呼び出しは何も行われず、
+     * _destroy() 以外のエラーは「エラー」として出力されることはありません。
+     * */ 
+    if(!rfs.destroyed) rfs.destroy(e);
+});
+
+rfs.on('close', () => {
+    console.log('close');
+    if(!rfs.destroyed) rfs.destroy(); 
+});
+
+rfs.on('end', () => {
+    console.log("end");
+    if(!rfs.destroyed) rfs.destroy(); 
+});
+
+
+rfs.on('pause', () => {
+    console.log("Readable paused");
+});
+
+rfs.on('resume', () => {
+    console.log('resume');
+    console.log(`state: ${rfs.readableFlowing}`);
+});
+
+
+
+/***
+ * `readable` event:
+ * 
+ * `readable`イベントはストリームから読み取るデータがあるときまたは
+ * 
+ * ストリームの「終わり」に到達したら発行されるイベントである。
+ * 
+ * `readable`は効果的にストリームに新しい情報があることを示す
+ * 
+ * もしもデータが得られるのならば、
+ * 
+ * `stream.read()`がデータを返すよ
+ * 
+ * 以下は公式の例と同じ。
+ * 
+ * 場合によっては、
+ * 
+ * `readable`イベントはかなりの量の塊を内部バッファへ保存してなくてはならない場合もある
+ * 
+ * 一般的に、`readable.pipe()`や
+ * */ 
+ rfs.on('readable', () => {
+    console.log("Readable Event");
+
+    let chunk = rfs.read();
+    // なくても大丈夫
+    // たぶんストリームのコンストラクタにautoCLoseを渡してあるから
+    if(chunk === null) rfs.close(); 
+    else console.log(`Read ${chunk.length} bytes of data and...`);
+
+    // stream.read()はストリームの終了に到達するとnullを返す
+    // そして`end`イベントを発行する
+    // つまりもう読み取るべきデータはないことを示す
+    /***
+     * 読み取れるデータがないとnullを返す
+     * 
+     * オプショナルの`size`引数は読み取りサイズを指定する
+     * 
+     * `size`byteが取得できないとき、ストリームが終了されていない限りnullが返される
+     * 
+     * `size`が指定されていないと内部バッファのすべてが返される
+     * 
+     * NOTE: `readable.read()`はReadableストリームがpausedモードであるときだけに使うこと
+     * 
+     * と公式に明示されているよ！
+     * */ 
+});
+
+```
+
+```bash
+Readable Event
+Read 12 bytes of data and...
+Readable Event
+Read 12 bytes of data and...
+Readable Event
+Read 12 bytes of data and...
+Readable Event
+Read 4 bytes of data and...
+Readable Event
+end
+close
+```

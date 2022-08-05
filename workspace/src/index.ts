@@ -31,6 +31,7 @@ Readableストリームは初めは必ずpausedモードで始まり、`data`イ
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 const outPath = path.join(__dirname, "out");
 const inPath = path.join(__dirname, "in");
@@ -55,41 +56,41 @@ const isDirExist = (path: string): boolean => {
     return fs.lstatSync(path).isDirectory() && fs.existsSync(path);
 }
 
-/*
-    interface ReadStreamOptions extends StreamOptions {
-        end?: number | undefined;
-    }
-    interface StreamOptions {
-        flags?: string | undefined;
-        encoding?: BufferEncoding | undefined;
-        fd?: number | promises.FileHandle | undefined;
-        mode?: number | undefined;
-        autoClose?: boolean | undefined;
-         emitClose?: boolean | undefined;
-         start?: number | undefined;
-         highWaterMark?: number | undefined;
-     }
 
-     ということですべてオプショナルである。
+// /*
+//     interface ReadStreamOptions extends StreamOptions {
+//         end?: number | undefined;
+//     }
+//     interface StreamOptions {
+//         flags?: string | undefined;
+//         encoding?: BufferEncoding | undefined;
+//         fd?: number | promises.FileHandle | undefined;
+//         mode?: number | undefined;
+//         autoClose?: boolean | undefined;
+//          emitClose?: boolean | undefined;
+//          start?: number | undefined;
+//          highWaterMark?: number | undefined;
+//      }
 
-     読取highWaterMarkは1024byteにしてみる
-*/ 
+//      ということですべてオプショナルである。
 
-const createRfs = (): fs.ReadStream => {
-    if(!isDirExist(inPath)) throw new Error(`The path: ${inPath} does not exist.`);
+//      読取highWaterMarkは1024byteにしてみる
+// */ 
+// const createRfs = (): fs.ReadStream => {
+//     if(!isDirExist(inPath)) throw new Error(`The path: ${inPath} does not exist.`);
 
-    return fs.createReadStream(
-        path.join(inPath, "cat.png"), 
-        {
-            encoding: 'binary',     /* default: 'utf8' */
-            autoClose: true,
-            emitClose: true,
-            highWaterMark: 1024     /* default: 64 * 1024 */
-        }
-    );
+//     return fs.createReadStream(
+//         path.join(inPath, "cat.png"), 
+//         {
+//             encoding: 'binary',     /* default: 'utf8' */
+//             autoClose: true,
+//             emitClose: true,
+//             highWaterMark: 1024     /* default: 64 * 1024 */
+//         }
+//     );
     
     
-}
+// }
 
 
 // const createWfs = (): fs.WriteStream => {
@@ -286,43 +287,108 @@ const createRfs = (): fs.ReadStream => {
 // })();
 
 
-(function() {
-    const rfs: fs.ReadStream = createRfs();
-    
-    rfs.on('open', (): void => {
-        console.log("readable stream has been opened");
-    });
 
-    rfs.on('ready', (): void => {
-        console.log("readable stream is ready");
-    });
+// -- PAUSED MODE ---------------
+/*********
+ * `paused`モードなので
+ * 
+ * 
+ * 
+ * */
+const createRfs = (): fs.ReadStream => {
+    if(!isDirExist(inPath)) throw new Error(`The path: ${inPath} does not exist.`);
 
-    rfs.on('close', (): void => {
-        console.log('readable stream has been closed');
-    });
+    return fs.createReadStream(
+        path.join(inPath, "text.txt"), 
+        {
+            encoding: 'utf8',     /* default: 'utf8' */
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 12     /* default: 64 * 1024 */
+        }
+    );
+}
 
-    rfs.on('end', (): void => {
-        console.log('End read stream');
-        console.log('There is no more data to be consumed from the stream');
-    });
+const rfs: fs.ReadStream = createRfs();
 
-    rfs.on('resume', (): void => {
-        console.log('resume');
-        console.log(`readaleFlowing: ${rfs.readableFlowing}`);
-    });
+rfs.on('error', (e: Error) => {
+    console.error(e.message);
+    // Destroy stream explicitly
+    /***
+     * オプショナルで`error`と`close`イベントを発行する
+     * 
+     * destroy() が呼び出されると、それ以降の呼び出しは何も行われず、
+     * _destroy() 以外のエラーは「エラー」として出力されることはありません。
+     * */ 
+    if(!rfs.destroyed) rfs.destroy(e);
+});
 
-    rfs.on('error', (e: Error): void => {
-        console.error(e.message);
-        rfs.resume();
-    });
+rfs.on('close', () => {
+    console.log('CLOSE');
+    if(!rfs.destroyed) rfs.destroy(); 
+});
 
-    rfs.on('pause', (): void => {
-        console.log("readable paused");
-    })
+rfs.on('end', () => {
+    console.log("end");
+    if(!rfs.destroyed) rfs.destroy(); 
+});
 
-    rfs.on('data', (chunk: string | Buffer): void => {
-        console.log('data read!');
-        console.log(`state: ${rfs.readableFlowing}`);
-        console.log(`Received ${chunk.length} bytes of data.`);
-    });
-})()
+
+rfs.on('pause', () => {
+    console.log("Readable paused");
+});
+
+rfs.on('resume', () => {
+    console.log('resume');
+    console.log(`state: ${rfs.readableFlowing}`);
+});
+
+
+
+/***
+ * `readable` event:
+ * 
+ * `readable`イベントはストリームから読み取るデータがあるときまたは
+ * 
+ * ストリームの「終わり」に到達したら発行されるイベントである。
+ * 
+ * `readable`は効果的にストリームに新しい情報があることを示す
+ * 
+ * もしもデータが得られるのならば、
+ * 
+ * `stream.read()`がデータを返すよ
+ * 
+ * 以下は公式の例と同じ。
+ * 
+ * 場合によっては、
+ * 
+ * `readable`イベントはかなりの量の塊を内部バッファへ保存してなくてはならない場合もある
+ * 
+ * 一般的に、`readable.pipe()`や
+ * */ 
+ rfs.on('readable', () => {
+    console.log("Readable Event");
+
+    let chunk = rfs.read();
+    // なくても大丈夫
+    // たぶんストリームのコンストラクタにautoCLoseを渡してあるから
+    if(chunk === null) rfs.close(); 
+    else console.log(`Read ${chunk.length} bytes of data and...`);
+
+    // stream.read()はストリームの終了に到達するとnullを返す
+    // そして`end`イベントを発行する
+    // つまりもう読み取るべきデータはないことを示す
+    /***
+     * 読み取れるデータがないとnullを返す
+     * 
+     * オプショナルの`size`引数は読み取りサイズを指定する
+     * 
+     * `size`byteが取得できないとき、ストリームが終了されていない限りnullが返される
+     * 
+     * `size`が指定されていないと内部バッファのすべてが返される
+     * 
+     * NOTE: `readable.read()`はReadableストリームがpausedモードであるときだけに使うこと
+     * 
+     * と公式に明示されているよ！
+     * */ 
+});
