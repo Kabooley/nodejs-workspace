@@ -12,6 +12,7 @@ TODO: Node.js デザインパターン本を立ち読みしてこよう
 
 
 [Readableの実装方法](#Readableの実装方法)
+[Readableのモード切替方法](#Readableのモード切替方法)
 [chunkは直接渡していい](#chunkは直接渡していい)
 [on()はEventTarget.addEventListenerのNode.js特化版](#on()はEventTarget.addEventListenerのNode.js特化版)
 [Writableストリームは`close`イベントを自動発行してくれない](#Writableストリームは`close`イベントを自動発行してくれない)
@@ -967,7 +968,7 @@ closeイベント発せしねーじゃん史ね
 
 覚えておくべきこと：
 
-- `stream.pause()`を必ず明示的に呼び出さなくてはならない
+- `stream.read()`を必ず明示的に呼び出さなくてはならない
 
 - `data`イベントハンドラを呼び出してはならない
 
@@ -975,7 +976,7 @@ closeイベント発せしねーじゃん史ね
 
 - `readable.pipe()`ではpausedモードにできない
 
-- ストリームの接続先がないときに、`stream.pase()`を呼び出すとpausedモードになる
+- ストリームの接続先がないときに、`stream.pause()`を呼び出すとpausedモードになる
 
 - pipeされているときに、pipeを除去することでpausedモードになる
 
@@ -996,6 +997,19 @@ closeイベント発せしねーじゃん史ね
 - `readable.read()`はReadableがpausedモードの時だけ使うこと
 
 #### 実践：pausedモード
+
+`dist/in/text.txt`を読み取るストリーム。
+
+`text.txt`は40byte.
+
+仮定：
+
+学習した内容から次のコードはこうなるはずという仮定。
+
+- flowingモードになるトリガーが一切なければ`readable.readableFlowing`は常に`false`になるはず
+
+- `readable`イベントリスナがあるから`stream.pause()`を呼出しても意味をなさないはず
+- `stream.resume()`を呼出したら`readable`は働かなくなるはず
 
 ```TypeScript
 import * as fs from 'node:fs';
@@ -1118,3 +1132,101 @@ Readable Event
 end
 close
 ```
+
+検証２：途中でflowingモードに切り割るか？
+
+```bash
+# pausedモード
+ Readable Event
+ Read 12 bytes of data and...
+ Readable Event
+ Read 12 bytes of data and...
+ Readable Event
+ Read 12 bytes of data and...
+ Readable Event
+#  flowingモードへ切り替わった
+ >> Switched to flowing mode.
+ state: false
+#  `data`イベントハンドラで「続き」を取得した
+ [flowing] Read 4 bytes of data and...
+#  `readable`イベントがまだ反応している...
+ Read 4 bytes of data and...
+#  resumeイベントハンドラの反応遅い
+ resume
+#  いまだにreadableFlowingはfalseのまま
+# よみとるデータがないせいかも？
+ state: false
+ Readable Event
+ >> Switched to flowing mode.
+ state: false
+ resume
+ state: false
+ end
+ CLOSE
+```
+
+```bash
+ Readable Event
+ Read 12 bytes of data and...
+ Readable Event
+ Read 12 bytes of data and...
+ Readable Event
+ Read 12 bytes of data and...
+ Readable Event
+ Read 4 bytes of data and...
+ resume
+ state: false
+ >> Switched to flowing mode.
+ Readable Event
+ end
+ CLOSE
+```
+
+やってみてわかったこと
+
+切り替えはうまくいかない。
+
+#### Readableのモード切替方法
+
+Readableには2つのモードがある
+
+- flowingモード：データの取得はシステムが自動的に行ってくれてデータはイベントハンドラで取得できる
+- pausedモード：`stream.read()`を明示的に呼び出してストリームのチャンクを取得する
+
+この2つのモードを切り替える方法
+
+flowingモードに切り替える方法：
+
+- `data`イベントハンドラを追加する
+- `stream.resume()`を呼び出す
+- `stream.pipe()`で`Writable`へデータを送信する
+
+pausedモードに切り替える方法：
+
+- pipeの到達地点がないときに、`stream.pause()`を呼出したとき
+- pipeの到達地点があるときに`stream.unpipe()`を呼び出すと起こりうる
+
+ということで、
+
+`stream.resume()`はflowingモードに切り替えて、`stream.pause()`はflowingモードから解除をするので対照的
+
+`stream.pause()`:
+
+> readable.pause() メソッドは、フロー モードのストリームに「データ」イベントの発行を停止させ、フロー モードから切り替えます。利用可能になったデータは内部バッファに残ります。
+
+`stream.resume()`:
+
+> readable.resume() メソッドは、明示的に一時停止された Readable ストリームに「データ」イベントの発行を再開させ、ストリームをフロー モードに切り替えます。
+
+
+対照的である。
+
+
+
+
+注意：
+
+- `stream.resume()`だけを呼出してもデータが失われる可能性がある。
+
+なので`stream.resume()`でflowingモードに切り替えるときは`data`イベントハンドラなど消費者を用意しておかなくてはならない
+

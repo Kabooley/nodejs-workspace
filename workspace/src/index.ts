@@ -309,6 +309,7 @@ const createRfs = (): fs.ReadStream => {
     );
 }
 
+let counter: number = 0;
 const rfs: fs.ReadStream = createRfs();
 
 rfs.on('error', (e: Error) => {
@@ -341,6 +342,11 @@ rfs.on('pause', () => {
 rfs.on('resume', () => {
     console.log('resume');
     console.log(`state: ${rfs.readableFlowing}`);
+    console.log(">> Switched to flowing mode.");
+    // pausedモードのままならば
+    rfs.on('data', (chunk) => {
+        console.log(`[flowing] Read ${chunk.length} bytes of data and...`);
+    });
 });
 
 
@@ -369,11 +375,19 @@ rfs.on('resume', () => {
  rfs.on('readable', () => {
     console.log("Readable Event");
 
+    // 検証２
+    // pausedモードでの読み取りが3回を超えたら
+    // stream.resume()を呼び出してどうなるか見てみる
+    if(counter === 3) {
+        rfs.resume();
+    }
+
     let chunk = rfs.read();
     // なくても大丈夫
     // たぶんストリームのコンストラクタにautoCLoseを渡してあるから
     if(chunk === null) rfs.close(); 
     else console.log(`Read ${chunk.length} bytes of data and...`);
+    counter++;
 
     // stream.read()はストリームの終了に到達するとnullを返す
     // そして`end`イベントを発行する

@@ -285,6 +285,7 @@ const createRfs = () => {
         highWaterMark: 12 /* default: 64 * 1024 */
     });
 };
+let counter = 0;
 const rfs = createRfs();
 rfs.on('error', (e) => {
     console.error(e.message);
@@ -314,6 +315,11 @@ rfs.on('pause', () => {
 rfs.on('resume', () => {
     console.log('resume');
     console.log(`state: ${rfs.readableFlowing}`);
+    console.log(">> Switched to flowing mode.");
+    // pausedモードのままならば
+    rfs.on('data', (chunk) => {
+        console.log(`[flowing] Read ${chunk.length} bytes of data and...`);
+    });
 });
 /***
  * `readable` event:
@@ -338,11 +344,20 @@ rfs.on('resume', () => {
  * */
 rfs.on('readable', () => {
     console.log("Readable Event");
+    // 検証２
+    // pausedモードでの読み取りが3回を超えたら
+    // stream.resume()を呼び出してどうなるか見てみる
+    if (counter === 3) {
+        rfs.resume();
+    }
     let chunk = rfs.read();
+    // なくても大丈夫
+    // たぶんストリームのコンストラクタにautoCLoseを渡してあるから
     if (chunk === null)
         rfs.close();
     else
         console.log(`Read ${chunk.length} bytes of data and...`);
+    counter++;
     // stream.read()はストリームの終了に到達するとnullを返す
     // そして`end`イベントを発行する
     // つまりもう読み取るべきデータはないことを示す
@@ -351,7 +366,9 @@ rfs.on('readable', () => {
      *
      * オプショナルの`size`引数は読み取りサイズを指定する
      *
-     * `size`が指定されないと内部バッファのすべてのデータが返される
+     * `size`byteが取得できないとき、ストリームが終了されていない限りnullが返される
+     *
+     * `size`が指定されていないと内部バッファのすべてが返される
      *
      * NOTE: `readable.read()`はReadableストリームがpausedモードであるときだけに使うこと
      *
