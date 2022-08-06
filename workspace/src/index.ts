@@ -93,18 +93,18 @@ const isDirExist = (path: string): boolean => {
 // }
 
 
-// const createWfs = (): fs.WriteStream => {
-//     if(!isDirExist(outPath)) throw new Error(`The path: ${outPath} does not exist.`);
+const createWfs = (): fs.WriteStream => {
+    if(!isDirExist(outPath)) throw new Error(`The path: ${outPath} does not exist.`);
 
-//     return fs.createWriteStream(
-//         path.join(outPath, "cat" + randomString(4) + ".png"), 
-//         { 
-//             encoding: 'binary',     /* default: 'utf8' */
-//             autoClose: true,
-//             emitClose: true,
-//             highWaterMark: 1024     /* default: 64 * 1024 */
-//     });
-// }
+    return fs.createWriteStream(
+        path.join(outPath, "cat" + randomString(4) + ".png"), 
+        { 
+            encoding: 'binary',     /* default: 'utf8' */
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 1024     /* default: 64 * 1024 */
+    });
+}
 
 
 

@@ -10,12 +10,19 @@ TODO: Node.js デザインパターン本を立ち読みしてこよう
 
 ## 結論
 
+Readable
 
 [Readableの実装方法](#Readableの実装方法)
 [Readableのモード切替方法](#Readableのモード切替方法)
 [chunkは直接渡していい](#chunkは直接渡していい)
 [on()はEventTarget.addEventListenerのNode.js特化版](#on()はEventTarget.addEventListenerのNode.js特化版)
-[Writableストリームは`close`イベントを自動発行してくれない](#Writableストリームは`close`イベントを自動発行してくれない)
+
+Writable
+
+[Writableストリームが自動で閉じる条件](#Writableストリームが自動で閉じる条件)
+[`drain`と`writable.write()`の仕組み](#`drain`と`writable.write()`の仕組み)
+[`writable.end()`と`writable.destroy()`の使い分け](#`writable.end()`と`writable.destroy()`の使い分け)
+[書込ストリームの終わらせ方の導き方](#書込ストリームの終わらせ方の導き方)
 [ストリームを閉じないと起こる現象](#ストリームを閉じないと起こる現象)
 [エラーハンドリング](#エラーハンドリング)
 [pipe](#pipe)
@@ -1229,4 +1236,128 @@ pausedモードに切り替える方法：
 - `stream.resume()`だけを呼出してもデータが失われる可能性がある。
 
 なので`stream.resume()`でflowingモードに切り替えるときは`data`イベントハンドラなど消費者を用意しておかなくてはならない
+
+## Writableストリームが自動で閉じる条件
+
+結論：**書き込みストリームの破棄は明示的に実行しなくてはならない**
+
+たとえば次のような使い方の時に、
+
+`Writable`を作る時にコンストラクタに`autoClose: true`, `emitClose`を渡しても自動で`Writable`は自身を閉じてくれない。
+
+```TypeScript
+// rfs: fs.Readable
+// wfs: fs.Writable
+    rfs.on('data', (chunk: string | Buffer): void => {
+ 
+        wfs.write(chunk, (e: Error | null | undefined): void => {
+            if(e) console.error(e.message);
+            else console.log("Write data has been completed");
+        });
+    });
+
+    rfs.on('end', () => {
+        console.log("End Readable");
+    });
+
+    wfs.on("close", () => {
+        console.log("Close Writable");
+    });
+
+// When readable end up to read data...
+// End Readable
+```
+
+理由は、
+
+`error`または`close`または`finishi`イベントが発行されていないからである。
+
+公式を見てみる：
+
+`fs.createWriteStream()`より
+
+> 「error」または「finish」時に autoClose が true (デフォルトの動作) に設定されている場合、ファイル記述子は自動的に閉じられます。 
+
+> デフォルトでは、ストリームは破棄された後に「close」イベントを発行します。この動作を変更するには、emitClose オプションを false に設定します。
+
+`fs.Writable::Event:'close'`より
+
+> 「close」イベントは、ストリームとその基になるリソース (ファイル記述子など) が閉じられたときに発行されます。このイベントは、これ以上イベントが発行されず、それ以上の計算が行われないことを示します。
+
+つまり`close`イベントは`Writable`ストリームの仕事が完全に終わったときに発行されるべき。
+
+`fs.Writable::Event'finish'`より
+
+> 「finish」イベントは、stream.end() メソッドが呼び出された後に発行され、すべてのデータが基盤となるシステムにフラッシュされます。
+
+ということは、実は`Writable`は`autoClose: true`にしても勝手にとるのではなくて、閉じるためにイベントを発行させなくてはならないのである。
+
+`autoClose: true`は`error`か`finishi`イベントが発行されたら書き込みストリームを閉じるよという意味で、
+
+`emitClose: true`は「ストリームが破棄されたときに`close`イベントを発行するよ」という意味で、
+
+「書き込みストリームの破棄」は自動で行うよとは一言も言っていないのである。
+
+なので**書き込みストリームの破棄は明示的に実行しなくてはならない**
+
+其の方法がこちら：[`writable.end()`と`writable.destroy()`の使い分け](#`writable.end()`と`writable.destroy()`の使い分け)
+
+
+## `drain`と`writable.write()`の仕組み
+
+参考：
+
+> https://stackoverflow.com/a/45905612/13891684
+
+> https://stackoverflow.com/a/50360972/13891684
+
+> 公式
+
+
+
+## `writable.end()`と`writable.destroy()`の使い分け
+
+1. `Writable`を破棄する前に内部バッファをフラッシュしたいときは`writable.end()`を呼び出そう。
+
+なぜならば、`writable.end()`ならば`close`イベントの前に`finish`イベントを発行させることができるからである。
+
+公式より：
+
+- `close`イベントが発行されるとこれ以降の書き込みは受け付けなくなる。
+
+- `finish`イベントが発行されると内部バッファのデータがすべて書き込まれる。
+
+- もしも`Writable`が`autoClose: true`で作成されてあったら、`finish`イベント時に`Writable`が破棄される(`fs.createWritableStream()`より)
+
+つまり、
+
+書き込みストリームを破棄する前に、内部バッファにあるデータを書き込み先に書き込んじゃいたいときには`finish`イベントを呼び出さない限り書き込む方法は失われるのである。
+
+`finish`イベントを呼び出す前に`close`イベントが発行されると内部バッファにデータがあってもこれ以上の書き込みは受け付けなくなっているので、そのデータは行き先を失ってガベージコレクションに追加される。
+
+たとえば、
+
+内部バッファに残ったデータ量が大きいときに`close`イベントを発行してしまうと大きなメモリリークになりかねない。
+
+イベント発行タイミングと内部バッファがちょうどクリアされているタイミングが一致するのはあんまり期待できない。
+
+なので、
+
+普段使うときは`writable.end()`,`finsih`,`close`のながれで`Writable`を閉じていくのが推奨の流れといえるでしょう。
+
+
+2. ただちに`Writable`を破棄しなくてはならないなら`writable.destory`を呼び出そう
+
+なぜならば、`writable.destroy()`は呼び出されると直ちに`close`イベントを発行させるからである。
+
+(`Writable`コンストラクタに`emitClose:false`を渡してなければ)
+
+先にも書いた通り、`close`が発行されるとこれ以上の書き込みは受け付けなくなるので内部バッファに玉ってあったデータはストリーム先に書き込まれない。
+
+## 書込ストリームの終わらせ方の導き方
+
+...を導くには次の前提知識が必要
+
+- [`drain`と`writable.write()`の仕組み](#`drain`と`writable.write()`の仕組み)
+- [`writable.end()`と`writable.destroy()`の使い分け](#`writable.end()`と`writable.destroy()`の使い分け)
 
