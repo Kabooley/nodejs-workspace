@@ -1,3 +1,9 @@
+/*********************************************************
+ * http.get()でweb上の画像ファイルを読み取って、
+ * fs.writeFile()でローカルに書き込むプログラム
+ * 
+ * 
+ * */ 
 import { IncomingMessage } from "http";
 import https from "node:https";
 import http from "node:http";

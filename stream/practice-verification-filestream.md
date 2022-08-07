@@ -112,78 +112,78 @@ const createRfs = (): fs.ReadStream => {
 ```bash
 5:09:47 AM - Starting compilation in watch mode...
 [start:*build] 
-[start:*run] [nodemon] restarting due to changes...
-[start:*run] [nodemon] starting `node ./dist/index.js`
-[start:*run] [nodemon] restarting due to changes...
+ [nodemon] restarting due to changes...
+ [nodemon] starting `node ./dist/index.js`
+ [nodemon] restarting due to changes...
 [start:*build] 
 [start:*build] 5:09:48 AM - Found 0 errors. Watching for file changes.
-[start:*run] [nodemon] starting `node ./dist/index.js`
+ [nodemon] starting `node ./dist/index.js`
 
 # resumeイベントはreadableFlowing is not trueの時に発行される
 # trueやんけ
 # たぶんコールバックが実行される頃にはtrueになるんだと思う
-[start:*run] resume
-[start:*run] readaleFlowing: true
+ resume
+ readaleFlowing: true
 
 # open
-[start:*run] readable stream has been opened
+ readable stream has been opened
 # ready
-[start:*run] readable stream is ready
+ readable stream is ready
 
 # data
-[start:*run] data read!
-[start:*run] state: true
+ data read!
+ state: true
 # highWaterMark通りの閾値を取得している
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 905 bytes of data.
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ data read!
+ state: true
+ Received 905 bytes of data.
 
 # end
-[start:*run] End read stream
-[start:*run] There is no more data to be consumed from the stream
+ End read stream
+ There is no more data to be consumed from the stream
 # close
-[start:*run] readable stream has been closed
-[start:*run] [nodemon] clean exit - waiting for changes before restart
+ readable stream has been closed
+ [nodemon] clean exit - waiting for changes before restart
 ```
 
 流れ：
@@ -1305,15 +1305,244 @@ pausedモードに切り替える方法：
 
 ## `drain`と`writable.write()`の仕組み
 
+重要：
+
+- `writable.write()`が`false`を返したら`drain`イベントが発行されるまでデータ書き込みは停止せよ
+
 参考：
 
-> https://stackoverflow.com/a/45905612/13891684
+- https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#event-drain
 
-> https://stackoverflow.com/a/50360972/13891684
+> `stream.write()`呼出が`false`を返したら、**ストリームへのデータの書き込みを再開するのが適切なときに「drain」イベントが発行されます。**
 
-> 公式
+- https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#buffering
+
+> (読み取りストリームは)ひとた内部バッファに保存しているデータ量が`highWaterMark`で指定した閾値に到達したら、読取ストリームはデータが消費されるまで一時的にデータを読み取るのを停止する。
+
+> (書込みストリームは)`writable.write()`が継続的に呼び出されるとデータは`Writable`ストリームへバッファされる。
+
+> (書込みストリームの)内部バッファが`highWaterMark`で指定した閾値へ保存データ量が到達まで、`writable.write()`はtrueを返し、到達したら`false`を返す。
+
+- https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#writablewritechunk-encoding-callback
+
+> (`writable.write()`は)内部バッファが、チャンクを受け入れた後にストリームが作成されたときに構成された `highWaterMark`よりも小さい場合、戻り値は`true`です。 
+
+> **`false`が返された場合、`drain`イベントが発行されるまで、ストリームへのデータ書き込みのさらなる試みは停止する必要があります。**
+
+> ひとたびバッファへ保存されたchunkがドレインしたら（内部バッファに保存されたデータが書き込み可能になったら）`drain`イベントが発行されます。
+
+> **`writable.write()`が`false`を返したら、`drain`イベントが発行されるまでchunkの書込みを停止するのが推奨されます。**
+
+ーーー＞
 
 
+ということで、まとめると...
+
+- `highWaterMark`は内部バッファの「満タン」を（形式的に）定義してストリームを制御する
+
+- `writable.write()`が`false`を返したら`drain`イベントが発行されるまでデータ書き込みは停止せよ
+
+- `drain`イベントが発行されてからchunkの書込みを再開せよ
+
+わかった。よくわかった。
+
+では`wrtiable.write()`の戻り値を毎回チェックするとして、`false`が返されたら実際にどう処理すればいいのか？
+
+公式では次を示されている
+
+- https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#writablewritechunk-encoding-callback
+
+> 書き込むデータをオンデマンドで生成またはフェッチできる場合は、ロジックを Readable にカプセル化し、stream.pipe() を使用することをお勧めします。
+
+> ただし、write() の呼び出しが優先される場合は、「drain」イベントを使用してバックプレッシャーを尊重し、メモリの問題を回避することができます。
+
+つまり上でいうところの推奨は`radable.pipe()`を使えである。
+
+```TypeScript
+const rfs: fs.Readable = createReadStream(/**/);
+const wfs: fs.Writable = createWriteStream(/**/);
+rfs.pipe(wfs);
+```
+
+なんでかというと、pipeは内部的に`drain`を制御している
+
+参考：
+
+- https://techblog.yahoo.co.jp/advent-calendar-2016/node-stream-highwatermark/
+
+```JavaScript
+
+Readable.prototype.pipe = function(dest) {
+  var src = this;
+  src.on('data', (chunk) => {
+    var ret = dest.write(chunk); // 読み込んだデータを dest に書き込む
+    if (false === ret) { // highWaterMark に達していたら
+      src.pause(); // 読み込み一時停止
+    }
+  });
+
+  dest.on('drain', () => { // highWaterMark を下回る
+    flow(src); // 読み込み再開
+  });
+};
+```
+
+つまり`pipe`を使えば`drain`イベントに関する制御を丸投げできるのである。
+
+それでも`pipe()`を使えない事情があるとか完全に使用メモリ量を制御したいならば、
+
+`writable.write()`を直接呼出す実装を自分で定義することになる。
+
+参考：
+
+- https://stackoverflow.com/a/45905612/13891684
+
+- https://stackoverflow.com/a/50360972/13891684
+
+課題：
+
+- `writable.write()`がfalseを返したときにどうやって一時停止すればいいのか？
+- `drain`イベントが発行されたらどうやって一時停止を解除すればいいのか？
+
+公式や参考のサイトでは`process.nextTick()`, `flow()`みたいな関数を使われていた
+
+`writable.once('drain', WRITEMETHOD)`みたいなイベントハンドラもあるみたい
+
+しかし、
+
+[Readableのモード切替方法](#Readableのモード切替方法)で学習したように
+
+**`readable.pause()`と`readable.resume()`を使えばいい。**
+
+```TypeScript
+// stream/fs_writable_write.ts
+// 19kbのファイルのコピーを作るプログラム
+
+const rfs: fs.Readable = fs.createReadStream(/* params */);
+const wfs: fs.Writable = fs.createWriteStream(/* params */);
+
+let draining: boolean = true;
+
+rfs.on('data', (chunk) => {
+    console.log(`Readable read ${chunk.length} byte of data`)
+    draining = wfs.write(chunk, (e: Error | null | undefined) => {
+        if(e) {
+            // ここでエラーが起こったら`error`イベント前にこの
+            // コールバックが実行される
+            console.error(e.message);
+        }
+    });
+    // chunkを書き込んだ後のwriteの戻り値がfalseなら
+    // 読取ストリームはすぐに停止する
+    if(!draining) {
+        console.log('Paused Readable because of reaching highWaterMark');
+        rfs.pause();
+    }
+});
+
+// `drain`イベントは書込みが再開できるときに発行される
+wfs.on('drain', () => {
+    console.log('Drained and resume Readable again.');
+    // drainイベントが発行されたら読取ストリームの読取を再開する
+    draining = true;
+    rfs.resume();
+});
+
+wfs.on('end', () => {
+    console.log('End Readable');
+});
+
+wfs.on('finish', () => {
+    console.log('Finished');
+});
+
+wfs.on('close', () => {
+    console.log('Writable closed');
+});
+
+/***
+ * `error`イベントが発行されたらストリームは閉じられる
+ * 
+ * `error`以降`close`イベント以外発行されてはならない
+ * */ 
+wfs.on('error', (e: Error) => {
+    if(!wfs.destroyed) wfs.destroy(e);
+});
+
+rfs.on('end', () => {
+    console.log('there is no more data to be consumed from Readable');
+    // NOTE: writableの破棄は明示的に
+    wfs.end();
+})
+
+rfs.on('error', (e: Error) => {
+    if(!rfs.destroyed) rfs.destroy(e);
+});
+
+```
+結果：
+
+```bash
+
+# 開始
+ Drained and resume Readable again.
+#  highWaterMarkで指定した通りのデータサイズを読み取った
+ Readable read 1024 byte of data
+#  highWaterMarkが閾値ぴったりになったのでwritable.writeがfalseを返しReadableを一時停止した
+ Paused Readable because of reaching highWaterMark
+#  drainイベント
+#  書き込めるようになったので書き込み再開
+ Drained and resume Readable again.
+
+#  以下しばらく同じ流れが続く
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 1024 byte of data
+ Paused Readable because of reaching highWaterMark
+ Drained and resume Readable again.
+ Readable read 905 byte of data
+
+#  Readableにendイベント
+# Readableが破棄される
+# 実装のWritable.end()が実行される
+ there is no more data to be consumed from Readable
+#  writable.end()ではfinishiイベントが発行される
+# 書込みストリームの内部バッファがフラッシュされて...
+ Finished
+#  そのまま書込みストリームは閉じられた
+ Writable closed
+#  正常終了
+ [nodemon] clean exit - waiting for changes before restart
+```
+
+もちろん上記の通りの実装でstreamを使うならpipe()を使った方がわかりやすく話が早い。
+
+しかしpipe()を使わない場合にベースの実装を実現することができた。
 
 ## `writable.end()`と`writable.destroy()`の使い分け
 
