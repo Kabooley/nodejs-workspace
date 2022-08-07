@@ -1,12 +1,10 @@
 "use strict";
 /*****
- * file to file stream
+ * ローカルの画像ファイルのコピーを作成するプログラム
  *
- * Readable streamの挙動を確認するプログラム
+ * `drain`と`writable.write()`の挙動を確認する
  *
- * dist/in/cat.pngをdist/out/cat.pngへコピーする
- *
- * Readable streamはflowingモードである
+ *  詳しくは`./practice-verification-filestream.md`に。
  * */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;

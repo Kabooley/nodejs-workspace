@@ -1,4 +1,4 @@
-# 実践と検証： File System stream
+# 実践と検証と整理： File System stream
 
 dist/in/cat.pngをストリームでdist/out/cat.pngへコピーするプログラムを作って
 
@@ -6,9 +6,10 @@ streamの挙動を確認、検証する。
 
 streamは`fs.createReadStrem`, `fs.createWriteStream`で生成されるインスタンスを使用する。
 
-TODO: Node.js デザインパターン本を立ち読みしてこよう
 
-## 結論
+## 目次
+
+[実践](#実践)
 
 Readable
 
@@ -22,239 +23,24 @@ Writable
 [Writableストリームが自動で閉じる条件](#Writableストリームが自動で閉じる条件)
 [`drain`と`writable.write()`の仕組み](#`drain`と`writable.write()`の仕組み)
 [`writable.end()`と`writable.destroy()`の使い分け](#`writable.end()`と`writable.destroy()`の使い分け)
-[書込ストリームの終わらせ方の導き方](#書込ストリームの終わらせ方の導き方)
-[ストリームを閉じないと起こる現象](#ストリームを閉じないと起こる現象)
 [エラーハンドリング](#エラーハンドリング)
 [pipe](#pipe)
+[実践：改善版](#実践：改善版)
 
-## Readableの実装方法: flowingモード
+### 実践
 
-次の通りに実装するだけ。
+画像をコピーするプログラム。
 
-問題は起こらない。
+次の仮定（NOTE: 思い込み）で作られている
 
-```TypeScript
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as crypto from 'node:crypto';
-
-const outPath = path.join(__dirname, "out");
-const inPath = path.join(__dirname, "in");
-
-const randomString = (upto: number): string => {
-    // ...
-}
-
-const isDirExist = (path: string): boolean => {
-    // ...
-}
-
-const createRfs = (): fs.ReadStream => {
-    if(!isDirExist(inPath)) throw new Error(`The path: ${inPath} does not exist.`);
-
-    return fs.createReadStream(
-        path.join(inPath, "cat.png"), 
-        {
-            encoding: 'binary',     /* default: 'utf8' */
-            autoClose: true,
-            emitClose: true,
-            highWaterMark: 1024     /* default: 64 * 1024 */
-        }
-    );
-}
-
-(function() {
-    const rfs: fs.ReadStream = createRfs();
-
-    // --- Readable Event Handlers ------------
-
-    
-    rfs.on('open', (): void => {
-        console.log("readable stream has been opened");
-    });
-
-    rfs.on('ready', (): void => {
-        console.log("readable stream is ready");
-    });
-
-    rfs.on('close', (): void => {
-        console.log('readable stream has been closed');
-        wfs.end();
-    });
-
-    rfs.on('end', (): void => {
-        console.log('End read stream');
-        console.log('There is no more data to be consumed from the stream');
-    });
-
-    rfs.on('resume', (): void => {
-        console.log('resume');
-        console.log(`readaleFlowing: ${rfs.readaleFlowing}`);
-    });
-
-    rfs.on('error', (e: Error): void => {
-        console.error(e.message);
-        rfs.resume();
-    });
-
-    rfs.on('pause', (): void => {
-        console.log("readable paused");
-    })
-
-    rfs.on('data', (chunk: string | Buffer): void => {
-        console.log('data read!');
-        console.log(`state: ${rfs.readableFlowing}`);
-        console.log(`Received ${chunk.length} bytes of data.`);
-    });
-})();
-```
-
-```bash
-5:09:47 AM - Starting compilation in watch mode...
-[start:*build] 
- [nodemon] restarting due to changes...
- [nodemon] starting `node ./dist/index.js`
- [nodemon] restarting due to changes...
-[start:*build] 
-[start:*build] 5:09:48 AM - Found 0 errors. Watching for file changes.
- [nodemon] starting `node ./dist/index.js`
-
-# resumeイベントはreadableFlowing is not trueの時に発行される
-# trueやんけ
-# たぶんコールバックが実行される頃にはtrueになるんだと思う
- resume
- readaleFlowing: true
-
-# open
- readable stream has been opened
-# ready
- readable stream is ready
-
-# data
- data read!
- state: true
-# highWaterMark通りの閾値を取得している
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 1024 bytes of data.
- data read!
- state: true
- Received 905 bytes of data.
-
-# end
- End read stream
- There is no more data to be consumed from the stream
-# close
- readable stream has been closed
- [nodemon] clean exit - waiting for changes before restart
-```
-
-流れ：
-
-readableストリームインスタンスが生成された
-
-readableストリームは`paused`モードになっている
-
-このとき`readable.readableFlowing === null`である
-
-`readable.readableFlowing === null`のとき、readableストリームには何もデータ消費者が提供されていないことを示し、データ取得を行わない状態である。
-
-`readable.readableFlowing !== true`なので`resume`イベントが発行される
-
-`data`イベントハンドラがついているのですぐさま`flowing`モードに変更する
-
-このとき`readable.readableFlowing === true`である
-
-readableストリームはデータの取得を開始する
-
-`data`イベントハンドラがreadableストリームが取得してきたchunkを取得する
-
-`highWaterMark`で指定した閾値通りの量を毎度取得してくる
-
-readableストリームの読み取り先から読み取るデータがなくなったら`end`イベントがまず発行される
-
-`end`イベントは「読み取るデータがもうない」ことを示す
-
-その後、createReadStreamでautoClose, emitCloseでtrueを渡したので自動的に`close`イベントが発行される
-
-readableストリームが正常に閉じられる
-
-以上。
-
-
-> flowingモードのreadableストリームはデータを消費できないとデータは失われる
-
-`data`イベントハンドラを提供すればデータは失われない事が確認できた。
-
-つまり、
-
-> All Readable streams begin in paused mode but can be switched to flowing mode in one of the following ways:
-
-> Adding a 'data' event handler.
-> Calling the stream.resume() method.
-> Calling the stream.pipe() method to send the data to a Writable.
-
-の説明通りに提供すれば大丈夫
-
-
-
-
-### 実践：File Systemで画像をコピーするプログラム
-
-`stream/file-to-file-stream.ts`
-
+- `Writable`ストリームは`autoClose:true`で作成されたので読み取るデータがなくなったら勝手に`Writable`は閉じられる
+- `Readable`ストリームは読み取るデータがなくなったら勝手に`Readable`を閉じる
+- 各ストリームは`highWaterMark`を1024byteで指定しているので毎度ストリームは1024byte読み取って1024byte書き込む
+- 各ストリームの各イベントでしなくてはならないことを理解していない
+- `Readable`の`data`イベントで取得したchunkはそのまま`writable.write()`へわたしていいはず
+- `Readable`はflowingモードで運用されるから`readable.readableFlowing`はtrueになるはず
 
 ```TypeScript
-/*****
- * file to file stream
- * 
- * 指定のファイルを指定のパスへコピーするプログラム。
- * 
- * dist/in/cat.pngをdist/out/cat.pngへコピーする
- * 
- * Readable streamはflowingモードである
- * 
- * encodingは`binary`に指定すること
- * */ 
-
-
 import * as stream from 'node:stream';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -502,474 +288,232 @@ tream
 [start:*run] [nodemon] clean exit - waiting for changes before restart
 ```
 
-画像は正常に取得できた模様...
+画像は正常に取得できたが...プログラムはＡＰＩを正しく使えなかったようだ。
 
-実行してみて確認できたこと:
+期待通りじゃなかったこと：
 
-- `highWaterMark`で指定した量でreadableはデータをバッファリングしている
+- `Writable`ストリームが閉じられていない
+- `drain`イベントが一度しか起こらなかった
 
-常に指定した通りの1024 byte
+期待通りだったこと：
 
-TODO: 書き込みストリームのバッファリングのモニター
+- `Readable`はhighWaterMarkで指定した通りのサイズを読み取ってきた
+- `Readable`は読み取るデータがなくなったら閉じられた
 
-- writableストリームのイベントが`data`と`drain`以外発行されていない
+ここ以降、実践でうまくいかなかった原因を追究してその学習内容をまとめ、
 
-readableストリームは閉じられたことがイベントから確認できる。
+最終的にはAPIを正しく使用できているプログラムに改善する。
 
-しかしwritableのほうは、
 
-`close`とか`end`とかイベントハンドラが発火していない。
+## Readableの実装方法: flowingモード
 
-適切に閉じられていない可能性がある。
+次の通りに実装するだけ。
 
-TODO: 適切に閉じる処理の実装方法の模索
+問題は起こらない。
 
-スコープの問題なのか、発火手順がおかしいのか...
+```TypeScript
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as crypto from 'node:crypto';
 
-- Readableストリームは`end`の後に`close`イベントが発行される
+const outPath = path.join(__dirname, "out");
+const inPath = path.join(__dirname, "in");
 
-end: 読み取りストリームの先からもう読み取るものがないよ
+const randomString = (upto: number): string => {
+    // ...
+}
 
-data: 読み取りストリームの最後のデータおくられてきたりする
+const isDirExist = (path: string): boolean => {
+    // ...
+}
 
-close: 読み取りストリームが閉じられたよ
+const createRfs = (): fs.ReadStream => {
+    if(!isDirExist(inPath)) throw new Error(`The path: ${inPath} does not exist.`);
 
-#### 書き込みストリームが適切に閉じられていない問題
+    return fs.createReadStream(
+        path.join(inPath, "cat.png"), 
+        {
+            encoding: 'binary',     /* default: 'utf8' */
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 1024     /* default: 64 * 1024 */
+        }
+    );
+}
 
-の修正方法の模索。
+(function() {
+    const rfs: fs.ReadStream = createRfs();
 
-検証１：`Writable`ストリームのイベントハンドラをすべて`Readable`ストリームの`data`イベントハンドラコールバック内に移すと解決するか？
+    // --- Readable Event Handlers ------------
 
-結果：解決しない。`on()`はJavaScriptのaddEventListenerと同様一度呼び出せばいいのでイベントハンドラ内で呼び出すと毎度ひとつずつイベントハンドラが増えていく。やめよう
+    
+    rfs.on('open', (): void => {
+        console.log("readable stream has been opened");
+    });
+
+    rfs.on('ready', (): void => {
+        console.log("readable stream is ready");
+    });
+
+    rfs.on('close', (): void => {
+        console.log('readable stream has been closed');
+        wfs.end();
+    });
+
+    rfs.on('end', (): void => {
+        console.log('End read stream');
+        console.log('There is no more data to be consumed from the stream');
+    });
+
+    rfs.on('resume', (): void => {
+        console.log('resume');
+        console.log(`readaleFlowing: ${rfs.readaleFlowing}`);
+    });
+
+    rfs.on('error', (e: Error): void => {
+        console.error(e.message);
+        rfs.resume();
+    });
+
+    rfs.on('pause', (): void => {
+        console.log("readable paused");
+    })
+
+    rfs.on('data', (chunk: string | Buffer): void => {
+        console.log('data read!');
+        console.log(`state: ${rfs.readableFlowing}`);
+        console.log(`Received ${chunk.length} bytes of data.`);
+    });
+})();
+```
 
 ```bash
-# いきなりもうデータがないといいはじめた
- There is no more data to be consumed from the stream
+5:09:47 AM - Starting compilation in watch mode...
+[start:*build] 
+ [nodemon] restarting due to changes...
+ [nodemon] starting `node ./dist/index.js`
+ [nodemon] restarting due to changes...
+[start:*build] 
+[start:*build] 5:09:48 AM - Found 0 errors. Watching for file changes.
+ [nodemon] starting `node ./dist/index.js`
 
-#  readableオープン
+# resumeイベントはreadableFlowing is not trueの時に発行される
+# trueやんけ
+# たぶんコールバックが実行される頃にはtrueになるんだと思う
+ resume
+ readaleFlowing: true
+
+# open
  readable stream has been opened
+# ready
  readable stream is ready
 
+# data
+ data read!
+ state: true
+# highWaterMark通りの閾値を取得している
+ Received 1024 bytes of data.
  data read!
  state: true
  Received 1024 bytes of data.
-
- Drained
- Write data has been completed
- 
  data read!
  state: true
  Received 1024 bytes of data.
- 
- Drained
- Drained
- Write data has been completed
-
  data read!
  state: true
  Received 1024 bytes of data.
-
- Drained
- Drained
- Drained
- Write data has been completed
-
  data read!
  state: true
  Received 1024 bytes of data.
-
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
-
  data read!
  state: true
  Received 1024 bytes of data.
-
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
-
  data read!
  state: true
  Received 1024 bytes of data.
-
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
-
  data read!
  state: true
  Received 1024 bytes of data.
-
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
-
  data read!
  state: true
  Received 1024 bytes of data.
-
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
-
  data read!
  state: true
  Received 1024 bytes of data.
-
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
-
  data read!
  state: true
  Received 1024 bytes of data.
-
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
-
  data read!
  state: true
  Received 1024 bytes of data.
-
- (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
- (Use `node --trace-warnings ...` to show where the warning was created)
- (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 drain listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
- (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 finish listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
- (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 pipe listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
- (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 unpiped listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
- (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
  data read!
  state: true
  Received 1024 bytes of data.
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
  data read!
  state: true
  Received 1024 bytes of data.
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Drained
- Write data has been completed
  data read!
  state: true
  Received 905 bytes of data.
- Write data has been completed
+
+# end
  End read stream
  There is no more data to be consumed from the stream
+# close
  readable stream has been closed
  [nodemon] clean exit - waiting for changes before restart
 ```
 
-確認できたこと：
+流れ：
 
-- Events.on()はイベントリスナで呼び出しただけイベントリスが追加されていく!
+readableストリームインスタンスが生成された
 
-なので毎度`data`イベントハンドラが呼び出されるたびに`drain`が一つずつ増えていく。
+readableストリームは`paused`モードになっている
 
-追加のし過ぎでメモリリーク起きているよと警告が発生している。
+このとき`readable.readableFlowing === null`である
 
-ということでEvents.on()は一度だけ呼び出せばいい（はず）
+`readable.readableFlowing === null`のとき、readableストリームには何もデータ消費者が提供されていないことを示し、データ取得を行わない状態である。
 
-ということはどこで呼び出すのか...が重要なのかしら？
+`readable.readableFlowing !== true`なので`resume`イベントが発行される
 
-TODO: Events.on()について調べること
+`data`イベントハンドラがついているのですぐさま`flowing`モードに変更する
 
-- 検証している問題は解決できていない
+このとき`readable.readableFlowing === true`である
+
+readableストリームはデータの取得を開始する
+
+`data`イベントハンドラがreadableストリームが取得してきたchunkを取得する
+
+`highWaterMark`で指定した閾値通りの量を毎度取得してくる
+
+readableストリームの読み取り先から読み取るデータがなくなったら`end`イベントがまず発行される
+
+`end`イベントは「読み取るデータがもうない」ことを示す
+
+その後、createReadStreamでautoClose, emitCloseでtrueを渡したので自動的に`close`イベントが発行される
+
+readableストリームが正常に閉じられる
+
+以上。
 
 
-検証２：readablesストリームの`data`イベントハンドラをファイルの一番最後に移した
+> flowingモードのreadableストリームはデータを消費できないとデータは失われる
 
-```bash
- There is no more data to be consumed from the stream
+`data`イベントハンドラを提供すればデータは失われない事が確認できた。
 
- readable stream has been opened
- readable stream is ready
+つまり、
 
- data read!
- state: true
- Received 1024 bytes of data.
+> All Readable streams begin in paused mode but can be switched to flowing mode in one of the following ways:
 
- Drained
- Write data has been completed
+> Adding a 'data' event handler.
+> Calling the stream.resume() method.
+> Calling the stream.pipe() method to send the data to a Writable.
 
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 1024 bytes of data.
- Drained
- Write data has been completed
- data read!
- state: true
- Received 905 bytes of data.
- Write data has been completed
- End read stream
- There is no more data to be consumed from the stream
- readable stream has been closed
- [nodemon] clean exit - waiting for changes before restart
-```
+の説明通りに提供すれば大丈夫
 
-相変わらず書き込みストリームは閉じてくれない。
 
-検証３：`writable.end()`を呼び出す
 
-まずはファイルの最後に呼び出す
 
-```bash
-[start:*run] There is no more data to be consumed from the stream
-[start:*run] readable stream has been opened
-[start:*run] readable stream is ready
-
-# しょっぱなで閉じられていますわ
-[start:*run] Close writable stream manually
-
-# `end`イベントが発生すると`finish`イベントが発行される模様
-[start:*run] Finished
-
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-
-# 
-[start:*run] write after end
-[start:*run] Writable stream closed
-
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] write after end
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 905 bytes of data.
-
-[start:*run] write after end
-
-[start:*run] End read stream
-[start:*run] There is no more data to be consumed from the stream
-[start:*run] readable stream has been closed
-[start:*run] [nodemon] clean exit - waiting for changes before restart
-```
-
-確認できること：
-
-- `writable.end()`すると`finish`イベントが発行される
-
-公式に書いてあったわ...
-
-- しょっぱなでwritableが閉じるからreadableで読み取ったデータは書き込めない旨の`write after end`が出力されている
-
-しかしwritableストリームのコンストラクタにautoCloseもemitCloseもtrueにしているのに
-
-closeイベント発せしねーじゃん史ね
-
-- なぜか２つファイルが作成されている
-
-たぶん内部的に書き込みストリームが閉じられていないんだと思う。
-
-やっぱり閉じられていないじゃん！
-
-(nodemonが同じ処理をなぜか2度行うのも原因の一つだけど、閉じられていないのは事実)
-
-検証４：readable.on('close')でwritable.end()を手動で呼び出す
-
-結果：書き込みストリームは閉じられた
-
-なんやねん
 
 ### paused モード
 
@@ -1237,6 +781,195 @@ pausedモードに切り替える方法：
 
 なので`stream.resume()`でflowingモードに切り替えるときは`data`イベントハンドラなど消費者を用意しておかなくてはならない
 
+## on()はEventTarget.addEventListenerのNode.js特化版
+
+そんなの当たり前じゃんみたいな話をします。
+
+つまり、何度も呼び出すと同じイベントリスナが何度も追加されていってしまうよ、ということです。
+
+かつて私は自身が定義した書き込みストリームだと`drain`イベントが全く発行されない原因はスコープの問題かと思って
+
+次のように`Readable`の`data`イベントのハンドラ内で`on()`を呼び出してしまいました。
+
+
+```TypeScript
+
+const rfs: fs.Readable = createReadStream(/* params */);
+const wfs: fs.Writable = createWriteStream(/* params */);
+
+rfs.on('data', (chunk: string | Buffer) => {
+    console.log('data read!');
+    console.log(`state: ${rfs.readableFlowing}`);
+    console.log(`Received ${chunk.length} bytes of data.`);
+
+    wfs.write(chunk, (e: Error | null | undefined) => {
+        if(e) console.error(e.message);
+        else console.log("Write data has been completed");
+    });
+
+    wfs.on('close', () => {
+        console.log("Writable stream closed");
+    });
+
+    wfs.on('drain', () => {
+        console.log("Drained");
+    });
+
+    wfs.on('finish', () => {
+        console.log("Finished");
+    });
+});
+```
+
+すると次のように、
+
+- `drain`イベントが読み取りごとに1つ増えていく
+- メモリリークの警告を受ける
+
+結果になりました
+
+```bash
+ There is no more data to be consumed from the stream
+
+#  readableオープン
+ readable stream has been opened
+ readable stream is ready
+
+ data read!
+ state: true
+ Received 1024 bytes of data.
+
+ Drained
+ Write data has been completed
+ 
+ data read!
+ state: true
+ Received 1024 bytes of data.
+ 
+ Drained
+ Drained
+ Write data has been completed
+
+ data read!
+ state: true
+ Received 1024 bytes of data.
+
+ Drained
+ Drained
+ Drained
+ Write data has been completed
+
+ data read!
+ state: true
+ Received 1024 bytes of data.
+
+ Drained
+ Drained
+ Drained
+ Drained
+ Write data has been completed
+
+ data read!
+ state: true
+ Received 1024 bytes of data.
+
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Write data has been completed
+
+ data read!
+ state: true
+ Received 1024 bytes of data.
+
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Write data has been completed
+
+ data read!
+ state: true
+ Received 1024 bytes of data.
+
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Write data has been completed
+
+ data read!
+ state: true
+ Received 1024 bytes of data.
+
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Write data has been completed
+
+ data read!
+ state: true
+ Received 1024 bytes of data.
+
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Drained
+ Write data has been completed
+
+ data read!
+ state: true
+ Received 1024 bytes of data.
+
+ (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
+ (Use `node --trace-warnings ...` to show where the warning was created)
+ (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 drain listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
+ (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 finish listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
+ (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 pipe listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
+ (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 unpiped listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
+ (node:2233) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. Use emitter.setMaxListeners() to increase limit
+
+# 以下略
+```
+
+つまりは`on()`は何度も呼び出していいという謎の思い込みから解き放たれました。
+
+`EventEmitter.on()`:
+
+https://nodejs.org/dist/latest-v16.x/docs/api/events.html#emitteroneventname-listener
+
+> eventName という名前のイベントのリスナー配列の末尾にリスナー関数を追加します。リスナーがすでに追加されているかどうかはチェックされません。 eventName とリスナーの同じ組み合わせを渡す複数の呼び出しにより、リスナーが複数回追加され、呼び出されます。
+
+つまり、同じイベント名で何度も`on()`を呼び出せば呼び出しただけリスナが呼び出される。
+
+余談：一度だけ発火したら解除されるイベントリスナのラッパーはある。
+
+`EventEmitter.once()`：
+
+https://nodejs.org/dist/latest-v16.x/docs/api/events.html#emitteronceeventname-listener
+
+> `eventName`という名前のイベントに対して一度切りのリスナを追加することができます。次回`eventName`がトリガーされたときに、リスナは除去されまた呼び出されます。
+
+`on()`も`once()`もどちらも`Writable`, `Readable`classで定義されています。
+
+
 ## Writableストリームが自動で閉じる条件
 
 結論：**書き込みストリームの破棄は明示的に実行しなくてはならない**
@@ -1333,16 +1066,16 @@ pausedモードに切り替える方法：
 
 > **`writable.write()`が`false`を返したら、`drain`イベントが発行されるまでchunkの書込みを停止するのが推奨されます。**
 
-ーーー＞
 
 
-ということで、まとめると...
+
+...ということで、まとめると...
 
 - `highWaterMark`は内部バッファの「満タン」を（形式的に）定義してストリームを制御する
 
-- `writable.write()`が`false`を返したら`drain`イベントが発行されるまでデータ書き込みは停止せよ
+- `writable.write()`が`false`を返したら`drain`イベントが発行されるまでデータ書き込みは即座に停止しなくてはならない
 
-- `drain`イベントが発行されてからchunkの書込みを再開せよ
+- `drain`イベントが発行されてからchunkの書き込みを再開せよ
 
 わかった。よくわかった。
 
@@ -1494,45 +1227,21 @@ rfs.on('error', (e: Error) => {
 #  書き込めるようになったので書き込み再開
  Drained and resume Readable again.
 
-#  以下しばらく同じ流れが続く
  Readable read 1024 byte of data
  Paused Readable because of reaching highWaterMark
  Drained and resume Readable again.
+
  Readable read 1024 byte of data
  Paused Readable because of reaching highWaterMark
  Drained and resume Readable again.
- Readable read 1024 byte of data
- Paused Readable because of reaching highWaterMark
- Drained and resume Readable again.
- Readable read 1024 byte of data
- Paused Readable because of reaching highWaterMark
- Drained and resume Readable again.
- Readable read 1024 byte of data
- Paused Readable because of reaching highWaterMark
- Drained and resume Readable again.
- Readable read 1024 byte of data
- Paused Readable because of reaching highWaterMark
- Drained and resume Readable again.
- Readable read 1024 byte of data
- Paused Readable because of reaching highWaterMark
- Drained and resume Readable again.
- Readable read 1024 byte of data
- Paused Readable because of reaching highWaterMark
- Drained and resume Readable again.
- Readable read 1024 byte of data
- Paused Readable because of reaching highWaterMark
- Drained and resume Readable again.
- Readable read 1024 byte of data
- Paused Readable because of reaching highWaterMark
- Drained and resume Readable again.
- Readable read 905 byte of data
+#  以下しばらく同じ流れが続いたあと...
 
 #  Readableにendイベント
-# Readableが破棄される
-# 実装のWritable.end()が実行される
+#  Readableが破棄される
+#  実装のWritable.end()が実行される
  there is no more data to be consumed from Readable
 #  writable.end()ではfinishiイベントが発行される
-# 書込みストリームの内部バッファがフラッシュされて...
+#  書込みストリームの内部バッファがフラッシュされて...
  Finished
 #  そのまま書込みストリームは閉じられた
  Writable closed
@@ -1554,7 +1263,7 @@ rfs.on('error', (e: Error) => {
 
 - `close`イベントが発行されるとこれ以降の書き込みは受け付けなくなる。
 
-- `finish`イベントが発行されると内部バッファのデータがすべて書き込まれる。
+- `finish`イベントが発行されると内部バッファのデータがすべて書き込まれる（フラッシュされる）。
 
 - もしも`Writable`が`autoClose: true`で作成されてあったら、`finish`イベント時に`Writable`が破棄される(`fs.createWritableStream()`より)
 
@@ -1583,10 +1292,229 @@ rfs.on('error', (e: Error) => {
 
 先にも書いた通り、`close`が発行されるとこれ以上の書き込みは受け付けなくなるので内部バッファに玉ってあったデータはストリーム先に書き込まれない。
 
-## 書込ストリームの終わらせ方の導き方
+## エラーハンドリング
 
-...を導くには次の前提知識が必要
+## pipe
 
-- [`drain`と`writable.write()`の仕組み](#`drain`と`writable.write()`の仕組み)
-- [`writable.end()`と`writable.destroy()`の使い分け](#`writable.end()`と`writable.destroy()`の使い分け)
+公式の推奨の使い方である`readable.pipe(writable)`を実装して正しい使い方を学ぶ。
+
+
+
+## 実践：改善版
+
+学習した正しい使い方を反映して再度画像ファイルをコピーしてみる。
+
+ちょっとおさらい
+
+- `writable.write()`の戻り値をチェックして`false`が帰っていたら次の`drain`イベントまで`Readable`のデータ取得を停止すること
+
+- `Readable`のモードは、`flowing`モード中に`readable.pause()`呼出しで`paused`モードに、`paused`モード中に`readable.resume()`呼び出しで`flowing`モードに変更される
+
+- `writable`は明示的に閉じる処理を実装すること
+
+以下のプログラムは次の動作をするはずである：
+
+`highWaterMark`が1024で指定しているので
+
+毎回読み取りストリームが`highWaterMark`マックスまでデータを読み取って
+
+その都度`writable.write()`が内部バッファへ1024byte書き込み
+
+こちらも`highWaterMark`へ到達するので`false`を返すはずである。
+
+そしたら`readable.pause()`で一時停止して`drain`イベントまで読み取りを停止する。
+
+読み取りストリームが`end`イベントを発行したら、
+
+書き込みストリームは明示的に`writable.end()`するので`finish`イベントが発行され、
+
+その時点の書き込みストリームの内部バッファがフラッシュされる（ファイルへ書き込まれる）
+
+そうしたのち書き込みストリームは閉じられて、以降書き込みは許されなくなる。
+
+```TypeScript
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+const outPath = path.join(__dirname, "out");
+const inPath = path.join(__dirname, "in");
+
+// -- HELPERS -------------------
+
+// ランダムな文字列を生成するやつ
+// 
+// https://qiita.com/fukasawah/items/db7f0405564bdc37820e#node%E3%81%AE%E3%81%BF
+const randomString = (upto: number): string => {
+    const S="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    return Array.from(crypto.randomFillSync(new Uint8Array(upto))).map((n)=>S[n%S.length]).join('');
+}
+
+
+// 指定のパスにディレクトリは存在するのか確認する関数
+/*
+https://stackoverflow.com/questions/15630770/node-js-check-if-path-is-file-or-directory
+
+https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#class-fsstats
+
+*/ 
+const isDirExist = (path: string): boolean => {
+    return fs.lstatSync(path).isDirectory() && fs.existsSync(path);
+}
+
+const createRfs = (): fs.ReadStream => {
+    if(!isDirExist(inPath)) throw new Error(`The path: ${inPath} does not exist.`);
+
+    return fs.createReadStream(
+        path.join(inPath, "cat.png"), 
+        {
+            encoding: 'binary',     /* default: 'utf8' */
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 1024     /* default: 64 * 1024 */
+        }
+    );
+}
+
+
+const createWfs = (): fs.WriteStream => {
+    if(!isDirExist(outPath)) throw new Error(`The path: ${outPath} does not exist.`);
+
+    return fs.createWriteStream(
+        path.join(outPath, "cat" + randomString(4) + ".png"), 
+        { 
+            encoding: 'binary',     /* default: 'utf8' */
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 1024     /* default: 64 * 1024 */
+    });
+}
+
+
+
+(function() {
+    const rfs: fs.ReadStream = createRfs();
+    const wfs: fs.WriteStream = createWfs();
+
+    let draining: boolean = true;
+
+    rfs.on('data', (chunk) => {
+        console.log(`Readable read ${chunk.length} byte of data`)
+        draining = wfs.write(chunk, (e: Error | null | undefined) => {
+            if(e) {
+                // ここでエラーが起こったら`error`イベント前にこの
+                // コールバックが実行される
+                // で、`error`イベントが発行される
+                console.error(e.message);
+            }
+        });
+        // chunkを書き込んだ後のwriteの戻り値がfalseなら
+        // 読取ストリームはすぐに停止する
+        if(!draining) {
+            console.log('Paused Readable because of reaching highWaterMark');
+            rfs.pause();
+        }
+    });
+
+    // `drain`イベントは書込みが再開できるときに発行される
+    wfs.on('drain', () => {
+        console.log('Drained and resume Readable again.');
+        // drainイベントが発行されたら読取ストリームの読取を再開する
+        draining = true;
+        rfs.resume();
+    });
+
+    wfs.on('end', () => {
+        console.log('End Writable');
+    });
+
+    wfs.on('finish', () => {
+        console.log('Finished');
+    });
+
+    wfs.on('close', () => {
+        console.log('Writable closed');
+    });
+
+    /***
+     * `error`イベントが発行されたらストリームは閉じられる
+     * 
+     * `error`以降`close`イベント以外発行されてはならない
+     * */ 
+    wfs.on('error', (e: Error) => {
+        if(!wfs.destroyed) wfs.destroy(e);
+    });
+
+    rfs.on('end', () => {
+        console.log('there is no more data to be consumed from Readable');
+        wfs.end();
+    })
+
+    rfs.on('error', (e: Error) => {
+        if(!rfs.destroyed) rfs.destroy(e);
+    });
+})();
+
+```
+
+結果
+
+```bash
+[start:*run] [nodemon] starting `node ./dist/index.js`
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 1024 byte of data
+[start:*run] Paused Readable because of reaching highWaterMark
+[start:*run] Drained and resume Readable again.
+[start:*run] Readable read 905 byte of data
+[start:*run] there is no more data to be consumed from Readable
+[start:*run] Finished
+[start:*run] Writable closed
+[start:*run] [nodemon] clean exit - waiting for changes before restart
+```
+
+元のファイルサイズは15kbで、取得したのは15241byte。
+
+書き込みストリームは閉じられている。
+
+`drain`イベントと読み取りストリームの一時停止と再開が正常に動いている。
 
