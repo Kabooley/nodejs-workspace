@@ -2,7 +2,7 @@
 /*****
  * ローカルの画像ファイルのコピーを作成するプログラム
  *
- * `drain`と`writable.write()`の挙動を確認する
+ * `readable.pipe()`を使うと`writable.write()`を使うときとどう異なるのか確認。
  *
  *  詳しくは`./practice-verification-filestream.md`に。
  * */
@@ -87,28 +87,34 @@ const createWfs = () => {
         const rfs = createRfs();
         const wfs = createWfs();
         let draining = true;
-        rfs.on('data', (chunk) => {
-            console.log(`Readable read ${chunk.length} byte of data`);
-            draining = wfs.write(chunk, (e) => {
-                if (e) {
-                    // ここでエラーが起こったら`error`イベント前にこの
-                    // コールバックが実行される
-                    console.error(e.message);
-                }
-            });
-            // chunkを書き込んだ後のwriteの戻り値がfalseなら
-            // 読取ストリームはすぐに停止する
-            if (!draining) {
-                console.log('Paused Readable because of reaching highWaterMark');
-                rfs.pause();
-            }
-        });
-        // `drain`イベントは書込みが再開できるときに発行される
+        // --- pipe()を使うとコメントアウトしたところがいらなくなる ---
+        // まぁイベントを監視する必要があるならdrainとか要るけど...
+        // 
+        // rfs.on('data', (chunk) => {
+        //     console.log(`Readable read ${chunk.length} byte of data`)
+        //     draining = wfs.write(chunk, (e: Error | null | undefined) => {
+        //         if(e) {
+        //             // ここでエラーが起こったら`error`イベント前にこの
+        //             // コールバックが実行される
+        //             console.error(e.message);
+        //         }
+        //     });
+        //     // chunkを書き込んだ後のwriteの戻り値がfalseなら
+        //     // 読取ストリームはすぐに停止する
+        //     if(!draining) {
+        //         console.log('Paused Readable because of reaching highWaterMark');
+        //         rfs.pause();
+        //     }
+        // });
+        // // `drain`イベントは書込みが再開できるときに発行される
+        // wfs.on('drain', () => {
+        //     console.log('Drained and resume Readable again.');
+        //     // drainイベントが発行されたら読取ストリームの読取を再開する
+        //     draining = true;
+        //     rfs.resume();
+        // });
         wfs.on('drain', () => {
-            console.log('Drained and resume Readable again.');
-            // drainイベントが発行されたら読取ストリームの読取を再開する
-            draining = true;
-            rfs.resume();
+            console.log('drained');
         });
         wfs.on('end', () => {
             console.log('End Writable');
@@ -119,22 +125,39 @@ const createWfs = () => {
         wfs.on('close', () => {
             console.log('Writable closed');
         });
-        /***
-         * `error`イベントが発行されたらストリームは閉じられる
-         *
-         * `error`以降`close`イベント以外発行されてはならない
-         * */
-        wfs.on('error', (e) => {
+        rfs.on('end', () => {
+            console.log('there is no more data to be consumed from Readable');
+            // pipe()を使っているならば明示的にwritable.end()を呼び出す必要はない
+            // wfs.end();
+        });
+        rfs.on('error', (e) => {
+            console.error(e.message);
+            if (!rfs.destroyed)
+                rfs.destroy(e);
             if (!wfs.destroyed)
                 wfs.destroy(e);
         });
-        rfs.on('end', () => {
-            console.log('there is no more data to be consumed from Readable');
-            wfs.end();
-        });
-        rfs.on('error', (e) => {
+        /***
+         * pipe()を使っている場合、
+         * Readableでエラーが起こるとWritableは自動で閉じてくれない
+         * */
+        wfs.on('error', (e) => {
+            console.error(e.message);
             if (!rfs.destroyed)
                 rfs.destroy(e);
+            if (!wfs.destroyed)
+                wfs.destroy(e);
+        });
+        /**
+         * drain関係を一切丸投げできる
+         *
+         * Readableが（エラーなく）閉じたときにWritableを閉じてくれる
+         * (option {end: true} なら)
+         *
+         *
+         * */
+        rfs.pipe(wfs, {
+            end: true, // defaultでtrueだけどね
         });
     });
 })();

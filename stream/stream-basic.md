@@ -1518,3 +1518,251 @@ const createWfs = (): fs.WriteStream => {
 
 `drain`イベントと読み取りストリームの一時停止と再開が正常に動いている。
 
+
+## `pipe`
+
+以下、公式の訳：
+
+`readable.pipe(destination)`
+
+https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#readablepipedestination-options
+
+Syntax: `readable.pipe(destination[, options])`
+
+- destination <stream.Writable> The destination for writing data
+- options <Object> Pipe options
+- end <boolean> End the writer when the reader ends. Default: true.
+- Returns: <stream.Writable> The destination, allowing for a chain of pipes if it is a Duplex or a Transform stream
+
+> `readable.pipe()`は`Writable`を`Readable`へ接続し、
+> 自動的にFlowingモードへ移行し、接続されている`Writable`へデータをプッシュします。
+> 転送速度が(`Writable`よりも)速い`Readable`からのデータ量に`Writable`が圧倒されないように自動的にデータの流れを制御してくれる。
+
+> 複数の`Writable`を単一の`Readable`へアタッチすることができる
+
+>`readable.pipe()`の戻り値は転送先のストリームになっており、これを使って`pipe`をチェインさせることができる
+
+```JavaScript
+// 次みたいなことができるという話
+document.querySelector('.container').querySelector('.header');
+
+// こんな感じ
+// 公式そのまま
+const fs = require('fs');
+const r = fs.createReadStream('file.txt');
+const z = zlib.createGzip();
+const w = fs.createWriteStream('file.txt.gz');
+r.pipe(z).pipe(w);
+```
+
+> デフォルトとして、`Readable`が`end`イベントを発行したら転送先の`Writable`で`stream.end()`が呼び出されて、転送先へこれ以上の書込みが行われないようにします。
+
+> この通常の振舞を変更するには、(`readable.pipe()`へ渡せる引数の）`end`オプションを`false`にすることで転送先のストリームをオープンにしたままにできます。
+
+> **一つの重要な警告は、読み取り中に`Readable`がエラーを起こしたときで、そのとき`Writable`は自動的に自身のストリームを閉じてくれない。もしもエラーが起こると、メモリリークを起こさないように手動で各ストリームを閉じる必要がある**
+
+> `process.stderr`, `process.stdout`の`Writable`ストリームは、Node.jsが閉じられるまでは常に閉じられることはない
+
+
+ということで早速実装してみる
+
+```TypeScript
+/*****
+ * ローカルの画像ファイルのコピーを作成するプログラム
+ * 
+ * `readable.pipe()`を使うと`writable.write()`を使うときとどう異なるのか確認。
+ * 
+ *  詳しくは`./practice-verification-filestream.md`に。
+ * */ 
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+const outPath = path.join(__dirname, "out");
+const inPath = path.join(__dirname, "in");
+
+// -- HELPERS -------------------
+
+// ランダムな文字列を生成するやつ
+// 
+// https://qiita.com/fukasawah/items/db7f0405564bdc37820e#node%E3%81%AE%E3%81%BF
+const randomString = (upto: number): string => {
+    const S="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    return Array.from(crypto.randomFillSync(new Uint8Array(upto))).map((n)=>S[n%S.length]).join('');
+}
+
+
+// 指定のパスにディレクトリは存在するのか確認する関数
+/*
+https://stackoverflow.com/questions/15630770/node-js-check-if-path-is-file-or-directory
+
+https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#class-fsstats
+
+*/ 
+const isDirExist = (path: string): boolean => {
+    return fs.lstatSync(path).isDirectory() && fs.existsSync(path);
+}
+
+const createRfs = (): fs.ReadStream => {
+    if(!isDirExist(inPath)) throw new Error(`The path: ${inPath} does not exist.`);
+
+    return fs.createReadStream(
+        path.join(inPath, "cat.png"), 
+        {
+            encoding: 'binary',     /* default: 'utf8' */
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 1024     /* default: 64 * 1024 */
+        }
+    );
+}
+
+
+const createWfs = (): fs.WriteStream => {
+    if(!isDirExist(outPath)) throw new Error(`The path: ${outPath} does not exist.`);
+
+    return fs.createWriteStream(
+        path.join(outPath, "cat" + randomString(4) + ".png"), 
+        { 
+            encoding: 'binary',     /* default: 'utf8' */
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 1024     /* default: 64 * 1024 */
+    });
+}
+
+
+
+(async function() {
+    const rfs: fs.ReadStream = createRfs();
+    const wfs: fs.WriteStream = createWfs();
+
+    let draining: boolean = true;
+
+    // --- pipe()を使うとコメントアウトしたところがいらなくなる ---
+    // まぁイベントを監視する必要があるならdrainとか要るけど...
+    // 
+    // rfs.on('data', (chunk) => {
+    //     console.log(`Readable read ${chunk.length} byte of data`)
+    //     draining = wfs.write(chunk, (e: Error | null | undefined) => {
+    //         if(e) {
+    //             // ここでエラーが起こったら`error`イベント前にこの
+    //             // コールバックが実行される
+    //             console.error(e.message);
+    //         }
+    //     });
+    //     // chunkを書き込んだ後のwriteの戻り値がfalseなら
+    //     // 読取ストリームはすぐに停止する
+    //     if(!draining) {
+    //         console.log('Paused Readable because of reaching highWaterMark');
+    //         rfs.pause();
+    //     }
+    // });
+
+    // // `drain`イベントは書込みが再開できるときに発行される
+    // wfs.on('drain', () => {
+    //     console.log('Drained and resume Readable again.');
+    //     // drainイベントが発行されたら読取ストリームの読取を再開する
+    //     draining = true;
+    //     rfs.resume();
+    // });
+    
+    wfs.on('drain', () => {
+        console.log('drained');
+    })
+
+    wfs.on('end', () => {
+        console.log('End Writable');
+    });
+
+    wfs.on('finish', () => {
+        console.log('Finished');
+    });
+
+    wfs.on('close', () => {
+        console.log('Writable closed');
+    });
+
+    rfs.on('end', () => {
+        console.log('there is no more data to be consumed from Readable');
+        // pipe()を使っているならば明示的にwritable.end()を呼び出す必要はない
+        // wfs.end();
+    })
+
+    rfs.on('error', (e: Error) => {
+        console.error(e.message);
+        if(!rfs.destroyed) rfs.destroy(e);
+        if(!wfs.destroyed) wfs.destroy(e);
+    });
+
+    
+    /***
+     * pipe()を使っている場合、
+     * Readableでエラーが起こるとWritableは自動で閉じてくれない
+     * */ 
+    wfs.on('error', (e: Error) => {
+        console.error(e.message);
+        if(!rfs.destroyed) rfs.destroy(e);
+        if(!wfs.destroyed) wfs.destroy(e);
+    });
+
+    /**
+     * drain関係を一切丸投げできる
+     * 
+     * Readableが（エラーなく）閉じたときにWritableを閉じてくれる
+     * (option {end: true} なら)
+     * 
+     * 
+     * */ 
+    rfs.pipe(wfs, {
+        end: true,      // defaultでtrueだけどね
+    });
+
+})();
+
+```
+
+結果、
+
+```bash
+drained
+drained
+drained
+drained
+drained
+drained
+drained
+drained
+drained
+drained
+drained
+drained
+drained
+there is no more data to be consumed from Readable
+Finished
+Writable closed
+```
+
+簡単でした。
+
+検証：TODO: Errorが読取中に発生したときに適切なストリームの閉じ方の模索
+
+```TypeScript
+```
+
+再掲ですが、APIスタイルは一つだけにして複数のAPIを使わないこと。
+
+https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#choose-one-api-style
+
+> 開発者はデータ消費の為に一つの方法だけを選択し、一つのストリームに対して複数の方法をデータ消費のために使ってはならない。
+
+> 特に、`on('data')`,`on('readable')`, `pipe()`を併用すること（以下略）
+
+ということで、`pipe()`を使っている最中に`data`イベントハンドラを追加してはならない。
+
+そう考えると、`pipe()`を使うときは`data`イベントは監視できないといえる。
+
+`pipe()`を使うならする必要もないでしょうが。
+
