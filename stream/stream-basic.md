@@ -1521,7 +1521,7 @@ const createWfs = (): fs.WriteStream => {
 
 ## `pipe`
 
-以下、公式の訳：
+#### 公式の訳
 
 `readable.pipe(destination)`
 
@@ -1564,7 +1564,7 @@ r.pipe(z).pipe(w);
 > `process.stderr`, `process.stdout`の`Writable`ストリームは、Node.jsが閉じられるまでは常に閉じられることはない
 
 
-ということで早速実装してみる
+#### `pipe()`の実践
 
 ```TypeScript
 /*****
@@ -1719,7 +1719,6 @@ const createWfs = (): fs.WriteStream => {
     rfs.pipe(wfs, {
         end: true,      // defaultでtrueだけどね
     });
-
 })();
 
 ```
@@ -1745,11 +1744,59 @@ Finished
 Writable closed
 ```
 
-簡単でした。
+簡単。
 
-検証：TODO: Errorが読取中に発生したときに適切なストリームの閉じ方の模索
+#### 検証：`pipe()`のエラーハンドリング
+
+参考：
+
+https://stackoverflow.com/a/33195253/13891684
+
+https://stackoverflow.com/a/22389498/13891684
+
 
 ```TypeScript
+let counter: number = 0;
+
+wfs.on('end', () => {
+    console.log('End Writable');
+});
+
+wfs.on('finish', () => {
+    console.log('Finished');
+});
+
+wfs.on('close', () => {
+    console.log('Writable closed');
+});
+
+rfs.on('end', () => {
+    console.log('there is no more data to be consumed from Readable');
+});
+
+wfs.on('drain', () => {
+    console.log('drained');
+    counter++;
+    if(counter === 4) {
+        rfs.emit('error', new Error('TEST ERROR'));
+    }
+});
+
+rfs.on('error', (e: Error) => {
+    console.error(e.message);
+    if(!rfs.destroyed) rfs.destroy(e);
+    if(!wfs.destroyed) wfs.destroy(e);
+});
+
+/***
+ * pipe()を使っている場合、
+ * Readableでエラーが起こるとWritableは自動で閉じてくれない
+ * */ 
+wfs.on('error', (e: Error) => {
+    console.error(e.message);
+    if(!rfs.destroyed) rfs.destroy(e);
+    if(!wfs.destroyed) wfs.destroy(e);
+});
 ```
 
 再掲ですが、APIスタイルは一つだけにして複数のAPIを使わないこと。

@@ -86,7 +86,9 @@ const createWfs = () => {
     return __awaiter(this, void 0, void 0, function* () {
         const rfs = createRfs();
         const wfs = createWfs();
-        let draining = true;
+        let counter = 0;
+        let errorEmitted = false;
+        // let draining: boolean = true;
         // --- pipe()を使うとコメントアウトしたところがいらなくなる ---
         // まぁイベントを監視する必要があるならdrainとか要るけど...
         // 
@@ -115,6 +117,11 @@ const createWfs = () => {
         // });
         wfs.on('drain', () => {
             console.log('drained');
+            counter++;
+            if (counter === 4 && !errorEmitted) {
+                rfs.emit('error', new Error('TEST ERROR'));
+                errorEmitted = true;
+            }
         });
         wfs.on('end', () => {
             console.log('End Writable');
