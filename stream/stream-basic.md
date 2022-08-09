@@ -1754,9 +1754,14 @@ https://stackoverflow.com/a/33195253/13891684
 
 https://stackoverflow.com/a/22389498/13891684
 
+`Readable`の`resume`イベントが3回起こったら`Readable`がエラーを発行する。
+
+その挙動を確認する。
+
 
 ```TypeScript
 let counter: number = 0;
+let errorEmitted: boolean = false;
 
 wfs.on('end', () => {
     console.log('End Writable');
@@ -1776,14 +1781,20 @@ rfs.on('end', () => {
 
 wfs.on('drain', () => {
     console.log('drained');
+});
+
+rfs.on('resume', () => {
+    console.log('resume');
     counter++;
-    if(counter === 4) {
+    if(counter === 4 && !errorEmitted) {
         rfs.emit('error', new Error('TEST ERROR'));
+        errorEmitted = true;
+        counter++;
     }
 });
 
 rfs.on('error', (e: Error) => {
-    console.error(e.message);
+    console.error(`Readable caught error: ${e.message}`);
     if(!rfs.destroyed) rfs.destroy(e);
     if(!wfs.destroyed) wfs.destroy(e);
 });
@@ -1793,11 +1804,141 @@ rfs.on('error', (e: Error) => {
  * Readableでエラーが起こるとWritableは自動で閉じてくれない
  * */ 
 wfs.on('error', (e: Error) => {
-    console.error(e.message);
+    console.error(`Writable caught error: ${e.message}`);
     if(!rfs.destroyed) rfs.destroy(e);
     if(!wfs.destroyed) wfs.destroy(e);
 });
 ```
+
+結果
+
+```bash
+resume
+drained
+resume
+drained
+resume
+drained
+resume
+Readable caught error: TEST ERROR
+Writable caught error: TEST ERROR
+Writable closed
+Readable caught error: TEST ERROR
+clean exit - waiting for changes before restart
+```
+
+どうやら`destory()`になにも考えずにErrorオブジェクトを引数として渡しているから
+
+やたらエラーイベントが反応してしまっている。
+
+`stream.destroy()`の使い方が正しくない。
+
+なのでおさらい。
+
+---
+
+`stream.destroy()`について：
+
+`stream.destory()`は呼び出されたときに、引数にErrorオブジェクトを渡すと`error`イベントを発行する。
+
+ストリームのインスタンス生成時に`emitClose: false`していない限り`close`イベントを発行する。
+
+`Readable`でdestoryした場合、この呼び出しの後、読み取り可能なストリームはすべての内部リソースを解放し、その後の push() の呼び出しは無視されます。
+
+`Writable`でdestoryしたときも同様。
+
+---
+
+つまり、
+
+今のところのコードだと
+
+- destroy()すると`close`イベントが発行される。
+- destroy(error)すると`error`イベントがこの後発生する。
+
+となると
+
+```TypeScript
+
+rfs.on('error', (e: Error) => {
+    console.error(`Readable caught error: ${e.message}`);
+    if(!rfs.destroyed) rfs.destroy(e);
+    if(!wfs.destroyed) wfs.destroy(e);
+});
+
+wfs.on('error', (e: Error) => {
+    console.error(`Writable caught error: ${e.message}`);
+    if(!rfs.destroyed) rfs.destroy(e);
+    if(!wfs.destroyed) wfs.destroy(e);
+});
+```
+
+というコードだと、
+
+`error`イベントでdestroy()しているのにErrorオブジェクトを渡しているので再度`error`イベントを発行させてしまっている。
+
+だからやたらerrorイベントが発生しているのである。
+
+こうすればいい。
+
+
+```TypeScript
+
+    rfs.on('error', (e: Error) => {
+        console.error(`Readable caught error: ${e.message}`);
+        // ここは既にReadableのerrorイベント真っ最中なので
+        // これ以上Readableにerrorイベントを発行させる必要がない
+        // なので引数なしでdestroy()する
+        if(!rfs.destroyed) rfs.destroy();
+        // Writableにはerrorイベントを発行させる
+        if(!wfs.destroyed) wfs.destroy(e);
+    });
+    
+    /***
+     * pipe()を使っている場合、
+     * Readableでエラーが起こるとWritableは自動で閉じてくれない
+     * */ 
+    wfs.on('error', (e: Error) => {
+        console.error(`Writable caught error: ${e.message}`);
+        // ここは既にWritableのerrorイベント真っ最中なので
+        // これ以上Writableにerrorイベントを発行させる必要がない
+        // なので引数なしでdestroy()する
+        if(!wfs.destroyed) wfs.destroy();
+        // Readableにはerrorイベントを発行させる
+        if(!rfs.destroyed) rfs.destroy(e);
+    });
+
+    rfs.pipe(wfs, {
+        end: true,      // defaultでtrueだけどね
+    });
+```
+
+結果
+
+```bash
+[nodemon] starting `node ./dist/index.js`
+resume
+drained
+resume
+drained
+resume
+drained
+resume
+Readable caught error: TEST ERROR
+Writable closed
+Writable caught error: TEST ERROR
+Readable closed
+```
+
+期待通り、
+
+readable.emit('error')したからReadableのerrorイベントハンドラが一度だけ反応して、
+
+その再writable.destroy(error)したのでwritableのerrorイベントが一度だけ反応している。
+
+closeイベントが発行されるので両ストリームは閉じられた。
+
+
 
 再掲ですが、APIスタイルは一つだけにして複数のAPIを使わないこと。
 
