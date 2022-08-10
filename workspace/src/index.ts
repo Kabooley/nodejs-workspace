@@ -133,35 +133,47 @@ const createWfs = (): fs.WriteStream => {
         console.log('resume');
         counter++;
         if(counter === 4 && !errorEmitted) {
-            rfs.emit('error', new Error('TEST ERROR'));
+            wfs.emit('error', new Error('TEST ERROR'));
             errorEmitted = true;
             counter++;
         }
     });
 
-    rfs.on('error', (e: Error) => {
-        console.error(`Readable caught error: ${e.message}`);
-        // ここは既にReadableのerrorイベント真っ最中なので
-        // これ以上Readableにerrorイベントを発行させる必要がない
-        // なので引数なしでdestroy()する
-        if(!rfs.destroyed) rfs.destroy();
-        // Writableにはerrorイベントを発行させる
-        if(!wfs.destroyed) wfs.destroy(e);
-    });
+    // rfs.on('error', (e: Error) => {
+    //     console.error(`Readable caught error: ${e.message}`);
+    //     // ここは既にReadableのerrorイベント真っ最中なので
+    //     // これ以上Readableにerrorイベントを発行させる必要がない
+    //     // なので引数なしでdestroy()する
+    //     if(!rfs.destroyed) {
+    //         console.log("destroy readable");
+    //         rfs.destroy();
+    //     }
+    //     // Writableにはerrorイベントを発行させる
+    //     if(!wfs.destroyed) {
+    //         console.log("destroy writable");
+    //         wfs.destroy(e);
+    //     }
+    // });
     
-    /***
-     * pipe()を使っている場合、
-     * Readableでエラーが起こるとWritableは自動で閉じてくれない
-     * */ 
-    wfs.on('error', (e: Error) => {
-        console.error(`Writable caught error: ${e.message}`);
-        // ここは既にWritableのerrorイベント真っ最中なので
-        // これ以上Writableにerrorイベントを発行させる必要がない
-        // なので引数なしでdestroy()する
-        if(!wfs.destroyed) wfs.destroy();
-        // Readableにはerrorイベントを発行させる
-        if(!rfs.destroyed) rfs.destroy(e);
-    });
+    // /***
+    //  * pipe()を使っている場合、
+    //  * Readableでエラーが起こるとWritableは自動で閉じてくれない
+    //  * */ 
+    // wfs.on('error', (e: Error) => {
+    //     console.error(`Writable caught error: ${e.message}`);
+    //     // ここは既にWritableのerrorイベント真っ最中なので
+    //     // これ以上Writableにerrorイベントを発行させる必要がない
+    //     // なので引数なしでdestroy()する
+    //     if(!wfs.destroyed) {
+    //         console.log("destroy writable");
+    //         wfs.destroy();
+    //     }
+    //     // Readableにはerrorイベントを発行させる
+    //     if(!rfs.destroyed) {
+    //         console.log("destroy readable");
+    //         rfs.destroy(e);
+    //     }
+    // });
 
     /**
      * drain関係を一切丸投げできる
@@ -174,10 +186,16 @@ const createWfs = (): fs.WriteStream => {
     rfs.pipe(wfs, {
         end: true,      // defaultでtrueだけどね
     })
-    // .on('error', (e) => {
-    //     console.log('Another error handler');
-    //     if(!rfs.destroyed) rfs.destroy(e);
-    //     if(!wfs.destroyed) wfs.destroy(e);
-    // });
+    .on('error', (e) => {
+        console.log('piped error handler');
+        if(!rfs.destroyed) {
+            console.log("destroy readable");
+            rfs.destroy();
+        }
+        if(!wfs.destroyed) {
+            console.log("destroy writable");
+            wfs.destroy();
+        }
+    });
 
 })();

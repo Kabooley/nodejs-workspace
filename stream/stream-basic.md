@@ -23,9 +23,15 @@ Writable
 [Writableストリームが自動で閉じる条件](#Writableストリームが自動で閉じる条件)
 [`drain`と`writable.write()`の仕組み](#`drain`と`writable.write()`の仕組み)
 [`writable.end()`と`writable.destroy()`の使い分け](#`writable.end()`と`writable.destroy()`の使い分け)
-[エラーハンドリング](#エラーハンドリング)
-[pipe](#pipe)
+
 [実践：改善版](#実践：改善版)
+
+pipe
+
+[`pipe`](#`pipe`)
+[`pipe`のエラーハンドリング](#`pipe`のエラーハンドリング)
+
+[APIスタイルは一つだけにして複数のAPIを使わないこと](#APIスタイルは一つだけにして複数のAPIを使わないこと)
 
 ### 実践
 
@@ -1292,12 +1298,6 @@ rfs.on('error', (e: Error) => {
 
 先にも書いた通り、`close`が発行されるとこれ以上の書き込みは受け付けなくなるので内部バッファに玉ってあったデータはストリーム先に書き込まれない。
 
-## エラーハンドリング
-
-## pipe
-
-公式の推奨の使い方である`readable.pipe(writable)`を実装して正しい使い方を学ぶ。
-
 
 
 ## 実践：改善版
@@ -1640,34 +1640,6 @@ const createWfs = (): fs.WriteStream => {
     const wfs: fs.WriteStream = createWfs();
 
     let draining: boolean = true;
-
-    // --- pipe()を使うとコメントアウトしたところがいらなくなる ---
-    // まぁイベントを監視する必要があるならdrainとか要るけど...
-    // 
-    // rfs.on('data', (chunk) => {
-    //     console.log(`Readable read ${chunk.length} byte of data`)
-    //     draining = wfs.write(chunk, (e: Error | null | undefined) => {
-    //         if(e) {
-    //             // ここでエラーが起こったら`error`イベント前にこの
-    //             // コールバックが実行される
-    //             console.error(e.message);
-    //         }
-    //     });
-    //     // chunkを書き込んだ後のwriteの戻り値がfalseなら
-    //     // 読取ストリームはすぐに停止する
-    //     if(!draining) {
-    //         console.log('Paused Readable because of reaching highWaterMark');
-    //         rfs.pause();
-    //     }
-    // });
-
-    // // `drain`イベントは書込みが再開できるときに発行される
-    // wfs.on('drain', () => {
-    //     console.log('Drained and resume Readable again.');
-    //     // drainイベントが発行されたら読取ストリームの読取を再開する
-    //     draining = true;
-    //     rfs.resume();
-    // });
     
     wfs.on('drain', () => {
         console.log('drained');
@@ -1693,8 +1665,6 @@ const createWfs = (): fs.WriteStream => {
 
     rfs.on('error', (e: Error) => {
         console.error(e.message);
-        if(!rfs.destroyed) rfs.destroy(e);
-        if(!wfs.destroyed) wfs.destroy(e);
     });
 
     
@@ -1704,8 +1674,8 @@ const createWfs = (): fs.WriteStream => {
      * */ 
     wfs.on('error', (e: Error) => {
         console.error(e.message);
-        if(!rfs.destroyed) rfs.destroy(e);
-        if(!wfs.destroyed) wfs.destroy(e);
+        if(!rfs.destroyed) rfs.destroy();
+        if(!wfs.destroyed) wfs.destroy();
     });
 
     /**
@@ -1938,9 +1908,222 @@ readable.emit('error')したからReadableのerrorイベントハンドラが一
 
 closeイベントが発行されるので両ストリームは閉じられた。
 
+検証２：`pipe.().on('error')`は書き込み、読み取り両ストリームでのエラーに反応するのか？
 
+Readableでエラーが発生した場合
 
-再掲ですが、APIスタイルは一つだけにして複数のAPIを使わないこと。
+```TypeScript
+(async function() {
+    const rfs: fs.ReadStream = createRfs();
+    const wfs: fs.WriteStream = createWfs();
+    
+    let counter: number = 0;
+    let errorEmitted: boolean = false;
+
+    wfs.on('drain', () => {
+        console.log('drained');
+    });
+
+    wfs.on('end', () => {
+        console.log('End Writable');
+    });
+
+    wfs.on('finish', () => {
+        console.log('Finished');
+    });
+
+    wfs.on('close', () => {
+        console.log('Writable closed');
+    });
+
+    rfs.on('close', () => {
+        console.log('Readable closed');
+    });
+
+    rfs.on('end', () => {
+        console.log('there is no more data to be consumed from Readable');
+        // pipe()を使っているならば明示的にwritable.end()を呼び出す必要はない
+        // wfs.end();
+    });
+
+    rfs.on('resume', () => {
+        console.log('resume');
+        counter++;
+        if(counter === 4 && !errorEmitted) {
+            rfs.emit('error', new Error('TEST ERROR'));
+            errorEmitted = true;
+            counter++;
+        }
+    });
+
+    rfs.on('error', (e: Error) => {
+        console.error(`Readable caught error: ${e.message}`);
+        if(!rfs.destroyed) {
+            console.log("destroy readable");
+            rfs.destroy();
+        }
+        if(!wfs.destroyed) {
+            console.log("destroy writable");
+            wfs.destroy(e);
+        }
+    });
+    
+    wfs.on('error', (e: Error) => {
+        console.error(`Writable caught error: ${e.message}`);
+        if(!wfs.destroyed) {
+            console.log("destroy writable");
+            wfs.destroy();
+        }
+        if(!rfs.destroyed) {
+            console.log("destroy readable");
+            rfs.destroy(e);
+        }
+    });
+
+    rfs.pipe(wfs, {
+        end: true,      // defaultでtrueだけどね
+    })
+    .on('error', (e) => {
+        console.log('Another error handler');
+    });
+
+})();
+
+```
+
+結果
+
+```bash
+resume
+drained
+resume
+drained
+resume
+drained
+resume
+Readable caught error: TEST ERROR
+destroy readable
+destroy writable
+Writable caught error: TEST ERROR
+Another error handler
+Writable closed
+Readable closed
+```
+
+Writableでエラーが発生した場合
+
+```TypeScript
+    rfs.on('resume', () => {
+        console.log('resume');
+        counter++;
+        if(counter === 4 && !errorEmitted) {
+            // writableでエラーを発生させた
+            wfs.emit('error', new Error('TEST ERROR'));
+            errorEmitted = true;
+            counter++;
+        }
+    });
+
+    rfs.on('error', (e: Error) => {
+        console.error(`Readable caught error: ${e.message}`);
+        if(!rfs.destroyed) {
+            console.log("destroy readable");
+            rfs.destroy();
+        }
+        if(!wfs.destroyed) {
+            console.log("destroy writable");
+            wfs.destroy(e);
+        }
+    });
+
+    wfs.on('error', (e: Error) => {
+        console.error(`Writable caught error: ${e.message}`);
+        if(!wfs.destroyed) {
+            console.log("destroy writable");
+            wfs.destroy();
+        }
+        if(!rfs.destroyed) {
+            console.log("destroy readable");
+            rfs.destroy(e);
+        }
+    });
+
+    rfs.pipe(wfs, {
+        end: true,      // defaultでtrueだけどね
+    })
+    .on('error', (e) => {
+        console.log('Another error handler');
+    });
+```
+
+結果：Writableでエラーが発生した場合
+
+```bash
+resume
+drained
+resume
+drained
+resume
+drained
+resume
+Writable caught error: TEST ERROR
+destroy writable
+destroy readable
+Another error handler
+Writable closed
+Readable caught error: TEST ERROR
+Readable closed
+```
+
+pipeしている最中に読み取りストリーム、書き込みストリームどちらでエラーが起こっても`pipe().on('error)'`で両方エラーを取得することはできる。
+
+ストリームでエラーが発生した場合、自動でデータを読み取っている関係上
+
+読み取りストリームを優先して閉じてそれから書き込みストリームを閉じるというのが
+
+内部バッファに貯まった消費されなくなったデータ量が最小で済むことになると思う。
+
+なので
+
+次の通りに実装するといいのかも。
+
+```TypeScript
+    // rfs.on('error'), wfs.on('error')は削除してある
+
+    rfs.pipe(wfs, {
+        end: true,      // defaultでtrueだけどね
+    })
+    .on('error', (e) => {
+        console.log('piped error handler');
+        if(!rfs.destroyed) {
+            console.log("destroy readable");
+            rfs.destroy();
+        }
+        if(!wfs.destroyed) {
+            console.log("destroy writable");
+            wfs.destroy();
+        }
+    });
+```
+
+結果
+
+```bash
+resume
+drained
+resume
+drained
+resume
+drained
+resume
+piped error handler
+destroy readable
+destroy writable
+Writable closed
+Readable closed
+```
+
+## APIスタイルは一つだけにして複数のAPIを使わないこと
 
 https://nodejs.org/dist/latest-v16.x/docs/api/stream.html#choose-one-api-style
 
