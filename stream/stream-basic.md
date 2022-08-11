@@ -1,11 +1,12 @@
-# 実践と検証と整理： File System stream
+# 【Node.js】検証と実践：Streamの基本的な使い方
 
-dist/in/cat.pngをストリームでdist/out/cat.pngへコピーするプログラムを作って
+NOTE: この記事を他人に見せるものとして編集してアップロードする。
 
-streamの挙動を確認、検証する。
+`fs.Readable`と`fs.Writable`を使って画像ファイルをコピーするプログラムを作り
 
-streamは`fs.createReadStrem`, `fs.createWriteStream`で生成されるインスタンスを使用する。
+ストリームの基本的な使い方を検証、理解していく。
 
+利用するNode.jsのバージョンはv16.xです。
 
 ## 目次
 
@@ -33,18 +34,50 @@ pipe
 
 [APIスタイルは一つだけにして複数のAPIを使わないこと](#APIスタイルは一つだけにして複数のAPIを使わないこと)
 
+## この記事は何？
+
+次のような方向けになると思います。
+
+- 前提としてNode.jsのstream APIを一通り目を通した人向けの記事になります。
+- 具体的に最低限レベルでのストリームを使った実装方法を知りたい人。
+
+`fs.writeFile()`などのメモリに一旦ファイルの内容をすべて展開するメソッドを使わずに
+
+ストリームで如何にメモリを節約しながらファイルのコピーを実現できるかを追求しながら、
+
+その方法を実現するための実装方法を模索していきます。
+
+ストリームの基本的な使い方といいつつ、
+
+`trasform`と`duplex`ストリームについてはこの記事で扱いません。
+
+`Readable`と`Writable`のみ扱います。
+
 ### 実践
 
-画像をコピーするプログラム。
+画像ファイル`./dist/in/cat.png`から`./dist/out/cat.png`へコピーしたファイルを生成します。
 
-次の仮定（NOTE: 思い込み）で作られている
+Node.jsのstream, FileSystem APIを一通り読んだ人がとにかく書いてみたプログラムになります。
+
+大いに誤解と間違いを含んでいるコードになります。
+
+このコードが期待した通りに動かないことを確認し、
+
+その原因解明をこの記事でまとめていき、最終的に正しい利用方法で改善されたコードに直します。
+
+コードは次の思い込みで作られています。
 
 - `Writable`ストリームは`autoClose:true`で作成されたので読み取るデータがなくなったら勝手に`Writable`は閉じられる
 - `Readable`ストリームは読み取るデータがなくなったら勝手に`Readable`を閉じる
 - 各ストリームは`highWaterMark`を1024byteで指定しているので毎度ストリームは1024byte読み取って1024byte書き込む
-- 各ストリームの各イベントでしなくてはならないことを理解していない
-- `Readable`の`data`イベントで取得したchunkはそのまま`writable.write()`へわたしていいはず
+- 各ストリームの各イベントハンドラはひとまず追加しているだけでどうすればいいのかわかっていない
+- `Readable`の`data`イベントで取得したchunkはそのまま`writable.write()`へわたしていい
 - `Readable`はflowingモードで運用されるから`readable.readableFlowing`はtrueになるはず
+
+画像ファイルはMicrosoftのDirectXのチュートリアルページからダウンロードした画像で約15kbサイズになります。
+
+https://raw.githubusercontent.com/wiki/Microsoft/DirectXTK/images/cat.png
+
 
 ```TypeScript
 import * as stream from 'node:stream';
@@ -55,27 +88,20 @@ import * as crypto from 'node:crypto';
 const outPath = path.join(__dirname, "out");
 const inPath = path.join(__dirname, "in");
 
-// ランダムな文字列を生成するやつ
-// 
-// https://qiita.com/fukasawah/items/db7f0405564bdc37820e#node%E3%81%AE%E3%81%BF
+// ランダムな文字列を生成する
 const randomString = (upto: number): string => {
-    const S="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    return Array.from(crypto.randomFillSync(new Uint8Array(upto))).map((n)=>S[n%S.length]).join('');
+    // ...
+    return randomCharactors;
 }
 
 
 // 指定のパスにディレクトリは存在するのか確認する関数
-/*
-https://stackoverflow.com/questions/15630770/node-js-check-if-path-is-file-or-directory
-
-https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#class-fsstats
-
-*/ 
 const isDirExist = (path: string): boolean => {
-    return fs.lstatSync(path).isDirectory() && fs.existsSync(path);
+    // ...
+    return existOrNotExistBoolean;
 }
 
-
+// fs.Readableを生成する
 const createRfs = (): fs.ReadStream => {
     if(!isDirExist(inPath)) throw new Error(`The path: ${inPath} does not exist.`);
 
@@ -92,7 +118,7 @@ const createRfs = (): fs.ReadStream => {
     
 }
 
-
+// fs.Writableを生成する
 const createWfs = (): fs.WriteStream => {
     if(!isDirExist(outPath)) throw new Error(`The path: ${outPath} does not exist.`);
 
@@ -108,7 +134,7 @@ const createWfs = (): fs.WriteStream => {
 
 
 
-(async function() {
+(function() {
     const rfs: fs.ReadStream = createRfs();
     const wfs: fs.WriteStream = createWfs();
 
@@ -171,140 +197,131 @@ const createWfs = (): fs.WriteStream => {
     });
 
     wfs.on('pipe', () => {
-        console.log("PIPED!");
+        console.log("piped");
     });
 
     wfs.on('unpiped', () => {
-        console.log("UNPIPED!!");
+        console.log("unpiped");
     })
 
     wfs.on('error', (e: Error) => {
         console.error(e.message);
-        // 念のために明示的にストリームを破棄させる。
         if(wfs.destroyed) wfs.destroy();
     });
 
 })();
 ```
 
-ログ
+結果
 
 ```bash
-tream
-[start:*run] readable stream has been opened    # `open` Readable
-[start:*run] readable stream is ready           # `ready` Readable
+readable stream has been opened
+readable stream is ready
 
-# "data" read.
-# chunk size is exactly same as highWaterMark threshold.
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
+data read!
+state: true
+Received 1024 bytes of data.
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-# `data` has been written.
-# `data` callback has been executed.
-# なのでここでデータの書き込みが行われた
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+data read!
+state: true
+Received 1024 bytes of data.
+Write data has been completed
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
+data read!
+state: true
+Received 905 bytes of data.
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 1024 bytes of data.
-[start:*run] Write data has been completed
+End read stream
+There is no more data to be consumed from the stream
 
-[start:*run] data read!
-[start:*run] state: true
-[start:*run] Received 905 bytes of data.
+Write data has been completed
+Write data has been completed
 
-# readable `end` event
-[start:*run] End read stream
-[start:*run] There is no more data to be consumed from the stream
+readable stream has been closed
 
-# writable `data` event callback has been executed
-[start:*run] Write data has been completed
-[start:*run] Write data has been completed
+Drained
 
-# readable `close` event
-[start:*run] readable stream has been closed
+Write data has been completed
 
-# writable `drain` event
-[start:*run] Drained
-
-# writable `data` event callback has been executed
-[start:*run] Write data has been completed
-
-# 正常終了
-[start:*run] [nodemon] clean exit - waiting for changes before restart
+clean exit - waiting for changes before restart
 ```
-
-画像は正常に取得できたが...プログラムはＡＰＩを正しく使えなかったようだ。
+コピーファイルは画像ファイルとして開くことができました。
 
 期待通りじゃなかったこと：
 
 - `Writable`ストリームが閉じられていない
+
+    `close`イベントは`Writable`において発生していないことが確認できます。
+    自動的に閉じると勘違いしているからなのですが。
+
 - `drain`イベントが一度しか起こらなかった
+
+    `highWaterMark`の閾値にまで内部バッファがたまったら`drain`イベントまで書込みはできないと思っていました。
+    しかし既に`highWaterMark`で1024byteを何度も受け取っているのに一度しか`drain`が発生しないのはおかしいです。
 
 期待通りだったこと：
 
 - `Readable`はhighWaterMarkで指定した通りのサイズを読み取ってきた
-- `Readable`は読み取るデータがなくなったら閉じられた
+- `Readable`は読み取るデータがなくなったら自動的に閉じられた
 
 ここ以降、実践でうまくいかなかった原因を追究してその学習内容をまとめ、
 
