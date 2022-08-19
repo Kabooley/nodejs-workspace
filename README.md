@@ -290,3 +290,11 @@ TODO: これを解決したい。
 https://docs.microsoft.com/ja-jp/windows/wsl/tutorials/wsl-vscode
 
 Linuxディストリビューションから`code .`と入力するだけ
+
+
+/home/linuxbrew/.linuxbrew/bin:
+/home/linuxbrew/.linuxbrew/sbin:
+/home/teddy/.nodenv/bin:
+/home/teddy/.yarn/bin:
+/usr/local/sbin:/usr
+/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/mnt/c/Program Files/WindowsApps/CanonicalGroupLimited.Ubuntu20.04onWindows_2004.2021.222.0_x64__79rhkp1fndgsc:/mnt/c/Program Files/Amazon Corretto/jdk11.0.8_10/bin:/mnt/c/Program Files (x86)/Intel/iCLS Client/:/mnt/c/Program Files/Intel/iCLS Client/:/mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common:/mnt/c/WINDOWS/system32:/mnt/c/WINDOWS:/mnt/c/WINDOWS/System32/Wbem:/mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0/:/mnt/c/Program Files/Intel/Intel(R) Management Engine Components/DAL:/mnt/c/Program Files/Intel/Intel(R) Management Engine Components/IPT:/mnt/c/Program Files (x86)/Intel/Intel(R) Management Engine Components/DAL:/mnt/c/Program Files (x86)/Intel/Intel(R) Management Engine Components/IPT:/mnt/c/Program Files (x86)/Windows Live/Shared:/mnt/c/Program Files/dotnet/:/mnt/c/Program Files/TortoiseGit/bin:/mnt/c/ProgramData/chocolatey/bin:/mnt/c/WINDOWS/System32/OpenSSH/:/mnt/c/Program Files/PowerShell/7/:/mnt/c/Program Files/SourceGear/Common/DiffMerge/:/mnt/c/Program Files/Git/cmd:/mnt/c/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/:/mnt/c/Users/takashi/anaconda3:/mnt/c/Users/takashi/anaconda3/Scripts:/mnt/c/Program Files/PuTTY/:/mnt/c/Program Files/Docker/Docker/resources/bin:/mnt/c/ProgramData/DockerDesktop/version-bin:/mnt/c/Program Files/nodejs/:/mnt/c/Program Files/CMake/bin:/mnt/c/Users/takashi/AppData/Local/Programs/Microsoft VS Code/bin:/mnt/c/Users/takashi/AppData/Local/Microsoft/WindowsApps:/mnt/c/MinGW/bin:/mnt/c/Program Files (x86)/GnuWin32/bin:/mnt/c/Users/takashi/.dotnet/tools:/mnt/c/Program Files/heroku/bin:/mnt/c/Users/takashi/AppData/Roaming/npm:/snap/bin
