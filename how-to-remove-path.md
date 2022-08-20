@@ -127,9 +127,16 @@ LOCAL
 ~$
 ```
 
+## env
+
+## export
+
+manコマンドは使えなくてhelpコマンドで詳細を表示してくれる。
+
 ```bash
 :~$ man export
 No manual entry for export
+
 :~$ help export
 export: export [-fn] [name[=value] ...] or export -p
     Set export attribute for shell variables.
@@ -138,8 +145,11 @@ export: export [-fn] [name[=value] ...] or export -p
     executed commands.  If VALUE is supplied, assign VALUE before exporting.
 
     Options:
+                # シェル関数を参照する
       -f        refer to shell functions
+                # 指定した環境変数をシェル変数へ変える
       -n        remove the export property from each NAME
+                # すべてのエクスポートされた変数と関数を一覧表示する
       -p        display a list of all exported variables and functions
 
     An argument of `--' disables further option processing.
@@ -150,3 +160,91 @@ export: export [-fn] [name[=value] ...] or export -p
 
 > 各NAMEをマークし、その後に実行されるコマンドを自動的に環境にエクスポートします。
 > VALUEが指定された場合、エクスポートする前にVALUEを割り当てます。
+
+まず復習で、
+
+シェル変数はシェルから参照できる変数で、そのシェルからしか参照できない。
+
+環境変数はシェルのみならず、環境変数を設定したシェルから新たに生成したシェルからや、コマンドから参照できる変数である。
+
+で、
+
+`export`は
+
+- 環境変数を定義する
+- シェル変数を環境変数として変更またはその逆をする
+
+という機能を持つ。
+
+
+
+
+## surface environment
+
+サーフェイスの方だと
+
+`.linuxbrew`はteddy/の上のディレクトリにある
+
+`anyenv`は
+
+```bash
+$ ls -a ../linuxbrew/
+.  ..  .linuxbrew
+$ ls -a ../linuxbrew/.linuxbrew/
+.  ..  Caskroom  Cellar  Frameworks  Homebrew  bin  etc  include  lib  opt  sbin  share  var
+$ which anyenv
+/home/linuxbrew/.linuxbrew/bin/anyenv
+
+# 使えはする
+$ brew --version
+Homebrew 3.5.6
+Homebrew/homebrew-core (git revision 588c31e556d; last commit 2022-07-28)
+$ anyenv --version
+anyenv 1.1.4
+# やっぱりnodenvはどうしても認識しない
+$ nodenv --version
+
+Command 'nodenv' not found, did you mean:
+
+  command 'nodeenv' from deb nodeenv (0.13.4-1.1)
+
+Try: sudo apt install <deb name>
+
+# anyenvはここにある
+$ ls -a | grep anyenv
+.anyenv # home/username/.anyenv
+
+# nodenvはここにある
+$ anyenv install nodenv
+anyenv: /home/teddy/.anyenv/envs/nodenv already exists
+Reinstallation keeps versions directories
+continue with installation? (y/N) N
+
+# nodenvのbinはそこにあるのか？
+# あった
+$ ls .anyenv/envs/nodenv/
+CONDUCT.md       LICENSE    bin          default-packages  nodenv.d           package.json  script  src   version
+CONTRIBUTING.md  README.md  completions  libexec           package-lock.json  plugins       shims   test  versions
+
+# 環境変数として登録されてあるか
+$ env
+# (とにかくなかった)
+
+# 以下をしてみる
+$ exec $SHELL -l
+# もう一度
+$ env
+NODENV_SHELL=bash
+NODENV_ROOT=/home/teddy/.anyenv/envs/nodenv
+# あった
+
+# 使えた
+$ nodenv versions
+* 16.16.0 (set by /home/teddy/.anyenv/envs/nodenv/version)
+```
+
+なんやねん。
+
+とにかく`exec $SHELL -l`しないと認識されない。
+
+サーフェイス環境の方はこれを修正すればいいのかな
