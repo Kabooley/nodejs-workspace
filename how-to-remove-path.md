@@ -384,6 +384,32 @@ https://askubuntu.com/a/156038
 
 https://vitux.com/how-to-enable-disable-automatic-login-in-ubuntu/
 
+今のところUbuntuをlogoutで閉じても、次回起動時はやっぱり自動ログインである。
+
+もしかしたらだけど
+
+対話型ログインと自動ログインで読み込む初期化ファイルが違うせいでいろいろ、
+
+とくにnodenvがないとか言われるのだと思う。
+
+ひとまずだけど毎回sudoユーザーでもログインを求める仕様に変更する。
+
+...と思ったけどなんだかその方法が見つからない。
+
+これってもしかして、
+
+普通はsudoユーザ以外のユーザを作成して、毎度Ubuntu起動したらそのユーザのためにあたらしいシェルを起動してログインを求める
+
+...というのがお作法なのかしら？
+
+#### (番外編) Ubuntu user management
+
+Ubuntuにはrootユーザが存在しない。
+
+代わりにsudo特権を持つユーザを一番初めに作成させて、rootの権限をsudo経由で実行できる。
+
+
+
 ## surface environment
 
 サーフェイスの方だと
