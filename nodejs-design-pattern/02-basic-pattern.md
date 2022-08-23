@@ -113,6 +113,81 @@ Nodejsのモジュールシステムは、
 
 それぞれの特徴やパターンを学ぶ。
 
+#### モジュールと`module.exports`
+
+モジュールとは`const mod = (function(){})()`の`mod`のことであり、`module.exports`はこの即時関数内部でreturnされたものと同じである。
+
+つまり非公開スコープと公開スコープを持つ特殊な環境である。
+
+```JavaScript
+// モジュールパターン
+const mod = (function() {
+    const privateFoo = () => {/**/};
+    const privateBar = [];
+
+    const exported = {
+        publicFoo: () => {/**/},
+        publicBar: () => {/**/}
+    };
+
+    return exported;
+})();
+```
+
+```JavaScript
+// 抽象的なモジュール
+
+// 依存関係の取得
+const dependency = require("./anotherModule");
+
+// 非公開API
+function log() {
+    console.log(`Well done ${dependency.username}`);
+}
+
+// 公開APIの登録
+// モジュールパターンで言えばreturnで返されるオブジェクトexportedに該当する
+module.exports.run = () => {
+    log();
+}
+```
+
+重要なことは、`module.exports`へ登録しない限りモジュールのすべては外へ公開されないということである。
+
+#### `require()`は何をするのか
+
+引数として指定されたモジュールを探して、そのモジュールの公開APIを返すことである。
+
+```JavaScript
+function loadModule(
+    filename,   // モジュールファイルのpath
+    module,     // moduleという名前のメタデータ。ここにもじゅ
+    require
+    ) {
+  const wrappedSrc =
+    `(function(module, exports, require) {
+      ${fs.readFileSync(filename, 'utf8')}
+    })(module, module.exports, require);`;
+    // eval()を使っているのは何をしているのか理解しやすくするため便宜上使っているに過ぎない
+  eval(wrappedSrc);
+}
+
+const module = {
+    exports: {},
+    id: id
+};
+
+loadModule(path, mod, )
+```
+
+とにかく言いたいことは、
+
+- モジュールはロードされたらプライベートなスコープで囲われる(wrappedSrc)
+- eval(module内容)することで、loadModule()でインポートするモジュールの公開APIが、moduleオブジェクトのexportsプロパティに追加される
+- 上記のmoduleオブジェクトを返せばロードしたモジュール（の公開API）を返せる
+
+ということ。
+
 #### 依存解決順序
 
 複数のソフトウェアが同一モジュールだけど異なるバージョンに依存している状態は依存地獄と呼ばれ忌避される。
@@ -163,5 +238,66 @@ const axios = require('axios');  // パッケージモジュール
 
 キャッシュによって循環参照が可能となってしまう。
 
-TODO: 循環参照について調べる。
+循環参照の問題の解決はテキストの後のほうで取り扱うかも...という期待を込めて後回し。
+
+##### 循環参照
+
+あるファイルにてrequire(a), require(b)してみたら、モジュールa,bは各々の内部でお互いをrequire()しあっていた
+
+という状態のこと。
+
+#### モジュール定義のパターン
+
+自分でモジュールを定義するときに従うパターンはこうなるねって話。
+
+##### Named exports
+
+公開したいプロパティや関数をexportsオブジェクトとして定義する方法。
+
+この場合、exportsがnamespaceの役割を果たす。
+
+最も一般的なAPI公開方法である。
+
+```JavaScript
+// module側 ./logger.js
+exports.info = (message) => {
+    console.log('Info' + message);
+}
+exports.verbose = (message) => {
+    console.log('Verbose' + message);
+}
+
+// モジュール使用する側
+const logger = require('./logger');
+logger.info('info message');
+logger.verbose('verbose message');
+```
+
+##### substack
+
+単一の関数しかエクスポートしないパターン。
+
+module.exportsオブジェクトを丸ごと関数で上書きする。
+
+APIが単純明快になる。「露出部分最小化」というNode原則に合致する。
+
+その関数の副次的な機能となるプロパティを追加できる。
+
+##### コンストラクタのエクスポート
+
+先のsubstackなんだけど、module.exportsをコンストラクタ関数で上書きする。
+
+呼び出し側はnew モジュールでインスタンスを生成したり、コンストラクタ関数を拡張したりできる。
+
+##### インスタンスのエクスポート
+
+reuire()のキャッシュの仕組みを利用して、異なるモジュール間で状態を共有可能とするパターン。
+
+インスタンスをmodule.exportsすると、そのインスタンスをrequire()するすべてのモジュールは同じインスタンスを参照する。
+
+シングルトンパターンと似ているけれど、Node.js特有の問題がある。
+
+Node.jsでは同一のモジュールの別バージョンをrequire()する場合があるから同一のインスタンスになるとは限らない。
+
+その辺の解決はテキストの後のほうで扱うそうです。
 
