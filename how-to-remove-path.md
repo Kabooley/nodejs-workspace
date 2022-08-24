@@ -598,3 +598,45 @@ $ nodenv versions
 とにかく`exec $SHELL -l`しないと認識されない。
 
 サーフェイス環境の方はこれを修正すればいいのかな
+
+
+
+## (関係ない話)Linuxスーパーユーザなら知っておくべきLinuxの仕組み
+
+#### 基本コマンドとディレクトリ階層
+
+#### `find`, `locate`コマンド
+
+```bash
+# ndp2というディレクトリから'README.md'というファイルを探してその結果を標準出力してね
+$ find ./ndp2 -name 'README.md' -print
+
+./ndp2/example/ch05/08_streams_writable/node_modules/chance/README.md
+./ndp2/example/ch05/08_streams_writable/node_modules/chance/docs/README.md
+./ndp2/example/ch05/17_streams_combined_a/node_modules/isarray/README.md
+# ...中略...
+./ndp2/example/ch04/12_generators_sequential_execution/node_modules/lodash.reject/README.md
+./ndp2/example/ch04/12_generators_sequential_execution/node_modules/nth-check/README.md
+./ndp2/README.md
+
+```
+
+ということでその指定ディレクリ以下の階層全てから`README.md`を探し出してくれた。
+
+探し出す対象は*など特別な意味を持つ文字を含んで探し出す場合はシングルクオートで囲うこと'*'
+
+`locate`はシステムが定期的に構築するインデックスから該当するものを探し出す。
+
+`find`は指定したディレクトリ以下から指定のファイルを探し出す
+
+#### 環境変数とシェル変数
+
+環境変数は、シェルの環境変数はすべてOSによって実行されるすべてのコマンドに対して提供される
+
+環境変数はシェルに固有でないので、あらたにシェルを生成しても先のシェルでの環境変数にアクセスできる。
+
+シェル変数はコマンドからアクセスできない。
+
+シェル変数はシェルに固有である（なのであとから生成したシェルからさきのシェル変数にはアクセスできない）
+
+
