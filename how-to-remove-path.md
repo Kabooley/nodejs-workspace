@@ -640,3 +640,179 @@ $ find ./ndp2 -name 'README.md' -print
 シェル変数はシェルに固有である（なのであとから生成したシェルからさきのシェル変数にはアクセスできない）
 
 
+#### ユーザ環境
+
+スタートアップファイルには何を書けばいいのか？
+
+シェルの起動方法別にどのスタートアップファイルが実行されるのか？
+
+##### 13.4 スタートアップファイルの順序と例
+
+bahsシェル：
+
+> シェルのインスタンス種別には主に対話型と非対話型の2種類がありますが、
+
+> （中略）非対話型シェルは通常、スタートアップファイルを読み込みません。
+
+> 対話型シェルとは、この本で紹介したようなターミナルからコマンドを実行する際に使うシェルで、
+
+> ログイン型と非ログイン型に分類されます。
+
+ということで基本的に対話型シェルしかスタートアップファイルを読み込みませんと。
+
+##### 疑問：自分が今開いているシェルはログインシェルなのかどうか確認する方法
+
+テキストの方では、
+
+> `echo $0`を実行して最初の文字が`-`ならそのシェルはログインシェルである
+
+とのことだけど、自分の環境で実行したら、
+
+`/bin/bash`が帰ってきた。
+
+http://www.dba-oracle.com/t_linux_login_shell.htm
+
+
+```bash
+$ echo $0
+/bin/bash
+
+$ echo $SHELL
+/bin/bash
+
+```
+
+`$SHELL`
+
+> この変数は、コマンド ライン セッションが開始されたときにのみ設定されます。最初のログイン時、または su - が呼び出されて別のユーザーとしてログイン シェルが呼び出されたとき、次のセクションで説明するようにシェルが一時的に切り替えられた場合は更新されません。 ログイン時に呼び出されたかどうか、またはログイン後に切り替えられたかどうかに関係なく、現在実行されているシェルを確認するには、別のシェル変数 0 を確認します。
+
+`$0`
+
+> この変数は、現在実行中のプログラムの名前を返します。シェルスクリプト内でスクリプトの名前を出力するために使用できますが、シェルセッションではシェルの名前を返します。
+
+結局わからん。
+
+しかしテキストの話を信じるとしたらいつもUbuntuを起動させたときに起動されるシェルはログインシェルである。
+
+となると、自分のシェルは、
+
+`/etc/profile`が読みだされ、
+
+次に`~/.bash_profile`, `~/.bash_login`, `~/.profile`のうち初めに見つけたファイルを読み込む。
+
+この辺の情報はいろんな情報源から信頼できる。
+
+
+##### `/etc/profile`の中身
+
+とにかく/etc/profileはすべてのユーザに適用される。
+
+```bash
+$ cat /etc/profile
+# /etc/profile: system-wide .profile file for the Bourne shell (sh(1))
+# and Bourne compatible shells (bash(1), ksh(1), ash(1), ...).
+
+# ${PS1-}は${PS1}と同じ挙動だけど、PS1が未定義の時は空文字列を生成するという意味
+# つまりPS1が空でないなら真という意味になるのかも
+# 
+# PS1とはPrompt Statementの略のことのようで、
+# 対話型のシェルならばPS1が設定されているから真なら対話型シェルである
+# という意味になる
+if [ "${PS1-}" ]; then
+  # bin/shはBourne Shellのこと。
+  # 現在起動中のbashがbin/shじゃないなら真って意味
+  # 
+  # 変数BASHが空でなくて、且つ"bin/sh"として設定されていなければ真という意味
+  # Bourne Shell以外ならという意味ともいえる
+  if [ "${BASH-}" ] && [ "$BASH" != "/bin/sh" ]; then
+    # The file bash.bashrc already sets the default PS1.
+    # PS1='\h:\w\$ '
+    # 
+    # /etc/bash.bashrcがレギュラーファイルであるならばという意味
+    if [ -f /etc/bash.bashrc ]; then
+      # . ファイル名で、カレント環境でシェルスクリプトを実行するという意味らしい。
+      . /etc/bash.bashrc
+    fi
+  # Bourne Shellならもしくは$BASHが空なら
+  # rootユーザかどうかチェックする
+  else
+    if [ "`id -u`" -eq 0 ]; then
+      PS1='# '
+    else
+      PS1='$ '
+    fi
+  fi
+fi
+
+# -dはディレクトリがあればという意味
+# つまり、/etc/profile.dというディレクトリがあれば
+# (/etc/profile.dはディレクトリであることは確認済)
+if [ -d /etc/profile.d ]; then
+  # for...in文は要素を一つずつ変数iに格納してdo...doneの間の処理を実行する
+  for i in /etc/profile.d/*.sh; do
+    # 変数iに入れたファイルが読み取り可能であるならば
+    if [ -r $i ]; then
+      # わからんけど多分.shファイルの内容を読みだしたのだと思う
+      . $i
+    fi
+  done
+  # 変数iの値を空に戻す
+  unset i
+fi
+```
+
+解読大変やった...
+
+まとめると、
+
+---
+
+prompt statementが空か?
+
+  真：変数BASHが空でなくてbin/shが割り当てられてもいないか?
+
+    真：/etc/bash.bashrcシェルスクリプトを実行する
+
+    偽：rootユーザか?
+
+        真：PS1を"# "にする
+        偽：PS1を"$ "にする
+
+/etc/profile.dというディレクトリがあるか？
+
+  真：あるだけの/etc/profile.d/*.shファイル実行する
+
+---
+
+参考:
+
+https://www.tohoho-web.com/ex/shell.html
+
+https://unix.stackexchange.com/questions/32096/why-is-bashs-prompt-variable-called-ps1
+
+https://qiita.com/shiro_usagi/questions/72e48fffa453e2aaa303
+
+https://okwave.jp/qa/q2342756.html
+
+https://www.ibm.com/docs/en/zos/2.1.0?topic=descriptions-dot-run-shell-file-in-current-environment
+
+
+つまり、
+
+1. etc/profileを実行するときにすでにBASHが割り当てられていれば/etc/bash.bashrcが実行される
+
+2. まだPS1が割り当てられていないならPS1を割り当てる
+
+3. 最後は必ず/etc/profileのシェルスクリプトが実行される
+
+ということは
+
+基本的には3を実行して、PS1の状態に応じてやることを変える感じ。
+
+```bash
+$ echo $PS1
+\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$
+
+$ id -u
+1000
+```
