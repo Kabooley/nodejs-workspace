@@ -301,3 +301,122 @@ Node.jsでは同一のモジュールの別バージョンをrequire()する場�
 
 その辺の解決はテキストの後のほうで扱うそうです。
 
+
+## オブザーバ・パターン
+
+Node.jsの基本のパターン3つの最後。
+
+Nodeの非同期処理をうまくあつかうための機構であり、コールバックを補完するもの。
+
+コールバックと異なるのはコールバックパターンは一つのリスナ（コールバック）のみに対して伝番されるけど
+
+オブザーバパターンは複数のリスナに対して通知される。
+
+オブザーバパターンはNodeのコアモジュールの機能としてサポートされている。
+
+#### EventEmitter
+
+EventEmitterの各メソッドは戻り値に自身のインスタンスを返すので、メソッドチェーンが可能である。
+
+リスナはコールバックパターンと異なり、第一引数にエラーオブジェクトを取らない。
+
+```JavaScript
+// 基本的な使い方
+
+
+"use strict";
+
+const EventEmitter = require('events').EventEmitter;
+const fs = require('fs');
+
+// 発行側
+function findPattern(files, regex) {
+  const emitter = new EventEmitter();
+  files.forEach(function(file) {
+    fs.readFile(file, 'utf8', (err, content) => {
+      if(err)
+    //   EventEmitterでエラーが発生したらerrorイベントを発行する
+        return emitter.emit('error', err);
+      
+    //   エラーがなくファイルを読み取れたことの通知
+      emitter.emit('fileread', file);
+      let match;
+      if(match = content.match(regex))
+    //   正規表現に一致する表現を見つけたことの通知
+        match.forEach(elem => emitter.emit('found', file, elem));
+    });
+  });
+  return emitter;
+}
+
+// 受信側
+findPattern(
+    ['fileA.txt', 'fileB.json'],
+    /hello \w+/g
+  )
+  .on('fileread', file => console.log(file + ' was read'))
+  .on('found', (file, match) => console.log('Matched "' + match + '" in file ' + file))
+  .on('error', err => console.log('Error emitted: ' + err.message))
+;
+```
+
+#### EventEmitter内でのエラー伝番
+
+非同期処理なのでエラーの呼び出し元はイベントループ内である。
+
+例外がスローされてもアプリケーションがそれをキャッチすることはできない。
+
+EventEmitterではそんな時は`error`イベントを発行することになっている。
+
+
+
+#### EventEmitterの拡張
+
+EeventEmitterを拡張してカスタマイズされたclassを定義するようなとき。
+
+メソッドはthisを返すようにするなど標準メソッドのルールを守ること。
+
+http APIもstream APIもEventEmitterを継承している。
+
+#### 同期イベント非同期イベント
+
+イベントが同期もしくは非同期のどちらで通知されるかは実はリスナーの登録方法によって決まる。
+
+その登録方法とは、
+
+EventEmitterのインスタンス生成後に登録されたイベントは非同期イベントで、
+
+インスタンス生成前に登録されたイベント(コンストラクタで登録されたイベント)は同期イベントとして登録される。
+
+なので同期イベントを実現するのは限定的であり、EventEmitterはほぼ非同期イベント向けといっていい。
+
+#### コールバックとの使い分け
+
+コールバックもEventEmitterもどちらも非同期処理ができる。どちらをつかえばいいの？
+
+こうするといい。
+
+EventEmitter: 
+
+    一つのイベントに対して複数のリスナを登録できる
+
+- 「何が起こったのか」を伝える必要があるとき
+- イベント発生回数が予測できない、または1回だけ、またはまったく発生しない時
+- 複数のイベントを扱うとき
+
+コールバック：
+
+- 非同期を実現したいだけのとき
+- 発生回数が一度きりの時
+- 結果が成功か失敗かだけのとき
+
+一つの処理に対して一つのコールバックしか登録できない。
+
+#### コールバックとEventEmitterの組み合わせ
+
+二つをうまく組み合わせるとNodeの原則「露出最小化」に乗っ取ることができる、とのこと。
+
+コールバックを引数として受け取り、戻り値にEventEmitterを返すようにすると、
+
+簡潔なエントリポイントをメインの機能として提供して、より詳細なイベントをEventEmitterを使って通知できる。
+
