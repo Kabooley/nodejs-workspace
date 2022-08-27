@@ -1,164 +1,8 @@
-#JavaScript Memory Leak
-
-## 自習：JavaScriptのメモリリークについて
-
-https://qiita.com/tkdn/items/ea4f034e0d661def244a#3-%E3%82%AF%E3%83%AD%E3%83%BC%E3%82%B8%E3%83%A3
-
-> JavaScript開発者もメモリリークについて考えなくてはならない。
-
-> 高水準言語を扱っているときも開発者はメモリ管理について理解をするべきである。
-
-> 自動的なメモリ管理については問題が生じる場合もあるのです。
-
-> ガベージコレクタは、不要となったメモリの一部を見つけて自動的にそのメモリを解放するために、メモリの割り当ていちと使用を追跡する。
-
-> ただし残念なことに、このプロセスは「近似」なのです。なぜなら、メモリのある一部が必要であるか知るという一般的な問題は決めることが不可能だからです。
-
-つまりアルゴリズムじゃそれが不要なメモリだ！と判定できないというわけですね。
-
-> ガベージコレクションのアルゴリズムにおける主なコンセプトは**参照**の一部に依存しています。
-
-主なアルゴリズムは以下の2つ。`参照がゼロになったらGC`、`mark&sweep`。
-
-> (`参照がゼロになったらGC`) これは一番シンプルなガベージコレクションのアルゴリズムです。**あるオブジェクトへの参照がゼロになったら、このオブジェクトは "ガベージコレクト可能だ" と判断するのです。**
-
-> (`mark&sweep`) アルゴリズムはすべてのルートとその子オブジェクトを辿り調査し、アクティブ（つまりガベージではないということ）なものとしてマークしていきます。ルートから到達できないものはすべてガベージとしてマークされるでしょう。
-
-
-循環参照は`参照がゼロになったらGC`だと参照されているから永遠にGCできないけど、`mark&sweep`なら両者が到達できないならGCできる。
-
-C++の話みたいになってきたCOMでも使えばいいかしら。
-
-#### 4種類の一般的なJavaScript共通のメモリリーク
-
-- 予期しないグローバル変数
-
-**グローバル変数に参照されているものはGCできない。**
-
-グローバル変数に参照されているものは常にアクティブである。
-
-つまり、グローバル変数は常にアクティブだから、グローバル変数に参照されている限りＧＣできないという意味だ。
-
-たとえば、JavaScriptの特殊なふるまいとして、
-
-定義されていない変数が参照されるとそれはグローバルオブジェクトに追加されてしまう。
-
-これは関数のthisがグローバル変数を指しているから起こることと関係があるのかないのか、
-
-`use strict`で防止できる。
-
-関数が内部でグローバル変数を参照すると、関数は存在する変数を参照しているままになるのでその関数は用が済んでもGCされない。
-
-なのでどうしてもグローバル変数にアクセスしたいときは、関数内部でグローバル変数にアクセスする変数をnullにすること。
-
-```JavaScript
-var theThing = null;    // グローバル変数
-var replaceThing = function () {
-
-  var originalThing = theThing; // originalThingはグローバル変数の参照を持ち...
-  var unused = function () {
-    if (originalThing) // クロージャでグローバル変数の参照を持ってしまった
-      console.log("hi");
-  };
-
-  theThing = {
-    longStr: new Array(1000000).join('*'),
-    someMethod: function () {
-      console.log("message");
-    }
-  };
-  originalThing = null  // nullで参照をなくす
-};
-```
-
-しかしいまいち「それが参照されている」の定義がわからん。
-
-- 放置されたタイマーorコールバック
-
-`setInterval()`は指定の時間間隔でコールバック関数を実行する。
-
-```JavaScript
-var serverData = loadData();
-
-setInterval(function() {
-    var renderer = document.getElementById('renderer');
-    if(renderer) {
-        renderer.innerHTML = JSON.stringify(serverData);
-    }
-}, 5000);
-// 
-// serverDataはGCされることはない
-// 
-```
-
-setIntervalは、GCするにしてもまずは止める必要がある。
-
-つまるところ、こうしたインターバルAPIは止めて削除する仕組みをつくるのはプログラマの責任である。
-
-
-
-- closure
-
-クロージャは、クロージャを生成する関数の内部変数への参照を持ち続けることができる、
-特別なコンテキストを持つ関数のことである。
-
-クロージャはその生成関数から生成された後も、生成関数の中の変数への参照を持ち続ける。
-
-以下の強調は覚えておくべきクロージャの特性である。
-
-**同じ親関数内のなかでクロージャスコープが複数生成されると、そのスコープは共有される**
-
-誰に共有されるの？っていうとその生成されたクロージャ同士でスコープが共有されるという意味だと思う。
-
-いいかえると、
-
-**同じ関数の中で生成されたクロージャ同士は、そのスコープを共有する。**
-
-ということ。
-
-```JavaScript
-var theThing = null;
-
-var replaceThing = function () {
-
-  var originalThing = theThing;
-//   
-// closure: unused
-// 
-  var unused = function () {
-    // 
-    // 親関数の変数を参照
-    // 
-    if (originalThing) // 'originalThing' への参照
-      console.log("hi");
-  };
-
-    // グローバル変数theThingは、
-    // クロージャを生成する関数の中で代入された。
-    // 
-    // 
-  theThing = {
-    longStr: new Array(1000000).join('*'),
-    // 
-    // closure: someMethod
-    // 
-    someMethod: function () {
-      console.log("message");
-    }
-  };
-};
-
-setInterval(replaceThing, 1000);
-```
-
-上記の例だと、
-
-someMethod()のために生成されたスコープはunused()に共有されることになる。
-
-unused()がまったく使われないとしても、someMethodはtheThingに参照されているがゆえに
-
-
 # Memory leak in JavaScript
+
+JavaScriptでもメモリリークは起こるよという話。
+
+どう起こるのかとどう防ぐのかをまとめる。
 
 ## MDN におけるメモリリークの記事
 
@@ -307,6 +151,19 @@ https://auth0.com/blog/four-types-of-leaks-in-your-javascript-code-and-how-to-ge
 
 1. 宣言されていない変数はグローバルオブジェクトのプロパティとして登録されてしまう
 
+**グローバル変数である限りGCはそれを収集することはできない。**
+
+なので、グローバル変数を使って大量の巨大なデータを一時的に保存しておこうと考えて使うような場合、
+
+非常に注意にしなくてはならない。
+
+こうしたデータは、用が済んだ場合に、
+
+- nullを割り当てる
+- 再割り当てをする
+
+を遵守しなくてはならない。
+
 ```JavaScript
 // 例１
 function foo(arg) {
@@ -323,15 +180,153 @@ function foo(arg) {
 function hoge() {
     this.bar = "this is an explicit global variable";
 }
+
+foo();
 ```
 
-これって文字列`"this is an explicit global variable"`への参照が増えるってことかしら。
-
-つまり関数`foo`が要済みになっても
-
-解決策：
+防止策：
 
 ```JavaScript
 // 1. use strictを使う
+"use strict";
 
+// bar is undefined
+function foo(arg) {
+    bar = "this is a hidden global variable";
+}
+
+// `this` is undefined 
+function hoge() {
+    this.bar = "this is an explicit global variable";
+}
+
+foo();
+hoge();
+```
+参照を切る方法：
+
+```JavaScript
+window.temporaryBigData = new Array(1000000).join('*');
+
+// later temporaryBigData is already nothing for all,
+// then you should...
+
+window.temporaryBigData = null;
+// or
+window.temporaryBigData = "";
+```
+
+2. 放置されたタイマーまたは放置されたコールバック
+
+> setInterval の使用は、JavaScript では非常に一般的です。他のライブラリは、コールバックを取るオブザーバーやその他の機能を提供します。これらのライブラリのほとんどは、自身のインスタンスも到達不能になった後、コールバックへの参照を到達不能にする処理を行います。
+
+タイマーの例：
+
+> ただし、setInterval の場合、次のようなコードは非常に一般的です。
+
+```JavaScript
+var someResource = getData();
+setInterval(function() {
+    var node = document.getElementById('Node');
+    if(node) {
+        // Do stuff with node and someResource.
+        node.innerHTML = JSON.stringify(someResource));
+    }
+}, 1000);
+```
+
+**`setInterval()`はアクティブである限り、(GCは)ハンドラを回収することはできない。**
+
+ハンドラがGCできないなら、ハンドラの依存関係もGCできない。ようである。
+
+> However, the handler, as the interval is still active, cannot be collected (the interval needs to be stopped for that to happen). If the interval handler cannot be collected, its dependencies cannot be collected either. That means that someResource, which presumably stores sizable data, cannot be collected either.
+
+上記の場合でいえば、
+
+`setInterval()`を明示的に停止させない限り、`someResource`も回収できないのだ。
+
+```JavaScript
+var someResource = getData();
+const timerId = setInterval(function() {
+    var node = document.getElementById('Node');
+    if(node) {
+        // Do stuff with node and someResource.
+        node.innerHTML = JSON.stringify(someResource));
+    }
+}, 1000);
+
+// 用が済んだら明示的に停止して
+clearInterval(timerId);
+```
+
+コールバックの例：
+
+> オブザーバの場合、オブザーバが不要になったら（あるいは関連するオブジェクトが到達不能になりそうになったら）、明示的に削除するよう呼びかけることが重要である。
+
+> (中略) オブジェクトが破棄される前にこれらのオブザーバを明示的に削除することは、依然としてグッドプラクティスです。たとえば
+
+例：addEventListener()のコールバック
+
+```JavaScript
+var element = document.getElementById('button');
+
+function onClick(event) {
+    element.innerHtml = 'text';
+}
+
+element.addEventListener('click', onClick);
+// Do stuff
+element.removeEventListener('click', onClick);
+element.parentNode.removeChild(element);
+// Now when element goes out of scope,
+// both element and onClick will be collected even in old browsers that don't
+// handle cycles well.
+```
+
+つまり、
+
+オブザーバの削除：`removeEventListener()`
+
+到達不能にするための処理：`element.parentNode.removeChild(element);`
+
+をすれば完全に参照がなくなる。
+
+DOM要素もリスナも不要になったらここまですれば安心というわけですな。
+
+- DOMツリー上に要らない要素があれば消すこと。
+
+- そのリスナも消すこと。
+
+##### オブザーバと循環参照についての備考
+
+> かつてオブザーバと循環参照は、JavaScript開発者の悩みの種でした。これは Internet Explorer のガベージコレクタのバグ（あるいは設計上の判断）によるものでした。古いバージョンの Internet Explorer では、DOM ノードと JavaScript コード間の循環参照を検出することができませんでした。これはオブザーバーの典型的な例で、通常オブザーバーは（上記の例のように）observableへの参照を保持します。言い換えれば、Internet Explorer でノードに observer が追加されるたびに、リークが発生していたのです。これが、開発者がノードの前にあるハンドラを明示的に削除したり、オブザーバ内の参照をnullにしたりするようになった理由です。現在では、モダンブラウザ（Internet ExplorerやMicrosoft Edgeを含む）は、これらのサイクルを検出し、正しく処理することができる最新のガベージコレクションアルゴリズムを使用しています。つまり、ノードを到達不能にする前にremoveEventListenerを呼び出すことは、厳密には必要ではありません。
+
+> jQueryのようなフレームワークやライブラリは、ノードを破棄する前にリスナーを削除します（そのための特定のAPIを使用する場合）。これはライブラリによって内部的に処理され、古い Internet Explorer のような問題のあるブラウザの下で実行されても、リークが発生しないことを確認します。
+
+3. DOMの参照外
+
+> データ構造内に DOM ノードを格納すると便利な場合があります。テーブル内の複数の行の内容を迅速に更新したいとします。各 DOM 行への参照をディクショナリまたは配列に格納することは理にかなっている場合があります。この場合、同じ DOM 要素への 2 つの参照が保持されます。1 つは DOM ツリーにあり、もう 1 つは辞書にあります。将来、これらの行を削除することにした場合は、両方の参照を到達不能にする必要があります。
+
+```JavaScript
+var elements = {
+    button: document.getElementById('button'),
+    image: document.getElementById('image'),
+    text: document.getElementById('text')
+};
+
+function doStuff() {
+    image.src = 'http://some.url/image';
+    button.click();
+    console.log(text.innerHTML);
+    // Much more logic
+}
+
+function removeButton() {
+    // The button is a direct child of body.
+    document.body.removeChild(document.getElementById('button'));
+
+    // At this point, we still have a reference to #button in the global
+    // elements dictionary. In other words, the button element is still in
+    // memory and cannot be collected by the GC.
+}
 ```
