@@ -330,3 +330,188 @@ function removeButton() {
     // memory and cannot be collected by the GC.
 }
 ```
+
+DOMツリー上では、子要素は親要素を参照する。
+
+例えばテーブル要素とせる要素があるとしてセルはテーブルの子要素とする。
+
+将来テーブル要素を削除するけどせる要素への参照は保持するとする。
+
+そのときのGCの挙動は、テーブルもセルもGCしないである。
+
+理由は子要素のセル要素が親要素への参照を持つために、
+
+テーブル要素は参照が切れていないからである。
+
+DOM要素は内部的に親要素を参照するので、ただ削除するだけだとGCされない場合があるので注意。
+
+
+4. closures
+
+**同じ親関数の中で生成された複数のクロージャは、クロージャ同士スコープを共有する**
+
+> The important thing is that once a scope is created for closures that are in the same parent scope, that scope is shared. 
+
+```JavaScript
+var theThing = null;
+var replaceThing = function () {
+  var originalThing = theThing;
+  var unused = function () {
+    if (originalThing)
+      console.log("hi");
+  };
+  theThing = {
+    longStr: new Array(1000000).join('*'),
+    someMethod: function () {
+      console.log(someMessage);
+    }
+  };
+};
+setInterval(replaceThing, 1000);
+```
+
+`replaceThing`が呼び出されるたびに、`theThing`は巨大な配列とクロージャを抱えることになる。
+
+同時に`unused`は`originalThing`を内に抱えるクロージャとして生成される。
+
+つまり、
+
+unusedはまったく使われるはずがないクロージャなのに、someMethodとスコープが共有されているから、
+
+originalThingが常にアクティブになってしまう。(つまりGCされない)
+
+ちょっとまだぴんと来ない。
+
+more details explained:
+
+https://blog.meteor.com/an-interesting-kind-of-javascript-memory-leak-8b47d2e7f156
+
+> JavaScript はひそかに関数型プログラミング言語であり、その関数はクロージャーです。関数オブジェクトは、そのスコープが終了した場合でも、それを囲むスコープで定義された変数にアクセスできます。クロージャによってキャプチャされたローカル変数は、それらが定義されている関数が終了するとガベージ コレクションされ、スコープ内で定義されたすべての関数自体が GC されます。
+
+```JavaScript
+// example 1
+var theThing = null;
+var replaceThing = function () {
+  var originalThing = theThing;
+  theThing = {
+    longStr: new Array(1000000).join('*')
+  };
+};
+setInterval(replaceThing, 1000);
+```
+
+毎秒replaceThing()が実行されると、thiThingを新しく動的確保された巨大な文字列に置き換えて、ローカル変数のoriginalThingへそれを保存する。
+
+しかし、replaceThing()が返されたら、グローバル変数のtheThingの古い値はGCされるので、
+
+メモリの使用率は一定に収まる。
+
+しかし、もしもクロージャがreplaceTHingを「長持ち」させたらどうなる？
+
+```JavaScript
+// example 2
+var theThing = null;
+var replaceThing = function () {
+  var originalThing = theThing;
+  theThing = {
+    longStr: new Array(1000000).join('*'),
+    someMethod: function () {
+      console.log(someMessage);
+    }
+  };
+};
+setInterval(replaceThing, 1000);
+```
+
+someMethodはoriginalThingへの参照を持つ。クロージャだから。
+
+originalThingは毎秒呼び出されるたびにtheThingを与えられて、そうしてsomeMethodというクロージャが生成される。
+
+クロージャは親関数のスコープを維持するから、
+
+クロージャが生成される ーー＞　親関数のスコープがクロージャごとに新たに生成される ーー＞　クロージャの数だけ親関数スコープの変数だけメモリが食われる
+
+という仕組みになる。
+
+今回特別なのは、originalThingに巨大な配列がわたされるから、originalThingがクロージャに参照され、クロージャの数だけ巨大な配列がメモリに展開されてしまうのである。
+
+幸い、モダンなJavaScriptは上記の場合、originalTHingが使われていないと判断できるからGC可能らしい。（どういう仕組みだ？）
+
+で、先のコードに戻る
+
+```JavaScript
+// example 3
+var theThing = null;
+var replaceThing = function () {
+  var originalThing = theThing;
+  var unused = function () {
+    if (originalThing)
+      console.log("hi");
+  };
+  theThing = {
+    longStr: new Array(1000000).join('*'),
+    someMethod: function () {
+      console.log(someMessage);
+    }
+  };
+};
+setInterval(replaceThing, 1000);
+```
+
+これだとGCできずに毎秒大量のメモリが食われる。
+
+先の状況と何が違うんだい？
+
+> したがって、コードが originalThing を再び参照する方法はありませんが、ガベージ コレクションは行われません。なんで？クロージャーを実装する典型的な方法は、すべての関数オブジェクトがそのレキシカルスコープを表す辞書スタイルのオブジェクトへのリンクを持つことです。 replaceThing 内で定義された両方の関数が実際に originalThing を使用した場合、originalThing が何度も割り当てられたとしても、両方の関数が同じオブジェクトを取得することが重要になるため、両方の関数が同じ字句環境を共有します。
+
+> 現在、Chrome の V8 JavaScript エンジンは、変数がクロージャーによって使用されていない場合、レキシカル環境から変数を除外するのに十分スマートであるようです。これが、最初の例がリークしない理由です。 
+
+> しかし、変数がいずれかのクロージャーによって使用されるとすぐに、そのスコープ内のすべてのクロージャーによって共有されるレキシカル環境に行き着きます。そして、それはメモリリークにつながる可能性があります.
+
+つまり、
+
+- クロージャを生成する関数(つまり親関数)内の変数のうち、クロージャから参照されない変数はスコープアウトしたらGC対象になる。
+
+- しかし、クロージャから明示的に参照される変数ならばそれはGCされない。
+
+- そして、その変数は、同じ親関数から生成されたクロージャ同士で共有されるのである。
+
+解決策:
+
+
+```JavaScript
+// example 3
+var theThing = null;
+var replaceThing = function () {
+  var originalThing = theThing;
+  var unused = function () {
+    if (originalThing)
+      console.log("hi");
+  };
+  theThing = {
+    longStr: new Array(1000000).join('*'),
+    someMethod: function () {
+      console.log(someMessage);
+    }
+  };
+  // NOTE: ここでnullすると解決
+  originalThing = null;
+};
+setInterval(replaceThing, 1000);
+```
+解決策はこのクロージャ親関数のreplaceThing()の終りの方でoriginalThing = nullすることです。
+
+こうすることで、依然originalThingがsomeMethodのレキシカルスコープにいても、
+
+最早巨大な配列への参照を持たないでいられる。
+
+ほんまか？
+
+確認してみよう。
+
+TODO: 要確認。devtoolsのメモリリーク確認方法。
+
+https://developer.chrome.com/docs/devtools/memory-problems/
+
+
+> 要約すると、いくつかのクロージャーで使用されているが、使用し続ける必要があるクロージャーでは使用されていない大きなオブジェクトがある場合は、使用が終了したら、ローカル変数がそのオブジェクトを指していないことを確認してください。残念ながら、これらのバグは非常に微妙な場合があります。 JavaScript エンジンについて考える必要がなければ、はるかに良いでしょう。
