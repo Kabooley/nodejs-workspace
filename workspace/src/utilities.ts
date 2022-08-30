@@ -2,7 +2,7 @@
 
 const urlParse = require('url').parse;
 const slug = require('slug');
-// const path = require('path');
+const path = require('path');
 
 module.exports.urlToFilename = function urlToFilename(url: string) {
   const parsedUrl = urlParse(url);

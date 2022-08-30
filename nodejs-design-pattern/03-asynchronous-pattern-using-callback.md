@@ -5,48 +5,9 @@
 
 クロージャを多用することは望ましくない。理由はアプリケーションが大規模化するにしたがって関数呼び出しのレベルが深くなって、コードの制御フローの追跡が困難になるからである。
 
-## TypeScript Tips
+## 前提
 
-#### require vs import
+モジュール解決とTypeScript + Node.jsについて理解があること。
 
-TypeScriptでコードを書く場合、モジュールをインポートしたいとき`require()`が使えない。
+詳しくは`../module-typeScript.md`
 
-`@types/node`はインストール済なのに。
-
-https://stackoverflow.com/a/12742371
-
-https://stackoverflow.com/a/39658366
-
-う～んとにかくモジュールの扱いについて無知だとわかったので、そこを学習しよう。
-
-#### Modules
-
-https://www.typescriptlang.org/docs/handbook/2/modules.html
-
-https://www.typescriptlang.org/docs/handbook/modules.html
-
-https://www.typescriptlang.org/docs/handbook/module-resolution.html
-
-##### JavaScriptモジュールはどのように定義されているのか
-
-- TypeScriptエンジンは、import/export分を含むファイルはモジュールと判断する
-- import/exportを含まないファイルはモジュールとして判断されないので、ｸﾞﾛｰﾊﾞﾙｽｺｰﾌﾟとして扱われる
-- モジュールは独自のスコープを持ち外部からアクセスできない
-- モジュール内で宣言されたあらゆる変数や関数やクラスは、明示的にエクスポートをしないと外部からアクセスされることはできない
-- また、モジュールからエクスポートされているものを利用するには明示的にインポートしなくてはならない
-
-##### Non-modules
-
-> 始める前に、TypeScript がモジュールと見なすものを理解することが重要です。 JavaScript 仕様では、エクスポートまたは最上位の await を持たない JavaScript ファイルは、モジュールではなくスクリプトと見なす必要があると宣言されています。
-
-> スクリプト ファイル内では、変数と型は共有グローバル スコープ内にあると宣言されています。また、outFile コンパイラ オプションを使用して複数の入力ファイルを 1 つの出力ファイルに結合するか、HTML で複数の <script> タグを使用することを前提としています。これらのファイルをロードします (正しい順序で!)。
-
-> 現在インポートもエクスポートもしていないファイルをモジュールとして扱いたい場合は、次の行を追加します。 
-
-```JavaScript
-export {};
-```
-
-> これにより、ファイルが何もエクスポートしないモジュールに変更されます。この構文は、モジュール ターゲットに関係なく機能します。
-
-TODO: 上記の要約
