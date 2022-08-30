@@ -1,6 +1,6 @@
 "use strict";
 // #@@range_begin(list1) // ←これは本にコードを引用するためのものです。読者の皆さんは無視ししてください。
-const request = require('request');
+const request = require('node:request');
 const fs = require('fs');
 const mkdirp = require('mkdirp');
 const path = require('path');

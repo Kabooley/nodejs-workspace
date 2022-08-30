@@ -1,204 +1,57 @@
 "use strict";
-/*****
- * ローカルの画像ファイルのコピーを作成するプログラム
- *
- * `readable.pipe()`を使うと`writable.write()`を使うときとどう異なるのか確認。
- *
- *  詳しくは`./practice-verification-filestream.md`に。
- * */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const fs = __importStar(require("node:fs"));
-const path = __importStar(require("node:path"));
-const crypto = __importStar(require("node:crypto"));
-const outPath = path.join(__dirname, "out");
-const inPath = path.join(__dirname, "in");
-// -- HELPERS -------------------
-// ランダムな文字列を生成するやつ
-// 
-// https://qiita.com/fukasawah/items/db7f0405564bdc37820e#node%E3%81%AE%E3%81%BF
-const randomString = (upto) => {
-    const S = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    return Array.from(crypto.randomFillSync(new Uint8Array(upto))).map((n) => S[n % S.length]).join('');
-};
-// 指定のパスにディレクトリは存在するのか確認する関数
-/*
-https://stackoverflow.com/questions/15630770/node-js-check-if-path-is-file-or-directory
-
-https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#class-fsstats
-
-*/
-const isDirExist = (path) => {
-    return fs.lstatSync(path).isDirectory() && fs.existsSync(path);
-};
-const createRfs = () => {
-    if (!isDirExist(inPath))
-        throw new Error(`The path: ${inPath} does not exist.`);
-    return fs.createReadStream(path.join(inPath, "cat.png"), {
-        encoding: 'binary',
-        autoClose: true,
-        emitClose: true,
-        highWaterMark: 1024 /* default: 64 * 1024 */
-    });
-};
-const createWfs = () => {
-    if (!isDirExist(outPath))
-        throw new Error(`The path: ${outPath} does not exist.`);
-    return fs.createWriteStream(path.join(outPath, "cat" + randomString(4) + ".png"), {
-        encoding: 'binary',
-        autoClose: true,
-        emitClose: true,
-        highWaterMark: 1024 /* default: 64 * 1024 */
-    });
-};
-(function () {
-    return __awaiter(this, void 0, void 0, function* () {
-        const rfs = createRfs();
-        const wfs = createWfs();
-        let counter = 0;
-        let errorEmitted = false;
-        // let draining: boolean = true;
-        // --- pipe()を使うとコメントアウトしたところがいらなくなる ---
-        // まぁイベントを監視する必要があるならdrainとか要るけど...
-        // 
-        // rfs.on('data', (chunk) => {
-        //     console.log(`Readable read ${chunk.length} byte of data`)
-        //     draining = wfs.write(chunk, (e: Error | null | undefined) => {
-        //         if(e) {
-        //             // ここでエラーが起こったら`error`イベント前にこの
-        //             // コールバックが実行される
-        //             console.error(e.message);
-        //         }
-        //     });
-        //     // chunkを書き込んだ後のwriteの戻り値がfalseなら
-        //     // 読取ストリームはすぐに停止する
-        //     if(!draining) {
-        //         console.log('Paused Readable because of reaching highWaterMark');
-        //         rfs.pause();
-        //     }
-        // });
-        // // `drain`イベントは書込みが再開できるときに発行される
-        // wfs.on('drain', () => {
-        //     console.log('Drained and resume Readable again.');
-        //     // drainイベントが発行されたら読取ストリームの読取を再開する
-        //     draining = true;
-        //     rfs.resume();
-        // });
-        wfs.on('drain', () => {
-            console.log('drained');
-        });
-        wfs.on('end', () => {
-            console.log('End Writable');
-        });
-        wfs.on('finish', () => {
-            console.log('Finished');
-        });
-        wfs.on('close', () => {
-            console.log('Writable closed');
-        });
-        rfs.on('close', () => {
-            console.log('Readable closed');
-        });
-        rfs.on('end', () => {
-            console.log('there is no more data to be consumed from Readable');
-            // pipe()を使っているならば明示的にwritable.end()を呼び出す必要はない
-            // wfs.end();
-        });
-        rfs.on('resume', () => {
-            console.log('resume');
-            counter++;
-            if (counter === 4 && !errorEmitted) {
-                wfs.emit('error', new Error('TEST ERROR'));
-                errorEmitted = true;
-                counter++;
-            }
-        });
-        // rfs.on('error', (e: Error) => {
-        //     console.error(`Readable caught error: ${e.message}`);
-        //     // ここは既にReadableのerrorイベント真っ最中なので
-        //     // これ以上Readableにerrorイベントを発行させる必要がない
-        //     // なので引数なしでdestroy()する
-        //     if(!rfs.destroyed) {
-        //         console.log("destroy readable");
-        //         rfs.destroy();
-        //     }
-        //     // Writableにはerrorイベントを発行させる
-        //     if(!wfs.destroyed) {
-        //         console.log("destroy writable");
-        //         wfs.destroy(e);
-        //     }
-        // });
-        // /***
-        //  * pipe()を使っている場合、
-        //  * Readableでエラーが起こるとWritableは自動で閉じてくれない
-        //  * */ 
-        // wfs.on('error', (e: Error) => {
-        //     console.error(`Writable caught error: ${e.message}`);
-        //     // ここは既にWritableのerrorイベント真っ最中なので
-        //     // これ以上Writableにerrorイベントを発行させる必要がない
-        //     // なので引数なしでdestroy()する
-        //     if(!wfs.destroyed) {
-        //         console.log("destroy writable");
-        //         wfs.destroy();
-        //     }
-        //     // Readableにはerrorイベントを発行させる
-        //     if(!rfs.destroyed) {
-        //         console.log("destroy readable");
-        //         rfs.destroy(e);
-        //     }
-        // });
-        /**
-         * drain関係を一切丸投げできる
-         *
-         * Readableが（エラーなく）閉じたときにWritableを閉じてくれる
-         * (option {end: true} なら)
-         *
-         *
-         * */
-        rfs.pipe(wfs, {
-            end: true, // defaultでtrueだけどね
-        })
-            .on('error', (e) => {
-            console.log('piped error handler');
-            if (!rfs.destroyed) {
-                console.log("destroy readable");
-                rfs.destroy();
-            }
-            if (!wfs.destroyed) {
-                console.log("destroy writable");
-                wfs.destroy();
-            }
-        });
-    });
-})();
+// "use strict";
+// // #@@range_begin(list1) // ←これは本にコードを引用するためのものです。読者の皆さんは無視ししてください。
+// const request = require('node:request');
+// const fs = require('fs');
+// const mkdirp = require('mkdirp');
+// const path = require('path');
+// const utilities = require('./utilities');
+// // #@@range_end(list1)
+// type spiderCallback = (error: Error | null, filename?: string, bool?: boolean) => void;
+// // #@@range_begin(list2)
+// function spider(url: string, callback: spiderCallback) {
+//   const filename = utilities.urlToFilename(url);
+//   fs.exists(filename, exists => {        // ❶
+//     if(!exists) {
+//       console.log(`Downloading ${url}`);
+//       request(url, (err, response, body) => {      // ❷
+//         if(err) {
+//           callback(err);
+//         } else {
+//           mkdirp(path.dirname(filename), err => {    // ❸
+//             if(err) {
+//               callback(err);
+//             } else {
+//               fs.writeFile(filename, body, err => { // ❹
+//                 if(err) {
+//                   callback(err);
+//                 } else {
+//                   callback(null, filename, true);
+//                 }
+//               });
+//             }
+//           });
+//         }
+//       });
+//     } else {
+//       callback(null, filename, false);
+//     }
+//   });
+// }
+// // #@@range_end(list2)
+// // #@@range_begin(list3)
+// spider(process.argv[2], (err, filename, downloaded) => {
+//   if(err) {
+//     console.log(err);
+//   } else if(downloaded){
+//     console.log(`Completed the download of "${filename}"`);
+//   } else {
+//     console.log(`"${filename}" was already downloaded`);
+//   }
+// });
+// // #@@range_end(list3)
+const request = require('request');
+const fs = require('fs');
+const mkdirp = require('mkdirp');
+const path = require('path');
+const utilities = require('./utilities');
