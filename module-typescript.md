@@ -267,7 +267,7 @@ strings.forEach((s) => {
 });
 ```
 
-#### CommonJS Moduleの.jsファイルを.tsにするときは
+#### 実践：CommonJS Moduleの.jsファイルを.tsにする
 
 そんな場面ある？って感じですが。
 

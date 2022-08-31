@@ -2,10 +2,16 @@
 
 ここはNode.jsをいじるスペースである
 
-環境が大変になったら次の手順を試すこと
+## 目次
 
+[環境](#環境)
+[実行](#実行)
 
-#### 寄り道：wsl2+UbuntuのUbuntuを初期状態に戻す
+## 環境
+
+環境が壊れたら次を試す。
+
+#### wsl2+UbuntuのUbuntuを初期状態に戻す
 
 https://docs.microsoft.com/ja-jp/windows/wsl/install
 
@@ -73,7 +79,7 @@ $ sudo apt update && sudo apt upgrade
 ```
 
 
-#### 寄り道：wsl2 + Ubuntu環境でスナップショットを取る
+#### wsl2 + Ubuntu環境でスナップショットを取る
 
 毎度何かあったら全部初めからやり直しはスッゴクタイヘンなので
 
@@ -81,7 +87,7 @@ $ sudo apt update && sudo apt upgrade
 
 
 
-#### 寄り道：wsl2+Ubuntu+anyenv環境の構築
+#### wsl2+Ubuntu+anyenv環境の構築
 
 手順：
 
@@ -232,7 +238,7 @@ git clone https://github.com/znz/anyenv-update.git $(anyenv root)/plugins/anyenv
 anyenv update
 ```
 
-#### 寄り道：node.js開発環境構築
+#### node.js開発環境構築
 
 - nodenvの導入
 - yarnの導入
@@ -275,7 +281,7 @@ $ nodenv install 0.10.26
 
 完了
 
-#### 寄り道：Ubuntu起動のたびに`exec $SHELL -l`しないといけない
+#### Ubuntu起動のたびに`exec $SHELL -l`しないといけない
 
 起動のたびに、`anyenv`ってなに？という旨のエラーが発生する。
 
@@ -285,9 +291,44 @@ TODO: これを解決したい。
 
 
 
-#### 寄り道；WSL2でVSCodeを使えるようにする
+#### WSL2でVSCodeを使えるようにする
 
 https://docs.microsoft.com/ja-jp/windows/wsl/tutorials/wsl-vscode
 
 Linuxディストリビューションから`code .`と入力するだけ
 
+## 実行
+
+`workspace/`でのTypeScriptファイルの実行方法いろいろ
+
+詳しくは`./environment.md`へ。
+
+#### `ts-node`パッケージ
+
+NOTE: グローバルインストールするわけじゃないなら実行方法は`npx ts-node index.ts`と`npx`を付けること
+
+```bash
+$ npx ts-node index.ts
+```
+
+通常TypeScriptファイルをコンパイルして実行するには、
+
+`tsc index.ts`から`node index.js`という2つの手順を踏まなくてはならない。
+
+`ts-node`ならその2つの手順を1つのコマンド`ts-node index.ts`で済ませられる。そういうパッケージである。
+
+`ts-node`は勝手に`tsconfig.json`を探し出してそのコンフィグに従ってくれるので、わざわざ指定する必要がない。
+
+指定したかったら`ts-node inde.ts --project ./tsconfig.json`という感じに`--project`オプションを付けるとCLIでtsconfigファイルを指定できる。
+
+(逆にスキップしたかったら`--skipProject`オプションを使う)
+
+https://stackoverflow.com/a/50454232/13891684
+
+上記の回答にある通り、グローバルインストールは推奨されない。
+
+しかしグローバルインストールしないと`ts-node`コマンドがそのままだと認識されない。
+
+そこで`npx`を付けるように言われている。
+
+> node_modules にローカルにインストールされたモジュールからバイナリを実行するために使用される、あまり知られていないコマンド npx があります。
