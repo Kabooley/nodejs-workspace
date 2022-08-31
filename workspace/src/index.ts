@@ -1,17 +1,29 @@
 "use strict";
 // #@@range_begin(list1) // ←これは本にコードを引用するためのものです。読者の皆さんは無視ししてください。
-const request = require('node:request');
-const fs = require('fs');
-const mkdirp = require('mkdirp');
-const path = require('path');
-const utilities = require('./utilities');
+// const request = require('request');
+// const fs = require('fs');
+// const mkdirp = require('mkdirp');
+// const path = require('path');
+// const utilities = require('./utilities');
+
+import request = require('request');
+import fs = require('fs');
+import mkdirp = require('mkdirp');
+import path = require('path');
+import urlToFilename = require('./utilities');
 // #@@range_end(list1)
 
 type spiderCallback = (error: Error | null, filename?: string, bool?: boolean) => void;
 
 // #@@range_begin(list2)
 function spider(url: string, callback: spiderCallback) {
-  const filename = utilities.urlToFilename(url);
+  
+  // const filename = utilities.urlToFilename(url);
+  const filename: string = urlToFilename(url);
+  /*****
+   * NOTE: fs.exists(filename, exists => {})という書き方は非推奨とのこと
+   * 
+   * */ 
   fs.exists(filename, exists => {        // ❶
     if(!exists) {
       console.log(`Downloading ${url}`);
@@ -19,10 +31,24 @@ function spider(url: string, callback: spiderCallback) {
         if(err) {
           callback(err);
         } else {
-          mkdirp(path.dirname(filename), err => {    // ❸
-            if(err) {
-              callback(err);
-            } else {
+          /***
+           * mkdirpのバージョン違いのせいか、最新バージョンではコールバックは使わないらしいのでpromiseチェーンに変更する
+           * 
+           * */ 
+          // mkdirp(path.dirname(filename), err => {    // ❸
+          //   if(err) {
+          //     callback(err);
+          //   } else {
+          //     fs.writeFile(filename, body, err => { // ❹
+          //       if(err) {
+          //         callback(err);
+          //       } else {
+          //         callback(null, filename, true);
+          //       }
+          //     });
+          //   }
+          // });
+            mkdirp(path.dirname(filename)).then(() => {
               fs.writeFile(filename, body, err => { // ❹
                 if(err) {
                   callback(err);
@@ -30,11 +56,12 @@ function spider(url: string, callback: spiderCallback) {
                   callback(null, filename, true);
                 }
               });
+            }).catch(err => {
+              callback(err);
+            });
             }
           });
-        }
-      });
-    } else {
+        } else {
       callback(null, filename, false);
     }
   });

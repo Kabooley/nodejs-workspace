@@ -284,3 +284,117 @@ CommonJS構文で書かれたjsファイルにTypeScritpを導入しようと思
 
 疑問：そもそもCommonJSではモジュールはモジュール独自のスコープ、というルールは存在する？すべてグローバルスコープ？
 
+
+```TypeScript
+// 要インストール@types/slug, @types/mkdirp, @types/request
+
+// index.ts
+
+"use strict";
+// const request = require('request');
+// const fs = require('fs');
+// const mkdirp = require('mkdirp');
+// const path = require('path');
+// const utilities = require('./utilities');
+
+import request = require('request');
+import fs = require('fs');
+import mkdirp = require('mkdirp');
+import path = require('path');
+import urlToFilename = require('./utilities');
+
+type spiderCallback = (error: Error | null, filename?: string, bool?: boolean) => void;
+
+function spider(url: string, callback: spiderCallback) {
+  
+  // const filename = utilities.urlToFilename(url);
+  const filename: string = urlToFilename(url);
+  fs.exists(filename, exists => {        // ❶
+    if(!exists) {
+      console.log(`Downloading ${url}`);
+      request(url, (err, response, body) => {      // ❷
+        if(err) {
+          callback(err);
+        } else {
+          /***
+           * mkdirpのバージョン違いのせいか、最新バージョンではコールバックは使わないらしいのでpromiseチェーンに変更する
+           * 
+           * */ 
+            mkdirp(path.dirname(filename)).then(() => {
+              fs.writeFile(filename, body, err => { // ❹
+                if(err) {
+                  callback(err);
+                } else {
+                  callback(null, filename, true);
+                }
+              });
+            }).catch(err => {
+              callback(err);
+            });
+            }
+          });
+        } else {
+      callback(null, filename, false);
+    }
+  });
+}
+
+spider(process.argv[2], (err, filename, downloaded) => {
+  if(err) {
+    console.log(err);
+  } else if(downloaded){
+    console.log(`Completed the download of "${filename}"`);
+  } else {
+    console.log(`"${filename}" was already downloaded`);
+  }
+});
+
+// utilities.ts
+
+"use strict";
+
+// const urlParse = require('url').parse;
+// const slug = require('slug');
+// const path = require('path');
+
+// これでモジュール解決ができるようになった
+import url = require('url');
+import slug = require('slug');
+import path = require('path');
+
+const urlParse = url.parse;
+
+// module.exports.urlToFilename = function urlToFilename(url: string): string {
+
+// これでこのutilities.tsはモジュールとして扱われる。
+export = function urlToFilename(url: string): string {
+  const parsedUrl: url.UrlWithStringQuery = urlParse(url);
+  if(!parsedUrl) return "";
+  /*****
+   * "strict null check"によってタイプガードを設けても
+   * 「それnullじゃない？」って言ってくる。
+   * 
+   * 間違いなくnullにもundefinedにもならないなら下記のように
+   * !をつける
+   * 
+   * いまは厳密なnullチェックを学習する暇がないのでこのままで。
+   * */ 
+  const urlPath = parsedUrl!.path!.split('/')
+    .filter(function(component) {
+      return component !== '';
+    })
+    .map(function(component) {
+      return slug(component, { remove: null });
+    })
+    .join('/');
+      
+  let filename = path.join(parsedUrl!.hostname!, urlPath);
+  if(!path.extname(filename).match(/htm/)) {
+    filename += '.html';
+  }
+  return filename;
+};
+
+```
+
+エディタ上のエラー表はこれで亡くなった。
