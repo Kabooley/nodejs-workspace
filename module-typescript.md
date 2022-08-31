@@ -174,3 +174,113 @@ Node.jsは`type`と呼ばれる新しい設定をサポートし始めた。
 
 
 TODO: ここをよんでrequire()とimportがTypeScriptでなぜ違うものなのかはっきりさせること
+
+
+# Modules 
+
+https://www.typescriptlang.org/docs/handbook/modules.html
+
+> In TypeScript, just as in ECMAScript 2015, any file containing a top-level import or export is considered a module. Conversely, a file without any top-level import or export declarations is treated as a script whose contents are available in the global scope (and therefore to modules as well).
+
+> TypeScriptでは、ECMAScript 2015と同様に、トップレベルのimportまたはexportを含むファイルはモジュールとみなされます。逆に、トップレベルのimportやexportの宣言がないファイルは、その内容がグローバルスコープで利用できる（つまりモジュールも利用できる）スクリプトとして扱われる。
+
+ということで、
+
+`import`と`export`分を含まなかったらそいつはモジュールじゃないと明言している。
+
+つまり、
+
+`export = {};`があったらモジュールだけど、`module.exports = {};`があってもモジュールじゃないってわけ。
+
+明確に、ECMAScript Moduleを採用していて、CommonJS Moduleは標準じゃないことを言っている。
+
+#### `export =` and `import = require()`
+
+https://www.typescriptlang.org/docs/handbook/modules.html#export--and-import--require
+
+> CommonJSとAMDの両方は、一般的に、モジュールからのすべてのエクスポートを含むexportsオブジェクトの概念を持っています。
+
+これのことですね。
+
+```JavaScript
+// このmodule.exportsは、moduleというグローバル変数のプロパティexportsに、
+// すべてのモジュールのエクスポートしたものを集約するのである
+module.exports = {
+    // ...
+}
+```
+
+> それらはまた、カスタムシングルオブジェクトでexportsオブジェクトを置き換えることをサポートしています。デフォルトのexportはこの動作の代わりとなるもので、しかしこの2つは互換性がない。TypeScriptは伝統的なCommonJSとAMDのワークフローをモデル化するためにexport =をサポートしている。
+
+つまり、
+
+ESModuleでは通常、エクスポートしたいときは...
+
+```TypeScript
+export function hoge(): void {
+    // ...
+} 
+
+export class Foo {
+    // ...
+}
+
+export default Fuga;
+```
+
+と書くのがESModuleの文法でこれに則る。
+
+しかしCommonJS Moduleとかもサポートするために特別な書き方を用意したのが以下。
+
+```TypeScript
+let numberRegexp = /^[0-9]+$/;
+class ZipCodeValidator {
+  isAcceptable(s: string) {
+    return s.length === 5 && numberRegexp.test(s);
+  }
+}
+
+// これ！
+export = ZipCodeValidator;
+```
+
+> export = の構文は、モジュールからエクスポートされる単一のオブジェクトを指定する。これはクラス、インターフェース、名前空間、関数、enumのいずれかになります。
+
+> export = を使ってモジュールをエクスポートする場合、TypeScript 固有の import module = require("module") を使って、モジュールをインポートする必要がある。
+
+ということで、
+
+`export = `したモノをインポートするには`import **** = require("@@@");`という特別な構文を使わなくてはならない。
+
+```TypeScript
+import zip = require("./ZipCodeValidator");
+
+// Some samples to try
+let strings = ["Hello", "98052", "101"];
+// Validators to use
+let validator = new zip();
+// Show whether each string passed each validator
+strings.forEach((s) => {
+  console.log(
+    `"${s}" - ${validator.isAcceptable(s) ? "matches" : "does not match"}`
+  );
+});
+```
+
+#### CommonJS Moduleの.jsファイルを.tsにするときは
+
+そんな場面ある？って感じですが。
+
+おさらい：
+
+- TypeScriptにおいて、トップレベルに`import`文がある、または`export`文が含まれるならそのファイルはモジュールとして扱われる
+- そうじゃないやつはすべてモジュールではなくてグローバルスコープ上のスクリプトとして扱われる
+- CommonJS ModuleをTypeScriptがサポートするために、`export =`と`import module = require()`という特別な構文を用意した
+- `export = `でエクスポートしたものは`import module = require()`の構文でないとインポートできない
+
+ということで、
+
+CommonJS構文で書かれたjsファイルにTypeScritpを導入しようと思ったら上記のルールを守ればTypeScriptを導入できるはず。
+
+疑問：そもそもCommonJSではモジュールはモジュール独自のスコープ、というルールは存在する？すべてグローバルスコープ？
+
