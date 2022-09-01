@@ -143,9 +143,17 @@ spider()の機能を分割した。`saveFile()`と`download()`である。
 
 複数のタスクを決められた順番で一つずつ実行すること。
 
+- 既知の複数のタスクを単に決められた順番で実行する
+
+- あるタスクの出力を次のタスクの入力として使う
+
+- 複数のタスクを繰り返し行う。この際各要素に対して非同期の処理を実行する
+
+以上を実現した一連の実装が逐次処理である。
+
 これを継続渡しスタイルで実現しようとするとコールバック地獄になりがち。
 
-継続渡しスタイルでも実現できる方法を一般化すると以下のようになる。
+一般化した継続渡しスタイルでの逐次処理：
 
 ```JavaScript
 function task1(callback) {
@@ -169,3 +177,170 @@ task1(() => { console.log("tasks 1, 2 and 3 executed")});
 
 - 各タスクは別々の関数として実行される
 - 非同期処理を呼び出しその処理が完了したら次のタスクを呼び出している
+- 処理順序はハードコーディングである
+
+
+##### 配列の各要素に対する非同期処理
+
+配列の各要素に対して処理を呼び出す
+
+処理の順番が動的に決まる場合。
+
+次の`spiderLinks()`
+
+下記は、あたえられたURLページ上に存在する（ホストドメインが同じ）リンクURLをたどっていくプログラム。
+
+```JavaScript
+"use strict";
+
+const request = require('request');
+const fs = require('fs');
+const mkdirp = require('mkdirp');
+const path = require('path');
+const utilities = require('./utilities');
+
+/****
+ * spiderLinks()は与えられたURL(currentUrl)のページ上に存在するリンクURLを取得して
+ * それらのURLを配列にしてURL要素一つずつをspider()に渡す関数である。
+ * 
+ * 引数のcallbackは再帰完了もしくはエラー発生時に実行する関数となる。
+ * */ 
+function spiderLinks(currentUrl, body, nesting, callback) {
+  if(nesting === 0) {
+    // 再帰終了になったら、
+    // 次のイベントループが発生する前にcallbackを実行させる
+    return process.nextTick(callback);
+  }
+
+  // ページに含まれるすべてのリンクを配列で取得する
+  let links = utilities.getPageLinks(currentUrl, body);  // ❶
+
+  // 引数index値がlinksの配列の長さに到達するまで
+  // links[index]のURLをspiderへ供給し続ける再帰関数
+  function iterate(index) {                              // ❷
+    if(index === links.length) {
+      return callback();
+    }
+
+    // spider()を再帰的に呼び出しリンクを一つずつ処理する
+    // 呼出のたびにnestingの値を一つずつ減らすことで無限ループを防止している
+    spider(links[index], nesting - 1, function(err) {    // ❸
+      if(err) {
+        return callback(err);
+      }
+      iterate(index + 1);
+    });
+  }
+  iterate(0);                                            // ❹
+}
+
+function saveFile(filename, contents, callback) {
+  // ...
+}
+
+function download(url, filename, callback) {
+  // ...
+}
+
+function spider(url, nesting, callback) {
+  const filename = utilities.urlToFilename(url);
+  fs.readFile(filename, 'utf8', function(err, body) {
+    if(err) {
+      if(err.code !== 'ENOENT') {
+        return callback(err);
+      }
+
+      return download(url, filename, function(err, body) {
+        if(err) {
+          return callback(err);
+        }
+        spiderLinks(url, body, nesting, callback);
+      });
+    }
+
+    spiderLinks(url, body, nesting, callback);
+  });
+}
+
+spider(process.argv[2], 1, (err) => {
+  if(err) {
+    console.log(err);
+    process.exit();
+  } else {
+    console.log('Download complete');
+  }
+});
+
+```
+
+これを一般化したのが次、
+
+```JavaScript
+function iterate(index) {
+  if(index === tasks.length) {
+    // 再帰が終了したらfinish()を実行する
+    return finish();
+  }
+
+  const task = tasks[index];
+  // task()は非同期関数である
+  task(function() {
+    iterate(index + 1);
+  })
+}
+
+function finish() {
+  // complete iteration
+}
+
+iterate(0);
+```
+
+いまいちわからん。
+
+##### (自習)逐次処理
+
+おさらい。
+
+
+コールバック関数とは：
+
+> ある関数（FuncAとする）を呼び出すときに、引数として渡す関数（FuncBとする）のことで、
+
+> FuncAの処理が完了したときにFuncAの結果を通知するために起動される関数のことである。
+
+ということで、
+
+
+```JavaScript
+import fs from 'node:fs';
+
+fs.writeFile(filename, data, () => {
+  // ...
+})
+```
+
+上記のfs.writeFile()に渡している`() => {}`がコールバック関数である。
+
+`fs.writeFile()`の処理結果を取得し、そのまま実行されるのがこの`() => {}`である。
+
+そしてこのような結果を伝番させる手法のことを「継続渡しスタイル」という。
+
+非同期継続渡しスタイルとは：
+
+```JavaScript
+// Direct Style
+// 
+// return 文で処理結果を返す関数のこと
+function sum(a, b) {
+  return a + b;
+}
+
+// Continuation-Passing Style
+// 
+// 以下のsum()は同期的なCPSである
+function sum(a, b, callback) {
+  callback(a + b);
+}
+```
+TODO:　続きまとめて。
