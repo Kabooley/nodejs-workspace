@@ -1,8 +1,20 @@
 # Memory leak in JavaScript
 
-JavaScriptでもメモリリークは起こるよという話。
+JavaScript でもメモリリークは起こるよという話。
 
 どう起こるのかとどう防ぐのかをまとめる。
+
+TODO: TIL へ追加のこと。
+
+## 目次
+
+[参照と参照カウント](#参照と参照カウント)
+[循環参照：参照カウントの限界](#循環参照：参照カウントの限界)
+[Mark & Sweep](#Mark-&-Sweep)
+[オブジェクトは明示的に到達不能にする必要がある](#オブジェクトは明示的に到達不能にする必要がある)
+[４つの JavaScript 共通のメモリリーク](#４つの-JavaScript-共通のメモリリーク)
+[オブザーバと循環参照についての備考](#オブザーバと循環参照についての備考)
+[Chrome Devtools でメモリ監視](#Chrome-Devtools-でメモリ監視)
 
 ## MDN におけるメモリリークの記事
 
@@ -12,9 +24,13 @@ https://developer.mozilla.org/ja/docs/Web/JavaScript/Memory_Management
 
 なので開発者は、メモリの開放において GC の限界を見極めて GC に任せられるか開発者が明示的に開放すべきかを判断できないといけない。
 
+GC がもつその「近似的な」アルゴリズムは２つある。参照カウントと Mark & Sweeep アルゴリズムである。
+
 #### 参照と参照カウント
 
-参照とは、あるオブジェクトが別のオブジェクトにアクセスできるとき、前者が後者を**参照している**という。
+参照：
+
+参照とは、あるオブジェクトが別のオブジェクトにアクセスできるとき、**前者が後者を参照している**という。
 
 ここでいうオブジェクトは通常の JavaScript オブジェクトだけじゃなくて、関数のスコープ、グローバル歴史家るスコープを含む。
 
@@ -23,6 +39,16 @@ https://developer.mozilla.org/ja/docs/Web/JavaScript/Memory_Management
 ある変数がプリミティブを指しているなら別に参照はしていない。のかな。
 
 > (あるオブジェクトがどこからも参照されていないの判断基準は)　**"あるオブジェクトがその他のオブジェクトから参照されていない"こと**と定義します。あるオブジェクトは、それに対する参照がゼロの時にガベージコレクト可能であると見なされます。
+
+つまり、「参照されている」側がそのまま参照されているとそのメモリが解放されなくて、
+
+参照している側は原因になっている、ということ。
+
+つまりメモリ解放の操作は主に参照している側に対して行われて、参照されている側へ操作は行わない...という意味のはず。
+
+参照カウント：
+
+参照されている対象を参照しているものの数。下記のコードを見た方が早い。
 
 ```JavaScript
 var o = {
@@ -49,7 +75,6 @@ var oa = o2.a;
 // oaはo2.aの指しているものを参照している
 // なので先のオブジェクトのbの参照カウントが２になった
 // (o2とoa)
-
 
 
 o2 = "yo";
@@ -107,6 +132,7 @@ f();
 var div;
 window.onload = function(){
   div = document.getElementById("myDivElement");
+//   自分自身を指すプロパティをもつことで循環参照が発生してしまっている
   div.circularReference = div;
   div.lotsOfData = new Array(10000).join("*");
 };
@@ -151,7 +177,7 @@ https://auth0.com/blog/four-types-of-leaks-in-your-javascript-code-and-how-to-ge
 
 1. 宣言されていない変数はグローバルオブジェクトのプロパティとして登録されてしまう
 
-**グローバル変数である限りGCはそれを収集することはできない。**
+**グローバル変数である限り GC はそれを収集することはできない。**
 
 なので、グローバル変数を使って大量の巨大なデータを一時的に保存しておこうと考えて使うような場合、
 
@@ -159,7 +185,7 @@ https://auth0.com/blog/four-types-of-leaks-in-your-javascript-code-and-how-to-ge
 
 こうしたデータは、用が済んだ場合に、
 
-- nullを割り当てる
+- null を割り当てる
 - 再割り当てをする
 
 を遵守しなくてはならない。
@@ -195,7 +221,7 @@ function foo(arg) {
     bar = "this is a hidden global variable";
 }
 
-// `this` is undefined 
+// `this` is undefined
 function hoge() {
     this.bar = "this is an explicit global variable";
 }
@@ -203,6 +229,7 @@ function hoge() {
 foo();
 hoge();
 ```
+
 参照を切る方法：
 
 ```JavaScript
@@ -235,9 +262,9 @@ setInterval(function() {
 }, 1000);
 ```
 
-**`setInterval()`はアクティブである限り、(GCは)ハンドラを回収することはできない。**
+**`setInterval()`はアクティブである限り、(GC は)ハンドラを回収することはできない。**
 
-ハンドラがGCできないなら、ハンドラの依存関係もGCできない。ようである。
+ハンドラが GC できないなら、ハンドラの依存関係も GC できない。ようである。
 
 > However, the handler, as the interval is still active, cannot be collected (the interval needs to be stopped for that to happen). If the interval handler cannot be collected, its dependencies cannot be collected either. That means that someResource, which presumably stores sizable data, cannot be collected either.
 
@@ -291,19 +318,19 @@ element.parentNode.removeChild(element);
 
 をすれば完全に参照がなくなる。
 
-DOM要素もリスナも不要になったらここまですれば安心というわけですな。
+DOM 要素もリスナも不要になったらここまですれば安心というわけですな。
 
-- DOMツリー上に要らない要素があれば消すこと。
+- DOM ツリー上に要らない要素があれば消すこと。
 
 - そのリスナも消すこと。
 
 ##### オブザーバと循環参照についての備考
 
-> かつてオブザーバと循環参照は、JavaScript開発者の悩みの種でした。これは Internet Explorer のガベージコレクタのバグ（あるいは設計上の判断）によるものでした。古いバージョンの Internet Explorer では、DOM ノードと JavaScript コード間の循環参照を検出することができませんでした。これはオブザーバーの典型的な例で、通常オブザーバーは（上記の例のように）observableへの参照を保持します。言い換えれば、Internet Explorer でノードに observer が追加されるたびに、リークが発生していたのです。これが、開発者がノードの前にあるハンドラを明示的に削除したり、オブザーバ内の参照をnullにしたりするようになった理由です。現在では、モダンブラウザ（Internet ExplorerやMicrosoft Edgeを含む）は、これらのサイクルを検出し、正しく処理することができる最新のガベージコレクションアルゴリズムを使用しています。つまり、ノードを到達不能にする前にremoveEventListenerを呼び出すことは、厳密には必要ではありません。
+> かつてオブザーバと循環参照は、JavaScript 開発者の悩みの種でした。これは Internet Explorer のガベージコレクタのバグ（あるいは設計上の判断）によるものでした。古いバージョンの Internet Explorer では、DOM ノードと JavaScript コード間の循環参照を検出することができませんでした。これはオブザーバーの典型的な例で、通常オブザーバーは（上記の例のように）observable への参照を保持します。言い換えれば、Internet Explorer でノードに observer が追加されるたびに、リークが発生していたのです。これが、開発者がノードの前にあるハンドラを明示的に削除したり、オブザーバ内の参照を null にしたりするようになった理由です。現在では、モダンブラウザ（Internet Explorer や Microsoft Edge を含む）は、これらのサイクルを検出し、正しく処理することができる最新のガベージコレクションアルゴリズムを使用しています。つまり、ノードを到達不能にする前に removeEventListener を呼び出すことは、厳密には必要ではありません。
 
-> jQueryのようなフレームワークやライブラリは、ノードを破棄する前にリスナーを削除します（そのための特定のAPIを使用する場合）。これはライブラリによって内部的に処理され、古い Internet Explorer のような問題のあるブラウザの下で実行されても、リークが発生しないことを確認します。
+> jQuery のようなフレームワークやライブラリは、ノードを破棄する前にリスナーを削除します（そのための特定の API を使用する場合）。これはライブラリによって内部的に処理され、古い Internet Explorer のような問題のあるブラウザの下で実行されても、リークが発生しないことを確認します。
 
-3. DOMの参照外
+3. DOM の参照外
 
 > データ構造内に DOM ノードを格納すると便利な場合があります。テーブル内の複数の行の内容を迅速に更新したいとします。各 DOM 行への参照をディクショナリまたは配列に格納することは理にかなっている場合があります。この場合、同じ DOM 要素への 2 つの参照が保持されます。1 つは DOM ツリーにあり、もう 1 つは辞書にあります。将来、これらの行を削除することにした場合は、両方の参照を到達不能にする必要があります。
 
@@ -331,26 +358,25 @@ function removeButton() {
 }
 ```
 
-DOMツリー上では、子要素は親要素を参照する。
+DOM ツリー上では、子要素は親要素を参照する。
 
 例えばテーブル要素とせる要素があるとしてセルはテーブルの子要素とする。
 
 将来テーブル要素を削除するけどせる要素への参照は保持するとする。
 
-そのときのGCの挙動は、テーブルもセルもGCしないである。
+そのときの GC の挙動は、テーブルもセルも GC しないである。
 
 理由は子要素のセル要素が親要素への参照を持つために、
 
 テーブル要素は参照が切れていないからである。
 
-DOM要素は内部的に親要素を参照するので、ただ削除するだけだとGCされない場合があるので注意。
-
+DOM 要素は内部的に親要素を参照するので、ただ削除するだけだと GC されない場合があるので注意。
 
 4. closures
 
 **同じ親関数の中で生成された複数のクロージャは、クロージャ同士スコープを共有する**
 
-> The important thing is that once a scope is created for closures that are in the same parent scope, that scope is shared. 
+> The important thing is that once a scope is created for closures that are in the same parent scope, that scope is shared.
 
 ```JavaScript
 var theThing = null;
@@ -376,9 +402,9 @@ setInterval(replaceThing, 1000);
 
 つまり、
 
-unusedはまったく使われるはずがないクロージャなのに、someMethodとスコープが共有されているから、
+unused はまったく使われるはずがないクロージャなのに、someMethod とスコープが共有されているから、
 
-originalThingが常にアクティブになってしまう。(つまりGCされない)
+originalThing が常にアクティブになってしまう。(つまり GC されない)
 
 ちょっとまだぴんと来ない。
 
@@ -400,13 +426,13 @@ var replaceThing = function () {
 setInterval(replaceThing, 1000);
 ```
 
-毎秒replaceThing()が実行されると、thiThingを新しく動的確保された巨大な文字列に置き換えて、ローカル変数のoriginalThingへそれを保存する。
+毎秒 replaceThing()が実行されると、thiThing を新しく動的確保された巨大な文字列に置き換えて、ローカル変数の originalThing へそれを保存する。
 
-しかし、replaceThing()が返されたら、グローバル変数のtheThingの古い値はGCされるので、
+しかし、replaceThing()が返されたら、グローバル変数の theThing の古い値は GC されるので、
 
 メモリの使用率は一定に収まる。
 
-しかし、もしもクロージャがreplaceTHingを「長持ち」させたらどうなる？
+しかし、もしもクロージャが replaceTHing を「長持ち」させたらどうなる？
 
 ```JavaScript
 // example 2
@@ -423,9 +449,9 @@ var replaceThing = function () {
 setInterval(replaceThing, 1000);
 ```
 
-someMethodはoriginalThingへの参照を持つ。クロージャだから。
+someMethod は originalThing への参照を持つ。クロージャだから。
 
-originalThingは毎秒呼び出されるたびにtheThingを与えられて、そうしてsomeMethodというクロージャが生成される。
+originalThing は毎秒呼び出されるたびに theThing を与えられて、そうして someMethod というクロージャが生成される。
 
 クロージャは親関数のスコープを維持するから、
 
@@ -433,9 +459,9 @@ originalThingは毎秒呼び出されるたびにtheThingを与えられて、�
 
 という仕組みになる。
 
-今回特別なのは、originalThingに巨大な配列がわたされるから、originalThingがクロージャに参照され、クロージャの数だけ巨大な配列がメモリに展開されてしまうのである。
+今回特別なのは、originalThing に巨大な配列がわたされるから、originalThing がクロージャに参照され、クロージャの数だけ巨大な配列がメモリに展開されてしまうのである。
 
-幸い、モダンなJavaScriptは上記の場合、originalTHingが使われていないと判断できるからGC可能らしい。（どういう仕組みだ？）
+幸い、モダンな JavaScript は上記の場合、originalTHing が使われていないと判断できるから GC 可能らしい。（どういう仕組みだ？）
 
 で、先のコードに戻る
 
@@ -458,26 +484,25 @@ var replaceThing = function () {
 setInterval(replaceThing, 1000);
 ```
 
-これだとGCできずに毎秒大量のメモリが食われる。
+これだと GC できずに毎秒大量のメモリが食われる。
 
 先の状況と何が違うんだい？
 
 > したがって、コードが originalThing を再び参照する方法はありませんが、ガベージ コレクションは行われません。なんで？クロージャーを実装する典型的な方法は、すべての関数オブジェクトがそのレキシカルスコープを表す辞書スタイルのオブジェクトへのリンクを持つことです。 replaceThing 内で定義された両方の関数が実際に originalThing を使用した場合、originalThing が何度も割り当てられたとしても、両方の関数が同じオブジェクトを取得することが重要になるため、両方の関数が同じ字句環境を共有します。
 
-> 現在、Chrome の V8 JavaScript エンジンは、変数がクロージャーによって使用されていない場合、レキシカル環境から変数を除外するのに十分スマートであるようです。これが、最初の例がリークしない理由です。 
+> 現在、Chrome の V8 JavaScript エンジンは、変数がクロージャーによって使用されていない場合、レキシカル環境から変数を除外するのに十分スマートであるようです。これが、最初の例がリークしない理由です。
 
 > しかし、変数がいずれかのクロージャーによって使用されるとすぐに、そのスコープ内のすべてのクロージャーによって共有されるレキシカル環境に行き着きます。そして、それはメモリリークにつながる可能性があります.
 
 つまり、
 
-- クロージャを生成する関数(つまり親関数)内の変数のうち、クロージャから参照されない変数はスコープアウトしたらGC対象になる。
+- クロージャを生成する関数(つまり親関数)内の変数のうち、クロージャから参照されない変数はスコープアウトしたら GC 対象になる。
 
-- しかし、クロージャから明示的に参照される変数ならばそれはGCされない。
+- しかし、クロージャから明示的に参照される変数ならばそれは GC されない。
 
 - そして、その変数は、同じ親関数から生成されたクロージャ同士で共有されるのである。
 
 解決策:
-
 
 ```JavaScript
 // example 3
@@ -499,9 +524,10 @@ var replaceThing = function () {
 };
 setInterval(replaceThing, 1000);
 ```
-解決策はこのクロージャ親関数のreplaceThing()の終りの方でoriginalThing = nullすることです。
 
-こうすることで、依然originalThingがsomeMethodのレキシカルスコープにいても、
+解決策はこのクロージャ親関数の replaceThing()の終りの方で originalThing = null することです。
+
+こうすることで、依然 originalThing が someMethod のレキシカルスコープにいても、
 
 最早巨大な配列への参照を持たないでいられる。
 
@@ -509,15 +535,13 @@ setInterval(replaceThing, 1000);
 
 確認してみよう。
 
-TODO: 要確認。devtoolsのメモリリーク確認方法。
+TODO: 要確認。devtools のメモリリーク確認方法。
 
 https://developer.chrome.com/docs/devtools/memory-problems/
 
-
 > 要約すると、いくつかのクロージャーで使用されているが、使用し続ける必要があるクロージャーでは使用されていない大きなオブジェクトがある場合は、使用が終了したら、ローカル変数がそのオブジェクトを指していないことを確認してください。残念ながら、これらのバグは非常に微妙な場合があります。 JavaScript エンジンについて考える必要がなければ、はるかに良いでしょう。
 
-
-#### Chrome Devtoolsでメモリ監視
+## Chrome Devtools でメモリ監視
 
 https://developer.chrome.com/docs/devtools/memory-problems/
 
@@ -527,49 +551,44 @@ https://developer.chrome.com/docs/devtools/memory-problems/
 
 そこでのパフォーマンスが悪ければそれは「多すぎる」。
 
-##### chorme task managerから
+##### chorme task manager から
 
-chromeのメニュー>その他のツール>タスクマネージャからタスクマネージャを開いて、
+chrome のメニュー>その他のツール>タスクマネージャからタスクマネージャを開いて、
 
-右クリックしてJavaScript memoryを有効にすると
+右クリックして JavaScript memory を有効にすると
 
-JSが占有しているメモリを表示してくれる。
+JS が占有しているメモリを表示してくれる。
 
 もしもここの値が「増え続け」ていたら、それはメモリリークを起こしているかも。
 
-###### devtoolsのtimeline recordingsで
+###### devtools の timeline recordings で
 
 タイムラインパネルは調査するページのメモリ状況を視覚化するのに役立ちます。
 
 - 調査したいページを開く
-- そのページでDevtoolsのパフォーマンス>Timelineパネルを開く
-- Memoryのチェックボックスをチェックする
-- Recordの●しるしをクリックする
+- そのページで Devtools のパフォーマンス>Timeline パネルを開く
+- Memory のチェックボックスをチェックする
+- Record の ● しるしをクリックする
 
-推奨：ゴミ箱マークはGCのことで、記録中にGCボタンをクリックすると強制的にGCするらしい。
-
+推奨：ゴミ箱マークは GC のことで、記録中に GC ボタンをクリックすると強制的に GC するらしい。
 
 ##### 検証
 
-JavaScriptにおいて1文字は常に2byteとのこと
+JavaScript において 1 文字は常に 2byte とのこと
 
 https://stackoverflow.com/a/46735247
 
-これを100万個にした配列なので、
+これを 100 万個にした配列なので、
 
-2 * 1000000 = 2MB
+2 \* 1000000 = 2MB
 
-毎秒2mb増えるはずで、10回繰り返すから20mb増えるはず。
+毎秒 2mb 増えるはずで、10 回繰り返すから 20mb 増えるはず。
 
 実行前：
 
 - JavaScript メモリ：3676kb
-- Heap snapshot: 
-
+- Heap snapshot:
 
 実行後：
 
 - JavaScript メモリ：3676kb は？
-
-
-
