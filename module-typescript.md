@@ -16,11 +16,87 @@ TODO: まとまったらTILに移すこと
 
 importとrequireだと挙動が明らかに異なる。なぜ？
 
-同じものをrequire()するファイルをrequire()すると、「再宣言しています」のエラーが出る。
+同じものをrequire()しているファイルをrequire()で取り込むと、「再宣言しています」のエラーが出る。
 
 こうした疑問が解決できないのはモジュールに関して無知だからと分かったのでいろいろまとめる。
 
+## 2つのモジュール規格
 
+Node.jsが採用するモジュール規格と、TypeScriptが前提とするモジュール規格は実は異なる。
+
+Node.js: CommonJS Modules
+
+TypeScript: ECMAScript Modules
+
+とはいえ、Node.jsはもともとCommonJSのモジュールシステムを採用していたが、最近はESMもサポートするようになってきたので、Node.jsを使う場合には`import/export`か`require()/module.exports`どちらでも利用可能となっている。
+
+問題はNode.jsファイルへTypeScriptを導入しようとしたときである。
+
+もともと`require()`を使って外部モジュールをインポートして、
+
+`module.export={};`を使ってエクスポートするCommonJSモジュールは、
+
+実はTypeScriptでは「モジュール」として認識しないのである。
+
+このことはここで説明されている。
+
+https://www.typescriptlang.org/docs/handbook/modules.html
+
+> In TypeScript, just as in ECMAScript 2015, any file containing a top-level import or export is considered a module. Conversely, a file without any top-level import or export declarations is treated as a script whose contents are available in the global scope (and therefore to modules as well).
+
+> (TypeScriptでは、ECMAScript 2015と同様に、トップレベルのimportやexportを含むファイルはすべてモジュールとみなされます。逆に、トップレベルのimportやexportの宣言がないファイルは、その内容がグローバルスコープで利用できる（つまりモジュールも利用できる）スクリプトとして扱われる。)
+
+ファイルのトップレベルにおける`import`または`export`宣言がないファイルは問答無用でスクリプトファイル扱いなのである。
+
+これは`requier()/module.export`しているNode.jsファイルの拡張子を.tsに変更すると確認できる。
+
+```TypeScript
+// index.ts
+const path = require('path');
+const utilities = require('./utilities');
+
+class Hoge {
+    // ...
+}
+
+// utilities.ts
+const path = require('path');
+// `path`は再宣言されているというエラー表示が発生する
+
+const utilities = function() {
+    // ...
+}
+
+module.exports = {
+    utilities: utilities
+}
+
+// つまり、utilities.tsはグローバルスコープとして認識されている
+```
+モジュールとはかくも宣言型なのである。
+
+これを`import/export`文へ書き直すとそのエラーはなくなる。
+
+```TypeScript
+// index.ts
+// index.tsはトップレベルでimport分を宣言しているので
+// TypeScriptにモジュールとして認識される
+import * as path from 'node:path';
+import { utilities } from './utilities';
+
+class Hoge {
+    // ...
+}
+
+// utilities.ts
+// export分を使っているのでモジュールとして認識される
+// なので独自スコープ内だからpathは重複しない
+import * as path from 'node:path';
+
+export const utilities = function() {
+    // ...
+}
+```
 
 ## Modules
 
