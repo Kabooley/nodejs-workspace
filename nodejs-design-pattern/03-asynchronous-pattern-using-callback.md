@@ -7,6 +7,8 @@ NOTE: ここのノートではテキストのメモと、自分なりの解釈�
 
 クロージャを多用することは望ましくない。理由はアプリケーションが大規模化するにしたがって関数呼び出しのレベルが深くなって、コードの制御フローの追跡が困難になるからである。
 
+サンプルを動かすときにちょうどよさそうなURL: https://www.marlin-arms.com/support/nodejs-design-patterns/toc.html
+
 ## コールバック地獄
 
 - 関数の開始位置と終了位置が分かりづらい
@@ -614,11 +616,100 @@ function next() {
 
 next();
 
-function finishi(){ /*  すべてのタスクの終了 */ };
+function finish(){ /*  すべてのタスクの終了 */ };
 ```
 
 taksのコールバック内部でnext()を再帰呼出することで、逐次処理を実現している。
 
 while()文で同時実行数いっぱいまでタスクを実行させる
 
-TODO: spider ver4を実装してみる
+##### 同時実行数を制限した並列処理の実装
+
+`spiderLinks()`に、同時実行数制限を実装した`TaskQueue`を導入して並行処理の同時実行数を制限させる
+
+`spiderLinks()`は並列処理を実装している関数である。
+
+`spiderLinks()`は与えられたURLのページから取得できるすべてのリンクに対して`spider`を呼び出している。
+
+そしてその呼び出しはforEach()で呼び出されるので同時実行数が無限に増え続ける。
+
+なのでここに制限を設ければいい。
+
+変更前：
+
+```JavaScript
+function spiderLinks(currentUrl, body, nesting, callback) {
+  if(nesting === 0) {
+    return process.nextTick(callback);
+  }
+
+  const links = utilities.getPageLinks(currentUrl, body);  //[1]
+  if(links.length === 0) {
+    return process.nextTick(callback);
+  }
+
+  let completed = 0, hasErrors = false;
+
+  function done(err) {
+    if(err) {
+      hasErrors = true;
+      return callback(err);
+    }
+    if(++completed === links.length && !hasErrors) {
+      return callback();
+    }
+  }
+
+  links.forEach(function(link) {
+    spider(link, nesting - 1, done);
+  });
+}
+```
+
+変更後：
+
+```JavaScript
+function spiderLinks(currentUrl, body, nesting, callback) {
+  if(nesting === 0) {
+    return process.nextTick(callback);
+  }
+
+  const links = utilities.getPageLinks(currentUrl, body);
+  if(links.length === 0) {
+    return process.nextTick(callback);
+  }
+
+  let completed = 0, hasErrors = false;
+  links.forEach(link => {
+    downloadQueue.pushTask(done => {
+      spider(link, nesting - 1, err => {
+        if(err) {
+          hasErrors = true;
+          return callback(err);
+        }
+        if(++completed === links.length && !hasErrors) {
+          callback();
+        }
+        done();
+      });
+    });
+  });
+}
+```
+
+forEach()は並列処理させたい処理(spider())を一気に呼び出すことに変わりはない。
+
+`done => {spider()}`をとにかく一気に`downloadQueue.queue`へ追加して、
+
+後は`downloadQueue.next()`が自身の条件分岐で同時実行数を制限する。
+
+`downloadQueue.pushTask(done => {})`の`done`は、`TaskQueue.next()`でtask()を実行するときに渡すコールバック関数`() => {this.running--;this.next();}`のこと。つまり各タスク完了時に次のタスクを処理できる。
+
+
+`next()`呼出し>条件分岐判定?真ならtask()して完了したらnext():偽ならrunningをインクリメントして終了
+
+
+う～～んコールバックAPIはとにかく何しているのかこんがらがってくる。
+
+できれば使いたくない。
+
