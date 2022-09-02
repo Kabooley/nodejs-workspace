@@ -8,24 +8,14 @@
 import url = require('url');
 import slug = require('slug');
 import path = require('path');
+import cheerio = require('cheerio');
 
 const urlParse = url.parse;
+const urlResolve = url.resolve;
 
-// module.exports.urlToFilename = function urlToFilename(url: string): string {
-
-// これでこのutilities.tsはモジュールとして扱われる。
-export = function urlToFilename(url: string): string {
+function urlToFilename(url: string): string {
   const parsedUrl: url.UrlWithStringQuery = urlParse(url);
   if(!parsedUrl) return "";
-  /*****
-   * "strict null check"によってタイプガードを設けても
-   * 「それnullじゃない？」って言ってくる。
-   * 
-   * 間違いなくnullにもundefinedにもならないなら下記のように
-   * !をつける
-   * 
-   * いまは厳密なnullチェックを学習する暇がないのでこのままで。
-   * */ 
   const urlPath = parsedUrl!.path!.split('/')
     .filter(function(component) {
       return component !== '';
@@ -40,4 +30,31 @@ export = function urlToFilename(url: string): string {
     filename += '.html';
   }
   return filename;
+};
+
+function getLinkUrl(currentUrl: string, element: cheerio.TagElement) {
+  const link = urlResolve(currentUrl, element.attribs.href || "");
+  const parsedLink = urlParse(link);
+  const currentParsedUrl = urlParse(currentUrl);
+  if(parsedLink.hostname !== currentParsedUrl.hostname
+    || !parsedLink.pathname) {
+    return null;
+  }
+  return link;
+};
+
+function getPageLinks(currentUrl: string, body: string) {
+  return [].slice.call(cheerio.load(body)('a'))
+    .map(function(element) {
+      return module.exports.getLinkUrl(currentUrl, element);
+    })
+    .filter(function(element) {
+      return !!element;
+    });
+};
+
+export = {
+  urlToFilename: urlToFilename,
+  getLinkUrl: getLinkUrl,
+  getPageLinks: getPageLinks
 };

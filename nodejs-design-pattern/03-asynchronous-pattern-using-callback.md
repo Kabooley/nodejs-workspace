@@ -1,6 +1,8 @@
 # 3章 コールバックを用いた非同期パターン
 
 
+NOTE: ここのノートではテキストのメモと、自分なりの解釈の２つを記述するので内容が重複する部分が発生する。
+
 コールバックをうまく使いこなして、保守が容易なコードを書くための、いくつかの原則とパターンを学ぶ。
 
 クロージャを多用することは望ましくない。理由はアプリケーションが大規模化するにしたがって関数呼び出しのレベルが深くなって、コードの制御フローの追跡が困難になるからである。
@@ -423,4 +425,200 @@ function spider(url, callback) {
 
 ## 逐次処理も並列処理も非同期関数を呼び出しているけどどこが違うの？
 
-TODO:　逐次処理と並列処理の本質を理解すること
+NOTE: 下記一般化はエラーチェックなどを無視している
+
+一般化された逐次処理：
+
+```JavaScript
+function task1(callback) {
+    asyncOperation(() => {
+        task2(callback);
+    });
+}
+function task2(callback) {
+    asyncOperation(() => {
+        task3(callback);
+    });
+}
+function task3(callback) {
+    asyncOperation(() => {
+        callback();
+    });
+}
+
+task1(() => { console.log("tasks 1, 2 and 3 executed")});
+
+```
+
+task1()が実行される>
+task1は内部で非同期処理をするCPSであるので、asyncOperation()はイベントキューに登録されてすぐに処理が呼び出し元へ戻る>
+イベントキューからtask1のasyncOperation()がポップされると、task2が呼び出される>
+task2のasyncOperation()がイベントキューに登録される>
+イベントキューからtask2のasyncOperation()がポップされて、task3が呼び出される>
+task3のasyncOperation()がイベントキューに登録される>
+callback()が実行される>
+完了
+
+
+一般化された並列処理：
+
+```JavaScript
+const tasks = [/* ... */];
+
+let completed = 0;
+
+tasks.forEach(task => {
+  // task()は非同期関数である
+  task(() => {
+    if(++completed === tasks.length) {
+      finish();
+    }
+  })
+})
+
+function finish() {
+  // すべてのタスクの終了
+}
+```
+forEach()で非同期CPS関数を一気に呼出している。
+
+非同期関数の呼び出しなので、各task()の呼出において制御はすぐに戻るからすべてのtask()はほぼ一気に呼出したことになる。
+
+CPSであるtask()自身の処理が完了したら、コールバック関数で「すべてのタスクが完了したのか」のチェックと、完了タスクカウンタのインクリメントを行っている
+
+つまり、並行処理させたい処理を一気に呼出して、それらのコールバック関数に完了チェックをさせてすべての完了をチェックさせる。
+
+両者の違い：
+
+逐次処理はイベントキューに追加する非同期関数は1度に一つであるが、
+
+並行処理は一気にすべての非同期関数をイベントキューへ追加している。
+
+#### 3.2.4.3 並行処理における競合状態
+
+Nodeのようなシングルスレッド・アーキテクチャでも競合状態が発生する。
+
+競合状態は再現性が低いので通常デバッグが困難である。並行処理を実装するときは十分このことに気を付けること。
+
+以下のコードだと、2つのタスクが同じURLに対してspider()を実行すると問題が発生する。
+
+```JavaScript
+function spider(url, nesting, callback) {
+  //...
+
+  // この`filename`というのはパスのことである
+  const filename = utilities.urlToFilename(url);
+  // このreadFileはすでにローカルに同じファイルがあるなら処理をスキップするために存在する
+  // 前のコードだと`fs.exist()`を使っていた。
+  fs.readFile(filename, 'utf8', function(err, body) {
+    if(err) {
+      // ENOENT: "No such a file or directory"
+      // ファイルが存在しないときだけ続行する。
+      if(err.code !== 'ENOENT') {
+        return callback(err);
+      }
+
+      return download(url, filename, function(err, body) {
+        // ...
+      });
+    }
+    // ...
+  });
+}
+```
+
+2つのタスクが同時に同じURLに対してspider()を呼び出すと、
+
+本来逐次処理であったならば`fs.readFile()`の時点でそのファイルは存在するからスキップしていいよの条件文でスキップできたのだが、
+
+並列処理だとその時点では片方のタスクが「処理中」でファイルが出来上がっていない可能性があるために、
+
+「そのファイルはないから続行していいよ」の判断がされて実行されてしまうのである。
+
+
+解決策：同じURLがダウンロードされていないかチェック機能を追加すること
+
+
+```JavaScript
+// NOTE: 処理中または処理済のURLをここに格納するようにする。
+const spidering = new Map();
+
+function spider(url, nesting, callback) {
+  // NOTE: そのURLが処理中または処理済ならスキップする
+  if(spidering.has(url))return process.nextTick(callback);
+  // そうじゃないなら処理する
+  spidering.set(url, true);
+
+  // この`filename`というのはパスのことである
+  const filename = utilities.urlToFilename(url);
+  // このreadFileはすでにローカルに同じファイルがあるなら処理をスキップするために存在する
+  // 前のコードだと`fs.exist()`を使っていた。
+  fs.readFile(filename, 'utf8', function(err, body) {
+    if(err) {
+      // ENOENT: "No such a file or directory"
+      // ファイルが存在しないときだけ続行する。
+      if(err.code !== 'ENOENT') {
+        return callback(err);
+      }
+
+      return download(url, filename, function(err, body) {
+        // ...
+      });
+    }
+    // ...
+  });
+}
+```
+
+#### 3.2.5 同時実行数を制限した並列処理パターン
+
+同時に実行可能なタスク数は制限するのが当然ですね。
+
+その実装方法。
+
+1. 最初に制限いっぱいまでタスクを起動する
+2. タスクが完了するたびに、制限いっぱいまでタスクを起動する
+
+先の逐次処理と並列処理をミックスするような実装になる。
+
+```JavaScript
+const tasks = [/* ... */];
+
+// 同時実行タスク数の上限
+const concurrency = 2;
+
+let running = 0,  // 同時実行タスク数
+  completed = 0,  // 完了タスク数
+  index = 0;      // 実行するタスクのインデックス
+
+function next() {
+  // 同時実行数が上限を超えていない　且つ indexがタスクの総数を超えていない
+  while(running < concurrency && index < tasks.length) {
+    task = tasks[index++];
+    task(() => {
+
+      // すべてのタスクが完了したらここで再帰ともに終了させる
+      if(completed === tasks.length) {
+        return finish();
+      }
+      
+      // 残るタスクがある場合再帰呼出
+      // taskのコールバックが呼び出されている時点でtaskは完了しているので
+      // completeをインクリメント、実行中の数をデクリメントする
+      completed++, running--;
+      next();
+    });
+    running++;
+  }
+}
+
+next();
+
+function finishi(){ /*  すべてのタスクの終了 */ };
+```
+
+taksのコールバック内部でnext()を再帰呼出することで、逐次処理を実現している。
+
+while()文で同時実行数いっぱいまでタスクを実行させる
+
+TODO: spider ver4を実装してみる
