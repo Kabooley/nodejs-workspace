@@ -178,3 +178,41 @@ package.jsonを`"type": "module" `に変更しろ、もしくは拡張子を`.mj
 TypeScriptファイルではES6で書いて、ターゲットもES6と認識させて、出力ファイルはCommonJSで出力できないのかしら。
 
 はぁ面倒。
+
+## モジュール解決がうまくいかない: tsconfigをいじる
+
+#### "module"
+
+https://www.typescriptlang.org/ja/tsconfig#module
+
+コンパイル後に出力されるJavaScriptファイルが採用することになるモジュール規格。
+
+`"module": "commonjs"`がデフォルトで推奨。
+
+これが適用される場合、
+
+```TypeScript
+// @filename: index.ts
+import { valueOfPi } from "./constants";
+ 
+export const twoPi = valueOfPi * 2;
+```
+上記をコンパイルすると、以下が出力される。
+
+```JavaScript
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.twoPi = void 0;
+const constants_1 = require("./constants");
+exports.twoPi = constants_1.valueOfPi * 2;
+```
+
+つまりTypeScriptでECMAScriptモジュールで書いていても、出力ファイルはCommonJSに変換してくれる。
+
+#### "target"
+
+https://www.typescriptlang.org/tsconfig#target
+
+#### "rootDir"
+
+#### "outDir"
