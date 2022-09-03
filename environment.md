@@ -32,7 +32,7 @@ https://www.typescriptlang.org/docs/handbook/compiler-options.html
 
 https://www.typescriptlang.org/ja/tsconfig
 
-基本的な流れ: BuiLd & Run
+基本的な流れ: Build & Run
 
 TypeScriptのCLIコマンドで.ts, .tsxファイルをJavaScriptへコンパイルする。
 
@@ -72,7 +72,7 @@ package.jsonで予め指定しておけばらくちんだけどね。
 
 #### Compiler Options
 
-`tsconfig.json --init`で出力されるJSONファイルは予めいくつかのプロパティが、
+`tsc --init`で出力されるJSONファイルは予めいくつかのプロパティが、
 
 コメントアウトすればすぐに使えるようになっている。
 
@@ -273,3 +273,42 @@ Remote VSCodeでは保存時にコードをフォーマットしてくれない
 すっごくひどい。
 
 prettierはリモートVSCodeでは使えないと明記されている。
+
+## 新しいNode.jsプロジェクトディレクトリを作るときの手順まとめ
+
+Node.jsやyarnはインストールされている環境は用意されているけど、
+
+npmでいうところの`npm init`するディレクトリを用意する前の時で、
+
+yarnをﾊﾟｯｹｰｼﾞﾏﾈｰｼﾞｬとして, TypeScript, ts-nodeの開発環境を用意する。
+
+TypeScriptのローカル・インストールについては`TypeScript in Your Project`の`via npm`の説明通りに。
+
+`npm install typescript --save-dev`しろとのこと。
+
+https://www.typescriptlang.org/download
+
+```bash
+$ cd project-directory
+# npm initと同じだしやることも同じ
+$ yarn init
+
+# TypeScriptの導入
+$ yarn add typescript --dev
+# Node.jsの型定義をインストール
+$ yarn add @types/node --dev
+
+# tscコマンドが使えるか確認する
+$ tsc --version
+version 4.4.3
+
+# tsconfig生成
+$ tsc --init
+message TS6071: Successfully created a tsconfig.json file.
+
+# ts-nodeのインストール
+$ yarn add ts-node --dev 
+```
+tsconfig.jsonは[Compiler Options](#Compiler-Options)のところに従う。
+
+
