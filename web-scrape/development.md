@@ -43,3 +43,6 @@ sudo apt update && sudo apt install -y gconf-service libgbm-dev libasound2 libat
 
 結果サンプルプログラムは正常に実行できた。
 
+## yargsの使い方まとめと導入
+
+`../yargs.md`に詳細

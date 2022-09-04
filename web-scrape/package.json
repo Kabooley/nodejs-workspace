@@ -8,6 +8,7 @@
   "scripts": {
     "build_com": "npx tsc",
     "run_com": "node ./dist/index.js",
+    "clean_up": "rm ./dist/*",
     "start": "npm run build_com && npm run run_com"
   },
   "devDependencies": {
