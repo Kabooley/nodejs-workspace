@@ -1,12 +1,8 @@
-/************************
+/**********************************************
  * Command Line Parser
  * 
- * Using yargs
- * 
- * Enable 
- * - Search keyword
- * - Avoiding hard-coding username and password. 
- * */ 
+ * Command modules for login and keyword
+ * ********************************************/ 
 export interface iCollectCommand {
     username: {
         describe: string;

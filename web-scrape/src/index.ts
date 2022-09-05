@@ -5,7 +5,9 @@ import { commandName, commandDesc, builder } from './cliParser';
 interface iCommand {
     [key: string]: string | undefined;
 }
-export const commands: iCommand = {};
+
+let browser: puppeteer.Browser;
+const commands: iCommand = {};
 
 yargs(process.argv.slice(2)).command(commandName, commandDesc, 
     {...builder},   // {...builder}とするのと、buidlerに一致するinterfaceが必須となっている...
@@ -17,5 +19,14 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         console.log(commands);
 }).argv;
 
-
-console.log(commands);
+(async function(commands) {
+    try {
+        browser = await puppeteer.launch();
+        const loginPage = await browser.newPage();
+    }
+    catch(e) {
+        console.error(e);
+        // TODO: Fix this.
+        if(browser !== undefined) browser.close();
+    }
+})(commands);

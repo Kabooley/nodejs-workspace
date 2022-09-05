@@ -2,6 +2,63 @@
 
 ## 目次
 
+## Best Practice for puppeteer
+
+https://github.com/puppeteer/puppeteer/issues/4506
+
+割と丸投げな質問に対する温かい回答集
+
+> アイデアは非常に単純です。機能を適切な名前の関数に抽出します。
+
+```JavaScript
+export async function login(page) {
+    await page.waitForSelector('[data-testid="loginFormInputWithUserName"]');
+    await page.click('[data-testid="loginFormInputWithUserName"]');
+    await page.keyboard.type(user.name);
+    await page.click('[data-testid="loginFormInputWithUserPassword"]');
+    await page.keyboard.type(user.password);
+    await page.click('[data-testid="loginFormSubmitButton"]');
+    await page.waitForSelector('[data-testid="appComponent"]');
+}
+
+export async function logout(page) {
+    await page.waitForSelector('[data-testid="userMenu"]');
+    await page.click('[data-testid="userMenuDropdown"]');
+    await page.waitForSelector('[data-testid="loginLogoutBtnLogoutText"]');
+    await page.click('[data-testid="loginLogoutBtnLogoutText"]');
+    await page.waitForSelector('[data-testid="loginLogoutModalConfirmBtn"]');
+    await page.click('[data-testid="loginLogoutModalConfirmBtn"]');
+    await page.waitForSelector('[data-testid="LoginForm"]');
+}
+```
+
+うん普通。
+
+https://docs.browserless.io/docs/best-practices.html
+
+- Make sure you close your session. 
+
+常に`browser.close`を明示的に呼出してセッションを閉じよう。エラーが起こったらでも。
+
+- Reduce `await` as much as possible.
+
+> puppeteerのほとんどは非同期です。つまり、その前に await があるコマンド (または .then のコマンド) は、アプリケーションからブラウザーレスへの往復を行います。これを制限するためにできることは限られていますが、できるだけ多くのことを試してください.たとえば、複数回の $selector 呼び出しではなく、1 回の評価で多くのことを達成できるため、page.$selector ではなく page.evaluate を使用します。
+
+```JavaScript
+// DON'T DO
+const $button = await page.$('.buy-now');
+const buttonText = await $button.getProperty('innerText');
+const clicked = await $button.click();
+
+// DO
+const buttonText = await page.evaluate(() => {
+  const $button = document.querySelector('.buy-now');
+  const clicked = $button.click();
+
+  return $button.innerText;
+});
+```
+
 ## chromium起動できない問題
 
 puppeteerインストール直後、サンプルプログラムを動かして正常動作するか確認しようとしたところ...
