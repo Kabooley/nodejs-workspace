@@ -103,3 +103,9 @@ sudo apt update && sudo apt install -y gconf-service libgbm-dev libasound2 libat
 ## yargsの使い方まとめと導入
 
 `../yargs.md`に詳細
+
+実行コマンド
+
+```bash
+$ node ./dist/index.js COMMAND --option1 STRING --option2 STRING
+```
