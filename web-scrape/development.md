@@ -109,3 +109,23 @@ sudo apt update && sudo apt install -y gconf-service libgbm-dev libasound2 libat
 ```bash
 $ node ./dist/index.js COMMAND --option1 STRING --option2 STRING
 ```
+
+
+
+## セレクタ調査
+
+username:
+
+```html
+<!-- username -->
+<input type="text" autocomplete="username" placeholder="メールアドレスまたはpixiv ID" autocapitalize="none" class="sc-bn9ph6-6 degQSE" value="contradiction.losing@gmail.com">
+
+<!-- password -->
+<input type="password" autocomplete="current-password" placeholder="パスワード" autocapitalize="none" class="sc-bn9ph6-6 hfoSmp" value="dentalhealth1111">
+<!-- login button -->
+<button type="submit" class="sc-bdnxRM jvCTkj sc-dlnjwi pKCsX sc-2o1uwj-7 fguACh sc-2o1uwj-7 fguACh" height="40">ログイン</button>
+```
+
+`input[autocomplete="username"].sc-bn9ph6-6.degQSE`
+`input[autocomplete="current-password"].sc-bn9ph6-6.hfoSmp`
+`button[type="submit"].sc-bdnxRM.jvCTkj.sc-dlnjwi.pKCsX.sc-2o1uwj-7.fguACh.sc-2o1uwj-7.fguACh`

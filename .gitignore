@@ -2,3 +2,5 @@ ndp2/
 workspace/dist/
 web-scrape/node_modules
 web-scrape/dist/
+web-scrape/memo.txt
+
