@@ -140,3 +140,71 @@ Puppeteerでの実現：
 https://docs.browserless.io/docs/best-practices.html
 
 - `await`を可能な限り減らす
+
+
+## (自習)プロキシって何？
+
+> プロキシ（proxy; [ˈprɒksɪ]）とは「代理」の意味である。インターネット関連で用いられる場合は、特に内部ネットワークからインターネット接続を行う際、高速なアクセスや安全な通信などを確保するための中継サーバ「プロキシサーバ」を指す。
+
+> プロキシはクライアントとサーバの間に存在し、情報元のサーバに対してはクライアントの情報を受け取る、クライアントに対してはサーバの働きをする（HTTPプロキシの場合）。
+
+へぇ。
+
+https://scrapingant.com/blog/puppeteer-tricks-to-avoid-detection-and-make-web-scraping-easier#proxy-setup
+
+より、proxyを使うメリットは？
+
+> 大規模なスクレイピングでは、プロキシを使用することが重要です。 Web サイトをスクレイピングして一定数のページにアクセスしようとすると、レート制限防御メカニズムによってアクセスがブロックされます。一部のサイトでは、スクレイピングの試みを認識すると 4** のステータス コード範囲が返されるか、キャプチャ チェックで空のページが返されます。
+
+> プロキシを使用すると、ターゲット サイトへのアクセス中に IP 禁止を回避し、レート制限を超えることができます。 Puppeteer プロキシ設定記事の拡張版を確認するか、以下の有用なスニペットに従うことができます。 Puppeteer を起動するとき、指定されたアドレスをフィールド --proxy-server=<address> を使用して配列オブジェクトとして指定する必要があります。これにより、このパラメーターがヘッドレス Chrome インスタンスに直接送信されます。
+
+ということで直接アプリケーションとスクレイピング対象のwebサイトへアクセスするとそのうち制限かかってアクセスできなくされちゃうけど、
+
+プロキシサーバーを間に立てるとそのアクセス制限を回避できるようになると
+
+というのがメリット。
+
+puppeteerでプロキシサーバを使うなら
+
+```JavaScript
+const puppeteer = require('puppeteer');
+
+(async() => {
+    
+  const browser = await puppeteer.launch({
+    // NOTE: ここに以下のようなオプションを渡す
+    // URLがプロキシサーバのURL
+     args: [ '--proxy-server=http://10.10.10.10:8080' ]
+  });
+
+  const page = await browser.newPage();
+  await page.authenticate({
+      username: 'USERNAME',
+      password: 'PASSWORD'
+  });
+  await page.goto('https://httpbin.org/ip');
+  await browser.close();
+})();
+```
+
+ということでプロキシサーバは自前で用意しないといけない。
+
+以下のサービスなら無料で使えるかもね。
+
+#### scrapingAnt API
+
+プロキシサーバを使わせてくれるサービス。
+
+https://scrapingant.com/free-proxies/
+
+https://scrapingant.com/blog/free-proxy-web-scraping
+
+プロキシを使うメリット：
+
+プロキシを使用すると、Web サイトを確実に遮断できます。禁止またはブロックされる可能性を減らす プロキシを使用すると、特定の地理的な場所を使用できます。これは、特にオンライン小売業者からのデータをスカーピングする場合に非常に重要です プロキシを使用すると、ブロックまたは禁止されることなく、Web サイトに複数のリクエストを行うことができます プロキシを使用すると、同じ Web サイトまたは別の Web サイトに対して無制限の並行セッションを作成できます
+
+https://scrapingant.com/#pricing
+
+フリートライアルなら月間10000回の使用までならAPIを使うことができる。クレカ登録不要とのこと。
+
+あとで使ってみてもいいかもね。

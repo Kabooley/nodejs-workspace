@@ -7,7 +7,7 @@ TODO: TypeScriptの書籍を買え！
 [後から動的にプロパティを追加するつもりの空のオブジェクト](#後から動的にプロパティを追加するつもりの空のオブジェクト)
 [割り当てられる前に使用しています](#割り当てられる前に使用しています)
 [Typeだけインポートする](#Typeだけインポートする)
-[](#)
+[`document`とかが使えないときは](#`document`とかが使えないときは)
 
 ## 後から動的にプロパティを追加するつもりの空のオブジェクト
 
@@ -147,5 +147,42 @@ export async function login(
     {username, password}: {username: string, password: string}
     ) {
         // ...
+}
+```
+
+## `document`とかが使えないときは
+
+```TypeScript
+// 下記のdocumentが見つからないとか言われる
+const login = async function(page: puppeteer.Page, 
+    {username, password}: {username: string, password: string}
+    ) {
+    try {
+        await page.goto(url, { waitUntil: "domcontentloaded" });
+
+        // Get login and password form dom
+        const [$username, $password, $login] = await page.evaluate(() => {
+            const $username = document.querySelector('');
+            const $password = document.querySelector('');
+            const $login = document.querySelector('');
+            if(!$username || !$login || !$password) throw new Error('DOM: username or password or login-button were not found');
+            
+            return [$username, $password, $login];
+        });
+      
+```
+
+https://stackoverflow.com/questions/41336301/typescript-cannot-find-name-window-or-document
+
+ということでコンフィグを変更する。
+
+```JSON
+// tsconfig.json
+{
+  {
+    // ...
+    "lib": ["dom"]
+    // ...
+  }
 }
 ```
