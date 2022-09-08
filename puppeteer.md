@@ -600,3 +600,48 @@ https://scrapingant.com/#pricing
 }
 browser closed explicitly
 ```
+
+
+#### Puppeteerで画像をダウンロードする方法
+
+の情報収集
+
+ヒント：
+
+- `HTTP.response`から画像のURLを取得してそのままダウンロードする
+- `page.on('response')`でレスポンスがあったら反応するようにする
+- `response.url()`が期待のURLと一致するかどうかでフィルタリングする
+- `response.buffer()`の使い方の習得
+
+
+https://stackoverflow.com/questions/52542149/how-can-i-download-images-on-a-page-using-puppeteer
+
+https://www.bannerbear.com/blog/how-to-download-images-from-a-website-using-puppeteer/#step-3-write-the-code-for-downloading-images
+
+ここなら信頼度高いかも：
+
+https://github.com/puppeteer/puppeteer/issues/1937
+
+#### （実装）プロセスの考察
+
+どれを逐次処理にしてどれを同期処理にして、どれを並列処理にするのか。
+
+並列処理は負荷軽減のために2つまでにする。
+
+ログインした後：
+
+検討１：artworkURL取得のために検索結果すべてからURLしてから各artworkページへアクセスする方法
+
+検討２：検索結果すべてのartworkURLへアクセスしてダウンロードしていく方法
+
+- keyword検索 または ブックマークへ移動
+  - keyword検索のとき、pixivの検索機能では実現できないフィルタリングを独自に追加したい。いいね～以上のやつ、とか
+- 結果一覧から各artworkページへのURLを取得できる
+ ?argworkページへのURL取得は並列処理できるのか？
+ ?検索結果が複数ページにわたるほどのヒット数だった時、次のページへの移動とartworkページURL取得は並列処理にすべきか？
+- artworkページでどのURLへアクセスしたらオリジナルに近い画像URLへpage.goto()する
+  - その時のpage.on(response)でオリジナルURLを取得する
+  - streamで画像を取得する
+  ?そもそもpageは一つだけなので、並列処理できる物はもしかしたらない？
+
+`page.on('response', handler)`>`page.goto(artworkPageURL)`>`handler(){Writable.write()}`>`page`はこの時点でもう次のURLへ移動してもいいかも
