@@ -38,10 +38,11 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         await login(page, {username: username, password: password});
 
         // DEBUG: make sure succeeded so far.
-        // screenshotはなぜか取れないのでurlを確認してみる
-        console.log(page.url());    // 入れているようだ。
+        console.log(page.url());
 
         await search(page, keyword);
+        // // DEBUG: make sure succeeded so far.
+        console.log(page.url());
     }
     catch(e) {
         console.error(e);

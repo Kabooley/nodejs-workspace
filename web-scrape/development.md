@@ -129,3 +129,116 @@ username:
 `input[autocomplete="username"].sc-bn9ph6-6.degQSE`
 `input[autocomplete="current-password"].sc-bn9ph6-6.hfoSmp`
 `button[type="submit"].sc-bdnxRM.jvCTkj.sc-dlnjwi.pKCsX.sc-2o1uwj-7.fguACh.sc-2o1uwj-7.fguACh`
+
+検索結果ページ
+
+```html
+<div class="sc-l7cibp-3 gCRmsl">
+    <nav class="sc-xhhh7v-0 kYtoqc">
+        <a aria-disabled="true" class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component Vhbyn" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?s_mode=s_tag" hidden=""><svg viewBox="0 0 10 8" width="16" height="16"><polyline class="_2PQx_mZ _3mXeVRO" stroke-width="2" points="1,2 5,6 9,2" transform="rotate(90 5 4)"></polyline></svg></a>
+        <button type="button" aria-current="true" class="sc-xhhh7v-1 hqFKax"><span>1</span></button>
+        <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=2&amp;s_mode=s_tag"><span>2</span></a>
+        <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=3&amp;s_mode=s_tag"><span>3</span></a><a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=4&amp;s_mode=s_tag"><span>4</span></a><a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=5&amp;s_mode=s_tag"><span>5</span></a><a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=6&amp;s_mode=s_tag"><span>6</span></a><a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=7&amp;s_mode=s_tag"><span>7</span></a><a aria-disabled="false" class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component Vhbyn" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=2&amp;s_mode=s_tag"><svg viewBox="0 0 10 8" width="16" height="16"><polyline class="_2PQx_mZ _3mXeVRO" stroke-width="2" points="1,2 5,6 9,2" transform="rotate(-90 5 4)"></polyline></svg></a></nav>
+</div>
+```
+
+## ページ遷移が成功したのかちゃんと調べる
+
+https://medium.com/superluminar/how-to-wait-for-and-intercept-a-particular-http-request-in-puppeteer-66863a8403fe
+
+https://github.com/puppeteer/puppeteer/issues/5066
+
+以下の方法なら
+
+responseを調べてstatus: 200なのかどうかで判断できる
+urlも遷移後のURLなのかわかる
+
+NOTE:この方法で取得できるresponse.url()はページ遷移後のURLである
+
+```TypeScript
+// Before
+await Promise.all([
+    page.waitForNavigation({ waitUntil: ["networkidle2"] }),
+    page.click(selectors.loginButton),
+    console.log('Form sending...')
+]);
+
+// After
+const [response] = await Promise.all([
+    page.waitForNavigation({ waitUntil: ["networkidle2"] }),
+    page.click(selectors.loginButton)
+]);
+if(!response || response.url() !== urlLoggedIn && response.status() !== 200 || !response.ok())
+throw new Error('Failed to login');
+
+console.log("Logged in successfully");
+```
+
+よくみたら`page.waitForNavigation()`は戻り値`Promise<HTTPResponse>`だったのでそのまま戻り値取得すればよかった。
+
+使えなかったけどどこかで役に立ちそうな方法：
+
+https://github.com/puppeteer/puppeteer/issues/5066
+
+を参考にして
+
+```TypeScript
+// URLはこれでいいみたい
+const responsePromise = page.waitForResponse("https://www.pixiv.net/");
+await page.click(selectors.loginButton);
+const response = await responsePromise;
+if(response.status() === 200 && response.ok()) return true; // true as succeeded to login.
+```
+
+## 検索結果ページ複数になる時の次のページへ行くトリガー
+
+検索結果ページのページ数のとこの
+
+```
+< 1 2 3 4 5 6 7 >
+```
+
+`>`だけクリックしていけば1ページずつ移動してくれる
+
+## 検索結果とかresponseから取得できない？
+
+できるっぽい。ただし問題は、
+
+- 検索結果ページへ行くのにpage.goto()じゃなくてpage.click()を使っているのでレスポンスを取得できるのか不明
+- RESTAPIワカラナイ
+
+検索キーワード:"西住まほ"
+
+`GET`
+`https://www.pixiv.net/ajax/search/artworks/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB?word=西住まほ&order=date_d&mode=all&p=1&s_mode=s_tag&type=all&lang=ja`
+
+の、
+
+`response.body.illustManga.data`に検索結果のデータ
+
+`response.body.illustManga.total`に検索ヒット数
+
+dataの各要素がサムネイルの情報と同じなので
+
+```JSON
+"data": [
+    {"id": 123456, "title": "ARTWORK-TITLE", "userid": "987654"},
+    {"id": 123456, "title": "ARTWORK-TITLE"},
+    {"id": 123456, "title": "ARTWORK-TITLE"},
+]
+```
+
+idはそのままartworkページへのURL末尾になる
+
+`https://www.pixiv.net/artworks/12345678`
+
+
+TODO: EventEmitterとRESTAPIスキルを習得する
+
+`page.click()`する前に`page.once('response')`用意しておけばいいかな...
+
+pageはEventEmitterを継承したクラスなのでいけるよね...
+
+TODO: すべてのレスポンスを取得するヒント
+
+https://stackoverflow.com/questions/52969381/how-can-i-capture-all-network-requests-and-full-response-data-when-loading-a-pag

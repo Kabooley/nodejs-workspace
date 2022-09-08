@@ -5,6 +5,7 @@
 import type puppeteer from 'puppeteer';
 import { selectors } from '../constants/selectors';
 
+const urlLoggedIn: string = "https://www.pixiv.net/";
 const url: string = "https://accounts.pixiv.net/login?return_to=https%3A%2F%2Fwww.pixiv.net%2F&lang=ja&source=accounts&view_type=page&ref=";
 const typeOptions = { delay: 100 };
 
@@ -32,13 +33,14 @@ export const login = async (page: puppeteer.Page,
         await page.type(selectors.passwordForm, password, typeOptions);
 
         // Click login and wait until network idle.
-        await Promise.all([
+        const [response] = await Promise.all([
             page.waitForNavigation({ waitUntil: ["networkidle2"] }),
-            page.click(selectors.loginButton),
-            console.log('Form sending...')
+            page.click(selectors.loginButton)
         ]);
+        if(!response || response.url() !== urlLoggedIn && response.status() !== 200 || !response.ok())
+        throw new Error('Failed to login');
 
-        console.log('Logged in');
+        console.log("Logged in successfully");
     }
     catch(e) {
         throw e;
