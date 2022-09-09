@@ -5,16 +5,25 @@ import { login } from './components/login';
 import { search } from './components/search';
 // import { browserContextProcess } from './debug/closeAllBrowsers';
 
+// 
+// -- TYPES --
+// 
 interface iCommand {
     [key: string]: string | undefined;
 }
 
+// 
+// -- GLOBALS --
+// 
 let browser: puppeteer.Browser | undefined;
 const commands: iCommand = {};
 const options: puppeteer.PuppeteerLaunchOptions = {
     headless: true
 };
 
+// 
+// -- COMMAND MANAGER --
+// 
 yargs(process.argv.slice(2)).command(commandName, commandDesc, 
     {...builder},   // {...builder}とするのと、builderに一致するinterfaceが必須となっている...
     (args) => {
@@ -25,6 +34,9 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         console.log(commands);
 }).argv;
 
+// 
+// -- MAIN PROCESS --
+// 
 (async function() {
     try {
         const {username, password, keyword} = commands;
@@ -41,7 +53,7 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         console.log(page.url());
 
         await search(page, keyword);
-        // // DEBUG: make sure succeeded so far.
+        // DEBUG: make sure succeeded so far.
         console.log(page.url());
     }
     catch(e) {

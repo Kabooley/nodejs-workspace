@@ -2,6 +2,8 @@
 
 ## 目次
 
+[自習](#自習)
+
 ## Best Practice for puppeteer
 
 https://github.com/puppeteer/puppeteer/issues/4506
@@ -189,6 +191,164 @@ await page.click(selectors.loginButton);
 const response = await responsePromise;
 if(response.status() === 200 && response.ok()) return true; // true as succeeded to login.
 ```
+
+サーバレスポンスからステータスを確認できた。
+
+## ページ遷移とレスポンスの取得の両立
+
+参考：
+
+https://stackoverflow.com/a/71521550/13891684
+
+https://pixeljets.com/blog/puppeteer-click-get-xhr-response/
+
+`page.click`か`page.keyboard.press()`と、それに伴って発生するhttpResponseから任意のレスポンスを取得を両立する方法
+
+うまくいかない例：
+
+```TypeScript
+const requiredResponseURL = "https://www.hogehoge.hoge/resource";
+
+export const search = async (page: puppeteer.Page, keyword: string): Promise<void> => {
+    try {
+        await page.type(selectors.searchBox, keyword, { delay: 100 });
+
+        page.on('response', _res => {
+            if(_res.url() === requireResponseURL) console.log(_res)
+        })
+        const [res] = await Promise.all([
+            page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] }),
+            page.keyboard.press("Enter"),
+        ]);
+        if(!res || res.url() !== `https://www.pixiv.net/tags/${keyword}/artworks?s_mode=s_tag` && res.status() !== 200 || !res.ok()){
+            throw new Error(/**/)
+        }
+        console.log('Result page');
+    }
+    catch(e) {
+        // ....
+    }
+}
+```
+
+これだと、なぜか`waitForNavigation()`のほうがエラーを起こす。
+
+あと、`page.on('response')`では本来取得するべきレスポンスのすべてを取得しない。
+
+3つくらいで終わる。
+
+うまくいく例：
+
+```TypeScript
+const requiredResponseURL = "https://www.hogehoge.hoge/resource";
+
+export const search = async (page: puppeteer.Page, keyword: string): Promise<void> => {
+    try {
+        await page.type(selectors.searchBox, keyword, { delay: 100 });
+        const waitJson = page.waitForResponse(res =>
+            res.url() === requireResponseURL && res.status() === 200
+        );
+        page.keyboard.press('Enter');
+        const json: puppeteer.HTTPResponse = await waitJson;
+        console.log(await json.json());
+        console.log('Result page');
+    }
+    catch(e) {
+        // ...
+    }
+}
+```
+
+これだと欲しいレスポンスが取得できる。
+
+使っているテクニック：
+
+```JavaScript
+const waiter = page.waitForResponse();
+await page.click("#awesomeButton");
+await waiter;
+```
+
+なんかこのテクニックは多くのウェブサイトで確認できる。
+
+これでHTTPレスポンスが取得できるし、
+
+promise.all()で`page.click()`と`page.waitForNavigation()`を組み合わせる方法じゃないとページ遷移できない呪縛から解放される。
+
+取得したJSON
+
+```JavaScript
+{
+  data: [
+    {
+      id: '101116741',
+      title: 'ヨルハ二号B型',
+      illustType: 2,
+      xRestrict: 1,
+      restrict: 0,
+      sl: 6,
+      url: 'https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/10/02/42/45/101116741_square1200.jpg',
+      description: '',
+      tags: [Array],
+      userId: '51217862',
+      userName: 'ｍａｅｎｃｈｕ',
+      width: 1920,
+      height: 1080,
+      pageCount: 1,
+      isBookmarkable: true,
+      bookmarkData: null,
+      alt: '#ヨルハ二号B型 ヨルハ二号B型 - ｍａｅｎｃｈｕのうごイラ',
+      titleCaptionTranslation: [Object],
+      createDate: '2022-09-10T02:42:45+09:00',
+      updateDate: '2022-09-10T02:42:45+09:00',
+      isUnlisted: false,
+      isMasked: false,
+      profileImageUrl: 'https://i.pximg.net/user-profile/img/2021/06/02/06/20/17/20804853_03f8430c57fac290a28bbb6cfc46d494_50.png'
+    },
+    {
+      id: '101116378',
+      title: '2B切腹',
+      illustType: 0,
+      xRestrict: 2,
+      restrict: 0,
+      sl: 6,
+      url: 'https://i.pximg.net/c/250x250_80_a2/custom-thumb/img/2022/09/10/02/15/53/101116378_p0_custom1200.jpg',
+      description: '',
+      tags: [Array],
+      userId: '17499879',
+      userName: 'GZZ',
+      width: 2200,
+      height: 1800,
+      pageCount: 1,
+      isBookmarkable: true,
+      bookmarkData: null,
+      alt: '#ニーアオートマタ 2B切腹 - GZZのイラスト',
+      titleCaptionTranslation: [Object],
+      createDate: '2022-09-10T02:15:53+09:00',
+      updateDate: '2022-09-10T02:15:53+09:00',
+      isUnlisted: false,
+      isMasked: false,
+      profileImageUrl: 'https://i.pximg.net/user-profile/img/2021/03/08/14/58/29/20322662_4296802f6f008b2b7add96b2ac2db369_50.jpg'
+    },
+    // ...
+  ],
+  total: 41255,
+  bookmarkRanges: [
+    { min: null, max: null },
+    { min: 10000, max: null },
+    { min: 5000, max: null },
+    { min: 1000, max: null },
+    { min: 500, max: null },
+    { min: 300, max: null },
+    { min: 100, max: null },
+    { min: 50, max: null }
+  ]
+}
+```
+
+## ページ遷移プロセスを再利用可能にする
+
+頑張って。
 
 ## 検索結果ページ複数になる時の次のページへ行くトリガー
 

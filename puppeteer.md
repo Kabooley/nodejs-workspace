@@ -82,13 +82,6 @@ export declare interface BrowserLaunchArgumentOptions {
 https://peter.sh/experiments/chromium-command-line-switches/
 
 
-
-
-#### `PuppeteerNode.launch()`オプション
-
-
-
-
 ## Browser class
 
 https://pptr.dev/api/puppeteer.browser/
@@ -163,6 +156,20 @@ https://gist.github.com/tegansnyder/c3aeae4d57768c58247ae6c4e5acd3d1
 5. `puppeteer-extra-plugin-stealth`を使う
 5. Cloud APIを使う
 
+## お作法
+
+##### finallyでbrowser.close()すること
+
+エラー時にするのでもいいけど。
+
+ブラウザプロセスは残してconnect, disconnectするのでもないのなら、
+
+必ずbrowser.close()するようにしよう。
+
+でないとゾンビchromiumが発生してしまうかも。
+
+try...catch, finallyでのfinallyでやれば確実かも。
+
 ##### 新規のタブを生成するのを回避すること
 
 実は`browser.launch()`したらすでにタブは開かれている！！
@@ -175,7 +182,14 @@ https://gist.github.com/tegansnyder/c3aeae4d57768c58247ae6c4e5acd3d1
 const page = (await browser.pages())[0];
 ```
 
+#### 他見つけた情報
+
+https://docs.browserless.io/docs/best-practices.html
+
+
 #### ログインフォームに対するアプローチ
+
+ログインに限った話じゃないけれど、HTTPを使ったアプローチができればDOMいらずかも。
 
 - DOM取得>ログイン情報を値としてDOMへ入力>ログインボタンDOMのクリック
 - Basic認証
@@ -201,12 +215,6 @@ Puppeteerでの実現：
     await page.setViewport({ width: 1300, height: 900 })
     await navigationPromise
 ```
-
-#### web scrapingするときに気を付けることなど
-
-https://docs.browserless.io/docs/best-practices.html
-
-- `await`を可能な限り減らす
 
 
 ## (自習)プロキシって何？
@@ -297,27 +305,3 @@ https://www.bannerbear.com/blog/how-to-download-images-from-a-website-using-pupp
 ここなら信頼度高いかも：
 
 https://github.com/puppeteer/puppeteer/issues/1937
-
-#### （実装）プロセスの考察
-
-どれを逐次処理にしてどれを同期処理にして、どれを並列処理にするのか。
-
-並列処理は負荷軽減のために2つまでにする。
-
-ログインした後：
-
-検討１：artworkURL取得のために検索結果すべてからURLしてから各artworkページへアクセスする方法
-
-検討２：検索結果すべてのartworkURLへアクセスしてダウンロードしていく方法
-
-- keyword検索 または ブックマークへ移動
-  - keyword検索のとき、pixivの検索機能では実現できないフィルタリングを独自に追加したい。いいね～以上のやつ、とか
-- 結果一覧から各artworkページへのURLを取得できる
- ?argworkページへのURL取得は並列処理できるのか？
- ?検索結果が複数ページにわたるほどのヒット数だった時、次のページへの移動とartworkページURL取得は並列処理にすべきか？
-- artworkページでどのURLへアクセスしたらオリジナルに近い画像URLへpage.goto()する
-  - その時のpage.on(response)でオリジナルURLを取得する
-  - streamで画像を取得する
-  ?そもそもpageは一つだけなので、並列処理できる物はもしかしたらない？
-
-`page.on('response', handler)`>`page.goto(artworkPageURL)`>`handler(){Writable.write()}`>`page`はこの時点でもう次のURLへ移動してもいいかも

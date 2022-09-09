@@ -1,7 +1,7 @@
-/*****************************
+/*************************************************************
  * Login component
  *
- * **************************/
+ * ***********************************************************/
 import type puppeteer from 'puppeteer';
 import { selectors } from '../constants/selectors';
 
@@ -10,8 +10,6 @@ const url: string = "https://accounts.pixiv.net/login?return_to=https%3A%2F%2Fww
 const typeOptions = { delay: 100 };
 
 
-// DOMを取得してこねこねしてログインする方法
-// 
 export const login = async (page: puppeteer.Page, 
     {username, password}: {username: string, password: string}
     ): Promise<void> => {
@@ -37,15 +35,20 @@ export const login = async (page: puppeteer.Page,
             page.waitForNavigation({ waitUntil: ["networkidle2"] }),
             page.click(selectors.loginButton)
         ]);
+
         if(!response || response.url() !== urlLoggedIn && response.status() !== 200 || !response.ok())
         throw new Error('Failed to login');
 
         console.log("Logged in successfully");
     }
     catch(e) {
+        // DEBUG: take screenshot to know what happened
+        await page.screenshot({type: "png", path: "./dist/errorLoggingIn.png"});
         throw e;
     }
 };
+
+
 
 // // NOTE: Basic認証で突破することを試みる...やっぱだめだ
 // export async function login(
