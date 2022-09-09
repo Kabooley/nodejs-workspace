@@ -242,3 +242,10 @@ pageはEventEmitterを継承したクラスなのでいけるよね...
 TODO: すべてのレスポンスを取得するヒント
 
 https://stackoverflow.com/questions/52969381/how-can-i-capture-all-network-requests-and-full-response-data-when-loading-a-pag
+
+## Node.js HTTP `http.ClientRequest`
+
+https://nodejs.org/dist/latest-v16.x/docs/api/http.html#class-httpclientrequest
+
+このオブジェクトは内部的に作られ、`http.request()`から返されます。
+
