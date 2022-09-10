@@ -186,3 +186,36 @@ https://stackoverflow.com/questions/41336301/typescript-cannot-find-name-window-
   }
 }
 ```
+
+## オブジェクトが少なくとも持つプロパティを指定する方法
+
+例えばオブジェクトが次のような2つのプロパティをs少なくとも持つけど
+
+そのほかの予測不可能なプロパティを持つことも許すような型付け。
+
+```JavaScript
+const obj = {
+  title: "hoge",  // required
+  id: "12344",    // required
+  author: "fugafuga",     // optional
+}
+
+// Valid
+const obj1 = {
+  title: "foo",
+  id: "09876"
+};
+
+// Invalid
+const obj2 = {
+  title: "dsfsdfs",
+  author: "ffjfd"
+};
+```
+
+参考：
+
+https://stackoverflow.com/questions/40510611/typescript-interface-require-one-of-two-properties-to-exist
+
+
+

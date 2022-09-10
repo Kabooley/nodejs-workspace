@@ -2,64 +2,14 @@
 
 ## 目次
 
+[TODOS](#TODOS)
 [自習](#自習)
 
-## Best Practice for puppeteer
 
-https://github.com/puppeteer/puppeteer/issues/4506
+## TODOS
 
-割と丸投げな質問に対する温かい回答集
-
-> アイデアは非常に単純です。機能を適切な名前の関数に抽出します。
-
-```JavaScript
-export async function login(page) {
-    await page.waitForSelector('[data-testid="loginFormInputWithUserName"]');
-    await page.click('[data-testid="loginFormInputWithUserName"]');
-    await page.keyboard.type(user.name);
-    await page.click('[data-testid="loginFormInputWithUserPassword"]');
-    await page.keyboard.type(user.password);
-    await page.click('[data-testid="loginFormSubmitButton"]');
-    await page.waitForSelector('[data-testid="appComponent"]');
-}
-
-export async function logout(page) {
-    await page.waitForSelector('[data-testid="userMenu"]');
-    await page.click('[data-testid="userMenuDropdown"]');
-    await page.waitForSelector('[data-testid="loginLogoutBtnLogoutText"]');
-    await page.click('[data-testid="loginLogoutBtnLogoutText"]');
-    await page.waitForSelector('[data-testid="loginLogoutModalConfirmBtn"]');
-    await page.click('[data-testid="loginLogoutModalConfirmBtn"]');
-    await page.waitForSelector('[data-testid="LoginForm"]');
-}
-```
-
-うん普通。
-
-https://docs.browserless.io/docs/best-practices.html
-
-- Make sure you close your session. 
-
-常に`browser.close`を明示的に呼出してセッションを閉じよう。エラーが起こったらでも。
-
-- Reduce `await` as much as possible.
-
-> puppeteerのほとんどは非同期です。つまり、その前に await があるコマンド (または .then のコマンド) は、アプリケーションからブラウザーレスへの往復を行います。これを制限するためにできることは限られていますが、できるだけ多くのことを試してください.たとえば、複数回の $selector 呼び出しではなく、1 回の評価で多くのことを達成できるため、page.$selector ではなく page.evaluate を使用します。
-
-```JavaScript
-// DON'T DO
-const $button = await page.$('.buy-now');
-const buttonText = await $button.getProperty('innerText');
-const clicked = await $button.click();
-
-// DO
-const buttonText = await page.evaluate(() => {
-  const $button = document.querySelector('.buy-now');
-  const clicked = $button.click();
-
-  return $button.innerText;
-});
-```
+- 検索結果ページから各サムネイルのIDを取得する処理
+- 次のページへ移動する処理
 
 ## chromium起動できない問題
 
@@ -346,6 +296,17 @@ promise.all()で`page.click()`と`page.waitForNavigation()`を組み合わせる
 }
 ```
 
+ほしい情報は、
+
+- トータルヒット数
+- サムネイルのid
+
+
+注目してもいいところ
+
+- `data[0].tags`:登録されているタグがここに格納されているかも
+- `bookmarkRanges`はブックマークされている
+
 ## ページ遷移プロセスを再利用可能にする
 
 頑張って。
@@ -409,3 +370,107 @@ https://nodejs.org/dist/latest-v16.x/docs/api/http.html#class-httpclientrequest
 
 このオブジェクトは内部的に作られ、`http.request()`から返されます。
 
+
+
+## オブジェクト validation
+
+NOTE: 後回しでもいい
+
+取得したオブジェクトが求めるプロパティを持っているのかの検査をしたい
+
+```TypeScript
+```
+
+## ページ遷移とサムネイルIDの取得処理の分離と再利用可能化
+
+ページ遷移処理
+
+```TypeScript
+const waitTransition = page.waitForNavigation({ waitUntil: ["load", "docontentloaded"]});
+await page.click();
+await waitTransition;
+```
+
+サムネイル取得処理
+
+```TypeScript
+const waitResponse: Promise<puppeteer.HTTPResponse | null> = page.waitForResponse(res =>
+    res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}`)
+    && res.status() === 200
+);
+
+await page.click();
+// MUST BE PLACE JUST UNDER PAGE TRANSITION TRIGGER
+const response: puppeteer.HTTPResponse | null = await waitResponse;
+const data = await response.json();
+// Validation process for the json object.
+// 今のところはif分だけ。バリデーション実装大変。
+if(data.body.illustManga.data) {
+    // id取得処理
+}
+if(data.body.illustManga.total) {
+    // 検索結果ページ数計算処理
+}
+```
+
+ページ遷移のリクエストが受け入れられたのが確認できるのは、サムネイル取得処理の方のstatusコードの確認で行われている
+
+なのでページ遷移処理の方でも確認するようにした方がいいかも
+
+dataの...`data.body.illustManga.data`, `data.body.illustManga.total`が必要
+
+`data.body.illustManga.data`:
+
+```TypeScript
+// data.body.illustManga.data[]の各要素のidだけ必要
+const ids: string[] = data.body.illustManga.data.map(d => {
+    if(d.id) return d.id;
+})
+```
+
+`data.body.illustManga.total`:
+
+検索開始したときだけ必要な処理
+
+```TypeScript
+let numberOfResultPages: number;
+
+if(data.body.illustManga.total && numberOfResultPages === undefined) {
+    numberOfResultPages = total/data.body.illustManga.data.length;
+}
+```
+
+検索結果ページ数の取得>dataからid取得>ページ遷移>繰り返し...
+
+```TypeScript
+let numberOfResultPages: number;
+let ids: number[];
+let currentPage: number;
+
+const collectIdsFromResultPages = async (page: puppeteer.Page, res: puppeteer.HTTPResponse): Promise<void> => {
+    console.log(`Collecting ids. Page: ${currentPage + 1}`);
+    // Collect ids of thumbnails
+    if(res.body.illustManga.data) {
+        ids = [...ids, ...res.body.illustManga.data.map(d => {if(d.id) return d.id;})];
+    }
+    // Transition and recursive call
+    if(currentPage < numberOfResultPages){
+        currentPage++;
+        await page.click('#next-page-selector");
+        const res: puppeteer.HTTPResponse = await waitJson;
+        await loaded;
+        await collectIdsFromResultPages(page, res);
+    }
+};
+
+
+// 検索開始
+const res: puppeteer.HTTPResponse = await search(/* omit */);
+// 検索結果ページ数の計算
+if(res.body.illustManga.total && numberOfResultPages === undefined) {
+    numberOfResultPages = total/data.body.illustManga.data.length;
+};
+// 検索結果ページからはこの関数
+await collectIdsFromResultPages(page, res);
+// TODO: waitJsonとloadedをsearch()から分離すること
+```
