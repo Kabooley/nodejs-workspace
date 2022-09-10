@@ -219,3 +219,67 @@ https://stackoverflow.com/questions/40510611/typescript-interface-require-one-of
 
 
 
+わからんかった。
+
+## string | undefinedな配列からundefinedを取り除く処理の型付け
+
+https://qiita.com/suin/items/cda9af4f4f1c53c05c6f
+
+例えば、Array.prototype.mapはときおりundefinedを返すけど、それをArray.prototype.filterでundefinedを除く処理を追加するとする
+
+そのとき、
+
+```TypeScript
+const collectElementsAsArray = (data: iIllustMangaElement[]): string[] => {
+    const arr = data.map((e: iIllustMangaElement) => {
+        if(e.id !== undefined) return e.id
+    });
+    return arr.filter(id => id !== undefined);
+}
+// エラー：filterはfilter<string | undefined>(): (string | undefined)[]だからstring[]にはならないよ～
+```
+
+となるので型ガードが通用しない。くたばれ。
+
+このように`Array.prototype.map()`や`Array.prototype.filter()`はどうしてもタプル型でundefinedを含むことが前提になってしまう。
+
+そんな時はこうするといいらしい。
+
+1. ユーザ定義型ガード
+
+```TypeScript
+const collectElementsAsArray = (data: iIllustMangaElement[]): string[] => {
+    const arr = data.map((e: iIllustMangaElement) => {
+        if(e.id !== undefined) return e.id
+    });
+    // `: id is string`の部分
+    return arr.filter((id): id is string => id !== undefined);
+}
+```
+
+2. 指定の型ではないことをコンパイラに伝える
+
+```TypeScript
+const collectElementsAsArray = <T>(data: T[], key: keyof T): T[keyof T][] => {
+    const arr = data.map((e: T) => {
+        if(e[key] !== undefined) return e[key];
+    });
+    // `: v is Exclude<typeof v, undefined>`の部分
+    return arr.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
+}
+```
+
+あとこのままだと、map()が` Not all code paths return a value.`という指摘を受ける。
+
+要は、条件分岐で値を返さない時があるから返すようにしてという指摘。（初歩的なミス）
+
+```TypeScript
+const collectElementsAsArray = <T>(data: T[], key: keyof T): T[keyof T][] => {
+    const arr = data.map((e: T) => {
+        if(e[key] !== undefined) return e[key];
+        // こうする
+        else return undefined;
+    });
+    return arr.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
+}
+```

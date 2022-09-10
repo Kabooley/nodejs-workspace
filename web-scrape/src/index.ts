@@ -3,6 +3,7 @@ import yargs from 'yargs/yargs';
 import { commandName, commandDesc, builder } from './cliParser';
 import { login } from './components/login';
 import { search } from './components/search';
+import { collectIdsFromResultPages } from './components/collect';
 // import { browserContextProcess } from './debug/closeAllBrowsers';
 
 // 
@@ -52,9 +53,11 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         // DEBUG: make sure succeeded so far.
         console.log(page.url());
 
-        await search(page, keyword);
+        const res: puppeteer.HTTPResponse = await search(page, keyword);
         // DEBUG: make sure succeeded so far.
         console.log(page.url());
+        const ids: string[] = await collectIdsFromResultPages(page, keyword, res);
+        console.log(ids);
     }
     catch(e) {
         console.error(e);

@@ -17,6 +17,9 @@ export const login = async (page: puppeteer.Page,
         console.log('Logging in...')
         await page.goto(url, { waitUntil: "domcontentloaded" });
 
+
+        // This may not necessary. After all page.type and page.click will throw error if the selector does not match anything.
+        // 
         // Make sure required DOM is exists
         await page.evaluate((selectors) => {
             const $username: HTMLInputElement | null = document.querySelector<HTMLInputElement>(selectors.usernameForm);

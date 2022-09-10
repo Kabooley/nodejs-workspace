@@ -7,7 +7,7 @@ import type puppeteer from 'puppeteer';
 import { selectors } from '../constants/selectors';
 
 
-export const search = async (page: puppeteer.Page, keyword: string): Promise<void> => {
+export const search = async (page: puppeteer.Page, keyword: string): Promise<puppeteer.HTTPResponse> => {
     try {
         await page.type(selectors.searchBox, keyword, { delay: 100 });
         // waitJson requires specified HTTPResponse 
@@ -20,17 +20,9 @@ export const search = async (page: puppeteer.Page, keyword: string): Promise<voi
         const json: puppeteer.HTTPResponse = await waitJson;
         // NOTE: `loaded` MAY OCCURES ERROR. If many error occures, then delete it.
         await loaded;
-        
-        // TODO: MAKE SURE the json file has required property.
-        // TODO: Decide how to treat the json data.
-        // So improve the following...
-        const data = await json.json();
-        if(data.body.illustManga){
-            // So far `illustManga` is retrieved successfully.
-            console.log(data.body.illustManga);
-        }
 
         console.log('Moved to search result page');
+        return json;
     }
     catch(e) {
         // DEBUG: take screenshot to know what happened

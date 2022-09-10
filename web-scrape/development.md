@@ -3,13 +3,13 @@
 ## 目次
 
 [TODOS](#TODOS)
+[セレクタ調査](#セレクタ調査)
 [自習](#自習)
 
 
 ## TODOS
 
-- 検索結果ページから各サムネイルのIDを取得する処理
-- 次のページへ移動する処理
+- collectの動作確認
 
 ## chromium起動できない問題
 
@@ -82,17 +82,25 @@ username:
 `input[autocomplete="current-password"].sc-bn9ph6-6.hfoSmp`
 `button[type="submit"].sc-bdnxRM.jvCTkj.sc-dlnjwi.pKCsX.sc-2o1uwj-7.fguACh.sc-2o1uwj-7.fguACh`
 
-検索結果ページ
+
+次のページセレクタ:
 
 ```html
 <div class="sc-l7cibp-3 gCRmsl">
-    <nav class="sc-xhhh7v-0 kYtoqc">
-        <a aria-disabled="true" class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component Vhbyn" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?s_mode=s_tag" hidden=""><svg viewBox="0 0 10 8" width="16" height="16"><polyline class="_2PQx_mZ _3mXeVRO" stroke-width="2" points="1,2 5,6 9,2" transform="rotate(90 5 4)"></polyline></svg></a>
-        <button type="button" aria-current="true" class="sc-xhhh7v-1 hqFKax"><span>1</span></button>
-        <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=2&amp;s_mode=s_tag"><span>2</span></a>
-        <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=3&amp;s_mode=s_tag"><span>3</span></a><a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=4&amp;s_mode=s_tag"><span>4</span></a><a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=5&amp;s_mode=s_tag"><span>5</span></a><a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=6&amp;s_mode=s_tag"><span>6</span></a><a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=7&amp;s_mode=s_tag"><span>7</span></a><a aria-disabled="false" class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component Vhbyn" href="/tags/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB/artworks?p=2&amp;s_mode=s_tag"><svg viewBox="0 0 10 8" width="16" height="16"><polyline class="_2PQx_mZ _3mXeVRO" stroke-width="2" points="1,2 5,6 9,2" transform="rotate(-90 5 4)"></polyline></svg></a></nav>
+<nav class="sc-xhhh7v-0 kYtoqc">
+    <a aria-disabled="false" class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component Vhbyn" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=6&amp;s_mode=s_tag"><svg viewBox="0 0 10 8" width="16" height="16"><polyline class="_2PQx_mZ _3mXeVRO" stroke-width="2" points="1,2 5,6 9,2" transform="rotate(90 5 4)"></polyline></svg></a>
+    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?s_mode=s_tag"><span>1</span></a><button type="button" disabled="" class="sc-xhhh7v-1 sc-xhhh7v-3 hqFKax iiDpnk"><svg viewBox="0 0 24 24" size="24" class="sc-11csm01-0 fivNSm"><path d="M5 14C6.10457 14 7 13.1046 7 12C7 10.8954 6.10457 10 5 10C3.89543 10 3 10.8954 3 12C3 13.1046 3.89543 14 5 14ZM12 14C13.1046 14 14 13.1046 14 12C14 10.8954 13.1046 10 12 10C10.8954 10 10 10.8954 10 12C10 13.1046 10.8954 14 12 14ZM21 12C21 13.1046 20.1046 14 19 14C17.8954 14 17 13.1046 17 12C17 10.8954 17.8954 10 19 10C20.1046 10 21 10.8954 21 12Z"></path></svg></button>
+    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=6&amp;s_mode=s_tag"><span>6</span></a><button type="button" aria-current="true" class="sc-xhhh7v-1 hqFKax"><span>7</span></button>
+    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=8&amp;s_mode=s_tag"><span>8</span></a>
+    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=9&amp;s_mode=s_tag"><span>9</span></a>
+    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=10&amp;s_mode=s_tag"><span>10</span></a>
+    <a aria-disabled="false" class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component Vhbyn" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=8&amp;s_mode=s_tag"><svg viewBox="0 0 10 8" width="16" height="16"><polyline class="_2PQx_mZ _3mXeVRO" stroke-width="2" points="1,2 5,6 9,2" transform="rotate(-90 5 4)"></polyline></svg></a></nav>
+
 </div>
 ```
+
+- sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm
+- div.sc-l7cibp-3.gCRmsl nav.sc-xhhh7v-0.kYtoqc a:last-child
 
 ## ページ遷移が成功したのかちゃんと調べる
 
@@ -474,3 +482,8 @@ if(res.body.illustManga.total && numberOfResultPages === undefined) {
 await collectIdsFromResultPages(page, res);
 // TODO: waitJsonとloadedをsearch()から分離すること
 ```
+
+
+## recaptcha突破
+
+https://stackoverflow.com/questions/55678095/bypassing-captchas-with-headless-chrome-using-puppeteer
