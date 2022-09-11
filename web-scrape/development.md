@@ -484,6 +484,46 @@ await collectIdsFromResultPages(page, res);
 ```
 
 
-## recaptcha突破
+## 頻繁にログインページへアクセスすることに対する対策
+
+botだろってrecaptchaが発動するので
+
+二回目以降のログインはクッキーセッションを渡してそのままパスするようにできないか？
+
+これができたら採用、出来なかったら怪しいAPIに手を出す。
 
 https://stackoverflow.com/questions/55678095/bypassing-captchas-with-headless-chrome-using-puppeteer
+
+## artworkページへ片っ端からアクセスする
+
+- artworkページへアクセスしたらオリジナルのURLを取得できてしまうのか？
+- 逐次処理と並列処理するものの区別
+
+artworkページの最終的なURL: `https://www.pixiv.net/artworks/87797602`
+
+https://www.pixiv.net/artworks/84583402
+
+```html
+<!-- artwork表示部分 -->
+<div class="sc-166cqri-1 IoIvg gtm-medium-work-expanded-view">
+    <div role="presentation" class="sc-1qpw8k9-0 gTFqQV">
+        <a href="https://i.pximg.net/img-original/img/2020/09/24/18/54/56/84583402_p0.jpg" class="sc-1qpw8k9-3 eFhoug gtm-expand-full-size-illust" target="_blank" rel="noopener">
+            <img alt="#カウボーイビバップ 無題 - 水性ペンギンのイラスト" src="https://i.pximg.net/img-master/img/2020/09/24/18/54/56/84583402_p0_master1200.jpg" width="2066" height="3103" class="sc-1qpw8k9-1 jOmqKq" style="height: 767px;">
+        </a>
+    </div>
+</div>
+```
+
+`a[href=""]`と`img[src=""]`は異なるURLである。
+
+もしかしたらimgの方が表示中の画像のURLでaの方がクリックしたら表示される原寸大の方なのかも...
+
+よくみたら、imgの方は`img-master`とあって、aの方は`img-original`とあるわ...
+
+そもそもURL取得できても今まで通り同じリクエストを送っていいもんなのだろうか...
+
+噂のクローム拡張の方はどうやってダウンロードしているのか？みてみよう。
+
+...さっぱりわからん。デバグモードで使ってみて挙動を見るしかないなぁ。
+
+chromeエクステンションのデバグ作業のおさらい。
