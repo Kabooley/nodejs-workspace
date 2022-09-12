@@ -520,13 +520,405 @@ https://www.pixiv.net/artworks/84583402
 
 よくみたら、imgの方は`img-master`とあって、aの方は`img-original`とあるわ...
 
-そもそもURL取得できても今まで通り同じリクエストを送っていいもんなのだろうか...
+pixivダウンロード拡張機能は、`https://i.pximg.net/img-original/img/2020/09/24/18/54/56/84583402_p0.jpg`のGETリクエストを送信してダウンロードしていた。
 
-噂のクローム拡張の方はどうやってダウンロードしているのか？みてみよう。
+artworkページにアクセスしたときのHTTPレスポンスのうち、GET `https://i.pximg.net/`かつ、Content-Type: image/jpeg, image/png, imageとかでやったら取得できるかも
 
-...さっぱりわからん。デバグモードで使ってみて挙動を見るしかないなぁ。
+#### illust
 
-chromeエクステンションのデバグ作業のおさらい。
+一番初めのリクエストからartworkページの情報を取得する: `puppeteer.waitForRequest()`要フィルタリング
+オリジナルのURLを取得する：`res.json().body.urls.original`
+pixivがartworkの画像リクエストを模倣できるところだけ模倣してリクエスト送信: `https.request()`
+そのコールバック関数でストリームを設置してダウンロードする
+
+- 一番初めのリクエスト
+
+リクエスト：
+
+```JSON
+// GET https://www.pixiv.net/ajax/illust/101105423?ref=https://www.pixiv.net/&lang=ja
+{
+	"要求ヘッダー (1.796 KB)": {
+		"headers": [
+			{
+				"name": "Accept",
+				"value": "application/json"
+			},
+			{
+				"name": "Accept-Encoding",
+				"value": "gzip, deflate, br"
+			},
+			{
+				"name": "Accept-Language",
+				"value": "ja,en-US;q=0.7,en;q=0.3"
+			},
+			{
+				"name": "Connection",
+				"value": "keep-alive"
+			},
+			{
+				"name": "Cookie",
+				"value": "" // 省略
+			},
+			{
+				"name": "DNT",
+				"value": "1"
+			},
+			{
+				"name": "Host",
+				"value": "www.pixiv.net"
+			},
+			{
+				"name": "Referer",
+				"value": "https://www.pixiv.net/artworks/101105423"
+			},
+			{
+				"name": "Sec-Fetch-Dest",
+				"value": "empty"
+			},
+			{
+				"name": "Sec-Fetch-Mode",
+				"value": "cors"
+			},
+			{
+				"name": "Sec-Fetch-Site",
+				"value": "same-origin"
+			},
+			{
+				"name": "TE",
+				"value": "trailers"
+			},
+			{
+				"name": "User-Agent",
+				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
+			},
+			{
+				"name": "x-user-id",
+				"value": "8675089"
+			}
+		]
+	}
+}
+```
+
+レスポンスbody:
+
+```JSON
+{
+    "error":false,
+    "message":"",
+    "body":{
+        "illustId":"101105423","illustTitle":"\u6c34\u7740\u306e\u98df\u3044\u8fbc\u307f\u3092\u76f4\u3059\u6c34\u6cf3\u90e8\u54e1","illustComment":"\u304f\u3044\u3063\u304f\u3044\u3063\u30fb\u30fb\u30fb\u30d1\u30c1\u30f3\u30c3!!!","id":"101105423",
+        "title":"\u6c34\u7740\u306e\u98df\u3044\u8fbc\u307f\u3092\u76f4\u3059\u6c34\u6cf3\u90e8\u54e1","description":"\u304f\u3044\u3063\u304f\u3044\u3063\u30fb\u30fb\u30fb\u30d1\u30c1\u30f3\u30c3!!!",
+        "illustType":0,
+        "createDate":"2022-09-09T10:00:02+00:00",
+        "uploadDate":"2022-09-09T10:00:02+00:00",
+        "restrict":0,
+        "xRestrict":0,
+        "sl":4,
+        "urls":{
+            "mini":"https:\/\/i.pximg.net\/c\/48x48\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_square1200.jpg",
+            "thumb":"https:\/\/i.pximg.net\/c\/250x250_80_a2\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_square1200.jpg",
+            "small":"https:\/\/i.pximg.net\/c\/540x540_70\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_master1200.jpg",
+            "regular":"https:\/\/i.pximg.net\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_master1200.jpg",
+            // 必要な情報
+            "original":"https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0.jpg"
+        },
+        "tags":{"authorId":"14846","isLocked":false,"tags":[{"tag":"\u7af6\u6cf3\u6c34\u7740","locked":true,"deletable":false,
+        "userId":"14846",
+        "userName":"raikoh(\u5cf6\u6d25\u9244\u7532)"}]},
+        // ページ数はたぶんだけど、画像枚数
+        "pageCount": 3
+        // 省略
+    }}
+```
+
+- 画像を取得するリクエスト
+
+```JSON
+// GET https://i.pximg.net/img-master/img/2022/09/09/19/00/02/101105423_p0_master1200.jpg HTTP/2
+{
+	"要求ヘッダー (447 バイト)": {
+		"headers": [
+			{
+				"name": "Accept",
+				"value": "image/avif,image/webp,*/*"
+			},
+			{
+				"name": "Accept-Encoding",
+				"value": "gzip, deflate, br"
+			},
+			{
+				"name": "Accept-Language",
+				"value": "ja,en-US;q=0.7,en;q=0.3"
+			},
+			{
+				"name": "Connection",
+				"value": "keep-alive"
+			},
+			{
+				"name": "DNT",
+				"value": "1"
+			},
+			{
+				"name": "Host",
+				"value": "i.pximg.net"
+			},
+			{
+				"name": "Referer",
+				"value": "https://www.pixiv.net/"
+			},
+			{
+				"name": "Sec-Fetch-Dest",
+				"value": "image"
+			},
+			{
+				"name": "Sec-Fetch-Mode",
+				"value": "no-cors"
+			},
+			{
+				"name": "Sec-Fetch-Site",
+				"value": "cross-site"
+			},
+			{
+				"name": "User-Agent",
+				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
+			}
+		]
+	}
+}
+```
+
+レスポンスbody: その画像ファイル
+
+#### Multiple illust
+
+画像枚数が何枚であるのかと、各画像のパスの名前をどうやって取得するのか...
+
+- 画像枚数：初めのリクエストに対するレスポンスボディの中に`body.pageCount`がある。その数値が画像枚数
+
+- 各画像パス名：`https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0.jpg`の拡張子直前の、`artwork-id_p0`の部分の`_p0`が異なる。
+
+画像枚数が3つなら
+
+`https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0.jpg`
+`https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p1.jpg`
+`https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p2.jpg`
+
+となる。
+
+
+```JSON
+{
+	"GET": {
+		"scheme": "https",
+		"host": "www.pixiv.net",
+		"filename": "/ajax/illust/94411991",
+		"query": {
+			"ref": "https://www.pixiv.net/artworks/101105423",
+			"lang": "ja"
+		},
+		"remote": {
+			"アドレス": "104.18.36.166:443"
+		}
+	}
+}
+```
+```JSON
+{
+	"要求ヘッダー (1.910 KB)": {
+		"headers": [
+			{
+				"name": "Accept",
+				"value": "application/json"
+			},
+			{
+				"name": "Accept-Encoding",
+				"value": "gzip, deflate, br"
+			},
+			{
+				"name": "Accept-Language",
+				"value": "ja,en-US;q=0.7,en;q=0.3"
+			},
+			{
+				"name": "Connection",
+				"value": "keep-alive"
+			},
+			{
+				"name": "Cookie",
+				"value": ""     // 省略
+			},
+			{
+				"name": "DNT",
+				"value": "1"
+			},
+			{
+				"name": "Host",
+				"value": "www.pixiv.net"
+			},
+			{
+				"name": "Referer",
+				"value": "https://www.pixiv.net/artworks/94411991"
+			},
+			{
+				"name": "Sec-Fetch-Dest",
+				"value": "empty"
+			},
+			{
+				"name": "Sec-Fetch-Mode",
+				"value": "cors"
+			},
+			{
+				"name": "Sec-Fetch-Site",
+				"value": "same-origin"
+			},
+			{
+				"name": "User-Agent",
+				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
+			},
+			{
+				"name": "x-user-id",
+				"value": "8675089"
+			}
+		]
+	}
+}
+```
+
+レスポンスbody: 画像が一つの時と変わらない
+
+- 画像を取得するリクエスト
+
+```JSON
+{
+	"GET": {
+		"scheme": "https",
+		"host": "i.pximg.net",
+		"filename": "/img-master/img/2021/11/27/21/19/22/94411991_p1_master1200.jpg",
+		"remote": {
+			"アドレス": "210.140.92.149:443"
+		}
+	}
+}
+{
+	"要求ヘッダー (446 バイト)": {
+		"headers": [
+			{
+				"name": "Accept",
+				"value": "image/avif,image/webp,*/*"
+			},
+			{
+				"name": "Accept-Encoding",
+				"value": "gzip, deflate, br"
+			},
+			{
+				"name": "Accept-Language",
+				"value": "ja,en-US;q=0.7,en;q=0.3"
+			},
+			{
+				"name": "Connection",
+				"value": "keep-alive"
+			},
+			{
+				"name": "DNT",
+				"value": "1"
+			},
+			{
+				"name": "Host",
+				"value": "i.pximg.net"
+			},
+			{
+				"name": "Referer",
+				"value": "https://www.pixiv.net/"
+			},
+			{
+				"name": "Sec-Fetch-Dest",
+				"value": "image"
+			},
+			{
+				"name": "Sec-Fetch-Mode",
+				"value": "no-cors"
+			},
+			{
+				"name": "Sec-Fetch-Site",
+				"value": "cross-site"
+			},
+			{
+				"name": "User-Agent",
+				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
+			}
+		]
+	}
+}
+```
+
+これを画像ごとに実施している。
+
+#### ugoira
+
+TODO: またこんど
+
+どうやってうごイラだと認識する？あとから`ugoira_meta?`を含んだGETリクエストを送る模様。
+
+どうやってgifにするかは後で考えるとにかくzipファイルを取得する
+
+うごイラは表示上、artworkページ中のcanvas要素の、background-imageにてURLが指定されている
+
+中身はzipファイル。
+
+リクエスト：
+
+```
+GET ajax/illust/74904646/ugoira_meta?lang=ja HTTP/3
+Host www.pixiv.net
+Accept: application/json
+Accept-Encoding: gzip, deflate, br
+Referer: https://www.pixiv.net/artworks/74904646
+Connection: keep-alive
+Cookie: 省略
+```
+
+レスポンスbody
+
+```JSON
+{
+	"error": false,
+	"message": "",
+	"body": {
+		"illustId": "101158572",
+		"illustTitle": "Hilda",
+		"illustComment": "If you like my arts&#44; please consider support me on:<br /><a href=\"/jump.php?https%3A%2F%2Fwww.patreon.com%2Faztodio\" target=\"_blank\">https://www.patreon.com/aztodio</a><br /><a href=\"/jump.php?https%3A%2F%2Fgumroad.com%2Faztodio\" target=\"_blank\">https://gumroad.com/aztodio</a><br /><br /><a href=\"/jump.php?https%3A%2F%2Ftwitter.com%2FAztoDeus%2Fmedia\" target=\"_blank\">https://twitter.com/AztoDeus/media</a> (NSFW)<br /><a href=\"/jump.php?https%3A%2F%2Ftwitter.com%2FAztoDio%2Fmedia\" target=\"_blank\">https://twitter.com/AztoDio/media</a>",
+		"id": "101158572",
+		"title": "Hilda",
+		"description": "If you like my arts&#44; please consider support me on:<br /><a href=\"/jump.php?https%3A%2F%2Fwww.patreon.com%2Faztodio\" target=\"_blank\">https://www.patreon.com/aztodio</a><br /><a href=\"/jump.php?https%3A%2F%2Fgumroad.com%2Faztodio\" target=\"_blank\">https://gumroad.com/aztodio</a><br /><br /><a href=\"/jump.php?https%3A%2F%2Ftwitter.com%2FAztoDeus%2Fmedia\" target=\"_blank\">https://twitter.com/AztoDeus/media</a> (NSFW)<br /><a href=\"/jump.php?https%3A%2F%2Ftwitter.com%2FAztoDio%2Fmedia\" target=\"_blank\">https://twitter.com/AztoDio/media</a>",
+		"illustType": 2,
+		"createDate": "2022-09-11T11:37:14+00:00",
+		"uploadDate": "2022-09-11T11:37:14+00:00",
+		"restrict": 0,
+		"xRestrict": 1,
+		"sl": 6,
+		"urls": {
+			"mini": "https://i.pximg.net/c/48x48/img-master/img/2022/09/11/20/37/14/101158572_square1200.jpg",
+			"thumb": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/11/20/37/14/101158572_square1200.jpg",
+			"small": "https://i.pximg.net/c/540x540_70/img-master/img/2022/09/11/20/37/14/101158572_master1200.jpg",
+			"regular": "https://i.pximg.net/img-master/img/2022/09/11/20/37/14/101158572_master1200.jpg",
+			"original": "https://i.pximg.net/img-original/img/2022/09/11/20/37/14/101158572_ugoira0.jpg"
+		},
+		"tags": {
+			"authorId": "28638684",
+			"isLocked": false,
+			"tags": [/*タグ情報*/],
+			"writable": true
+		},
+		"alt": "#Ugoira Hilda - AztoDioのうごイラ",
+		"storableTags": [/*タグ情報*/],
+		"userId": "28638684",
+		"userName": "AztoDio",
+		"userAccount": "aztodio",
+        // 以下略
+	}
+}
+```
 
 ## puppeteerでダウンロードするには？Github Issue
 

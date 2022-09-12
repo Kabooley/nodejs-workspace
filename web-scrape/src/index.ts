@@ -57,7 +57,10 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         // DEBUG: make sure succeeded so far.
         console.log(page.url());
         const ids: string[] = await collectIdsFromResultPages(page, keyword, res);
+        // DEBUG: make sure succeeded so far.
         console.log(ids);
+
+        
     }
     catch(e) {
         console.error(e);
