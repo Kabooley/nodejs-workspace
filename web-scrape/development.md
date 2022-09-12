@@ -527,3 +527,35 @@ https://www.pixiv.net/artworks/84583402
 ...さっぱりわからん。デバグモードで使ってみて挙動を見るしかないなぁ。
 
 chromeエクステンションのデバグ作業のおさらい。
+
+## puppeteerでダウンロードするには？Github Issue
+
+明快な回答はない模様。
+
+https://github.com/puppeteer/puppeteer/issues/299
+
+> Question: How do I get puppeteer to download a file or make additional http requests and save the response?
+
+Nice, ハートの多かった回答
+
+> 少し詳しく説明しましょう。私のユースケースでは、ファイルのリストを含む Web サイトにアクセスしたいと考えています。次に、各ファイルに対して HTTP 要求をトリガーし、応答をディスクに保存します。リストは、ファイルへのハイパーリンクではなく、プレーン テキストのファイル名である可能性がありますが、そこから、ダウンロードするファイルの実際の URL を導き出すことができます。
+
+> はい、Chromium はサポートしていません。ただし、リクエストをトリガーできる場合は、少なくともバッファーの内容を取得し、Node.js のファイルシステム API を使用してディスクに書き込むことができるはずです。または、URL を取得して手動リクエストを開始します。**ダウンロードが完全に禁止されている場合は、バッファを使用して同じことを行います。** Chromium ではサポートされていない可能性がありますが、回避できるはずです。
+
+> Support for downloads is on the way. It needs changes to Chromium that are under review.
+
+https://chromium-review.googlesource.com/c/chromium/src/+/590913/
+
+https://www.chromium.org/developers/design-documents/downloadmanagersequences/
+
+> https://github.com/puppeteer/puppeteer/issues/299#issuecomment-668087154
+
+疑問：streamを使うのとBufferを使うことの違いって何？
+
+参考
+
+https://stackoverflow.com/questions/55408302/how-to-get-the-download-stream-buffer-using-puppeteer
+
+> 問題は、何らかのナビゲーション要求が発生するとすぐにBufferがクリアされることです。あなたの場合、これはリダイレクトまたはページのリロードである可能性があります。 この問題を解決するには、リソースのダウンロードが完了していない限り、ページがナビゲーション リクエストを行わないようにする必要があります。これを行うには、page.setRequestInterception を使用できます。 この問題には、簡単な解決策がありますが、これは常に機能するとは限りません。また、この問題に対するより複雑な解決策もあります。
+
+じゃあBufferじゃなくてstreamでいいよね？
