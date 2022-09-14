@@ -13,9 +13,7 @@ import type http from 'http';
 import type fs from 'fs';
 import * as https from 'https';
 
-interface iOptions extends http.RequestOptions {
-
-}
+interface iOptions extends http.RequestOptions {};
 
 export class Downloader {
     draining: boolean = true;

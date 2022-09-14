@@ -1,9 +1,9 @@
 import * as puppeteer from 'puppeteer';
 import yargs from 'yargs/yargs';
 import { commandName, commandDesc, builder } from './cliParser';
-import { login } from './components/login';
+// import { login } from './components/login';
 import { search } from './components/search';
-import { collectIdsFromResultPages } from './components/collect';
+// import { collectIdsFromResultPages } from './components/collect';
 // import { browserContextProcess } from './debug/closeAllBrowsers';
 
 // 
@@ -20,7 +20,10 @@ let browser: puppeteer.Browser | undefined;
 const commands: iCommand = {};
 const options: puppeteer.PuppeteerLaunchOptions = {
     headless: true,
-    userDataDir: "../userdata/"
+    args: ['--disable-infobars', ],
+    userDataDir: "./userdata/",
+    handleSIGINT: true,
+    slowMo: 150,
 };
 
 // 
@@ -37,7 +40,7 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
 }).argv;
 
 // 
-// -- MAIN PROCESS --: BEFORE MODIFIED.
+// -- MAIN PROCESS --: USING SESSION.
 // 
 (async function() {
     try {
@@ -49,17 +52,29 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         const page: puppeteer.Page | undefined = (await browser.pages())[0];
         if(!page) throw new Error("Open tab was not exist!!");
 
-        await login(page, {username: username, password: password});
+        // screenshotとるときに情報が抜けると困るから大きい画面にしたい
+        await page.setViewport({
+            width: 1920,
+            height: 1080
+        });
+
+        await page.goto("https://www.pixiv.net/");
+        await page.waitForNetworkIdle();
 
         // DEBUG: make sure succeeded so far.
         console.log(page.url());
+        await page.screenshot({type: "png", path: "./dist/isSessionValid.png"});
 
         const res: puppeteer.HTTPResponse = await search(page, keyword);
+
         // DEBUG: make sure succeeded so far.
+        console.log(res);
         console.log(page.url());
-        const ids: string[] = await collectIdsFromResultPages(page, keyword, res);
-        // DEBUG: make sure succeeded so far.
-        console.log(ids);
+        await page.screenshot({type: "png", path: "./dist/isSearchResult.png"});
+        
+        // const ids: string[] = await collectIdsFromResultPages(page, keyword, res);
+        // // DEBUG: make sure succeeded so far.
+        // console.log(ids);
 
         
     }
@@ -71,8 +86,9 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         if(browser !== undefined) await browser.close();
     }
 })();
+
 // // 
-// // -- MAIN PROCESS --: BEFORE MODIFIED.
+// // -- MAIN PROCESS --: INCASE LOGIN REQUIRED.
 // // 
 // (async function() {
 //     try {

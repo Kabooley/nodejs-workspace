@@ -9,7 +9,13 @@
 
 ## TODOS
 
-- collectの動作確認
+- collect動作確認
+- （暇なら）collect収集件数上限の設定（うっかり大変な数にならないように）
+- （暇なら）検索結果ページ複数の時の次ページ遷移方法の改善(HTTPつかえない？)
+- どうもsearch()が返すHTTPResponseが空である件の修正
+- artworkページにアクセスしてからの処理内容を詰める
+- downloaderの実装
+- Node.jsのデザインパターンの導入（逐次処理、並列処理。これがやりたかったことですわ）
 
 ## chromium起動できない問題
 
@@ -490,46 +496,107 @@ recaptcha対策。
 
 一度ログインしたらしばらくログイン状態を保ちたい。
 
-デバグのたびにログインしたくない。
+デバグのたびにログインしたくない。すぐにbot判定される。
 
 なのでセッションを活用できないか模索する。
+
+#### 検証：`userDataDir`を指定する。
 
 https://stackoverflow.com/questions/48608971/how-to-manage-log-in-session-through-headless-chrome
 
 https://stackoverflow.com/questions/57987585/puppeteer-how-to-store-a-session-including-cookies-page-state-local-storage#57995750
 
+ユーザディレクトリとは？履歴、ブックマーク、クッキーなどの情報をユーザごとに保存していあるディレクトリである。
+
+こいつを指定すれば、そのユーザがもしもあるウェブサイトにおいて「ログイン済」という情報がセッションに記録されてあれば、
+
+次回以降はログイン済ということでログインページをパスできる。
+
+ログインページがパスできるならちょっと時間短縮だしbot判定が軽減されるだろう。
+
+指定方法は、
+
+`PuppeteerLaunchOptions.BrowserLaunchArgumentOptions.userDataDir`にユーザデータディレクトリを指定する
 
 ```TypeScript
 const options: puppeteer.PuppeteerLaunchOptions = {
     headless: true,
-	// 多分./distが起点となるから...
-	// ./distから見て../userdata/をユーザディレクトリとする。
-    userDataDir: "../userdata/"
+	// nodeコマンドを実行したときのカレントディレクトリが起点になる
+    userDataDir: "./userdata/"
 };
 
 const browser = await puppeteer.launch(options);
 ```
 
-デフォルトのユーザディレクトリ：
+やってみた。ログインページすっ飛ばしてR-18検索してみる。
 
-~/.config/chromium
+通常アダルトコンテンツは表示できないから、ログインを促されるが...
 
-探してみたけどなかった。
+```TypeScript
+const options: puppeteer.PuppeteerLaunchOptions = {
+    headless: true,
+    args: ['--disable-infobars', ],
+    userDataDir: "./userdata/",
+    handleSIGINT: true,
+    slowMo: 150,
+};
 
-勝手にディレクトリを作成してみる。
+// 
+// -- MAIN PROCESS --
+// 
+(async function() {
+    try {
+        browser = await puppeteer.launch(options);
+        const page: puppeteer.Page | undefined = (await browser.pages())[0];
+        if(!page) throw new Error("Open tab was not exist!!");
 
-ユーザディレクトリのオーバーライド方法：
+        await page.setViewport({
+            width: 1920,
+            height: 1080
+        });
 
-`PuppeteerLaunchOptions.BrowserLaunchArgumentOptions.userDataDir`にユーザデータディレクトリを指定する
+        // await login(page, {username: username, password: password});
 
+        await page.goto("https://www.pixiv.net/");
+        await page.waitForNetworkIdle();
 
-検証の前に：ログイン済みであるのかの確認方法。
+        console.log(page.url());
 
-今のところ毎回ログイン画面直行なので「セッションが生きていてそのままログインされた後のページへ移動した」ことを検知できないといけない。
+        await page.screenshot({type: "png", path: "./dist/isSessionValid.png"});
 
-これはセッションについて詳しいニキにならないといかんのでは？
+        const res: puppeteer.HTTPResponse = await search(page, keyword);
 
+        console.log(page.url());
+        await page.screenshot({type: "png", path: "./dist/isSearchResult.png"});
+    }
+    catch(e) {
+        console.error(e);
+    }
+    finally{
+        console.log("browser closed explicitly");
+        if(browser !== undefined) await browser.close();
+    }
+})();
+```
 
+スクリーンショットを確認したところ、
+
+R-18コンテンツが表示されているから多分成功しているのだと思う。
+
+HTTPレスポンスを確認すれば確実に成功しているかどうかわかると思う。要確認。
+
+ちなみに
+
+`./userdata/には確かにいろんな情報が保存された。
+
+CacheやSession Storageなどのディレクトリが追加されていた。
+
+今後セッションに関して追加するべきとしたら、
+
+- セッションが切れたとき移動させられるページからログインできるように検知機能をつける
+- 毎回セッションが生きているのか確認する機能をつける
+
+暇ならね...そこはメインじゃないから...
 
 ## artworkページへ片っ端からアクセスする
 

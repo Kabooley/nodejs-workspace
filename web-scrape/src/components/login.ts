@@ -52,28 +52,28 @@ export const login = async (page: puppeteer.Page,
 };
 
 
-// 完全にひとまず感で
-const makesurePassedLogin = async (page: puppeteer.Page) => {
-    try {
+// // 完全にひとまず感で
+// const makesurePassedLogin = async (page: puppeteer.Page) => {
+//     try {
 
-        // 通常のURLへ移動
-        // ログイン必須検索ワードで検索開始
-        // 検索結果ページに行かなかったらセッション使われていない
-        // 
-        await page.goto(urlLoggedIn);
-        await page.waitForNavigation({waitUntil: ["load", "networkidle2"]});
+//         // 通常のURLへ移動
+//         // ログイン必須検索ワードで検索開始
+//         // 検索結果ページに行かなかったらセッション使われていない
+//         // 
+//         await page.goto(urlLoggedIn);
+//         await page.waitForNavigation({waitUntil: ["load", "networkidle2"]});
 
-        await page.type(selectors.searchBox, "R-18", { delay: 100 });
+//         await page.type(selectors.searchBox, "R-18", { delay: 100 });
 
-        await Promise.all([
-            page.keyboard.press('Enter'),
-            page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] })
-        ])
-    }
-    catch(e) {
-        throw e;
-    }
-}
+//         await Promise.all([
+//             page.keyboard.press('Enter'),
+//             page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] })
+//         ])
+//     }
+//     catch(e) {
+//         throw e;
+//     }
+// }
 
 
 // // NOTE: Basic認証で突破することを試みる...やっぱだめだ
