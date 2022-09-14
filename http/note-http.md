@@ -4,6 +4,12 @@ Node.js v16.x
 
 https://nodejs.org/dist/latest-v16.x/docs/api/http.html
 
+## 目次
+
+- [http.ClientRequest](#http.ClientRequest)
+- [http.request()](#http.request())
+- [](#)
+
 ## http.ClientRequest
 
 https://nodejs.org/dist/latest-v16.x/docs/api/http.html#class-httpclientrequest
@@ -53,6 +59,91 @@ https://nodejs.org/dist/latest-v16.x/docs/api/http.html#class-httpclientrequest
 - `error`イベントが登録されてある場合に限り`error`イベントが発行される（もしもエラーが起こったら）
 
 内容的に、`http.request()`も同時に調べておかないといかんなぁ。
+
+
+#### `close`
+
+> リクエストが完了したか、基になる接続が途中で (レスポンスが完了する前に) 終了したことを示します。
+
+#### `connect`
+
+> サーバーが`CONNECT`メソッドでリクエストに応答するたびに発行されます。
+
+#### `continue`
+
+サーバが`100 Continue`のHTTPレスポンスを返したときに発行される。
+
+#### `finish`
+
+リクエストが送信されたときに発行される。
+
+厳密にいうと、ヘッダとボディの最後のセグメントがオペレーティングシステムへゆだねられたときに発行される。
+
+finishとcloseの違いは何だろう。
+
+finishはサーバへリクエストデータを送信したら発行されるイベントで、closeはサーバからのレスポンスが完全に受信しきったときに発行されるイベントである（と思う）。なのでfinishイベントが発生してもサーバから返事はまだ来ていない。
+
+#### `response`
+
+リクエストに対するレスポンスを受信したことを意味するイベント。**一度きりしか発行されない。**
+
+`http.request()`のオプショナルのコールバック引数はそのままこの`response`イベントハンドラになる。
+
+
+#### `request.end()`
+
+リクエスト送信を完了させる。まだ未送信の部分がある場合、ストリームへフラッシュされる。
+
+もしコールバック引数を指定したら、そのコールバック関数はリクエストストリームが終了してから呼び出される。
+
+適切な呼び出し場所がわからん。
+
+しかし、おそらく`http.request()`したらそのまま同じスコープで`request.end()`すればいいと思う。
+
+#### `request.destory()`
+
+> リクエストを破棄します。オプションで「エラー」イベントを発行し、「クローズ」イベントを発行します。これを呼び出すと、応答内の残りのデータがドロップされ、ソケットが破棄されます。
+
+`Writable.destory`と同じかと。
+
+## `http.ClientRequest` status properties
+
+#### `request.destoryed`
+
+`request.destroy()`呼び出し後ならば`true`。
+
+`Writable.destoryed`とおなじかと。
+
+#### `request.writableEnded`
+
+`request.end()`が呼び出された後ならば`true`になる。このプロパティはストリームに残るデータがフラッシュされたことを示さない。
+
+#### `request.writableFinished`
+
+リクエストストリームにバッファされているすべてのデータがフラッシュされたら、`finish`イベントの直前に`true`になる。
+
+#### まとめ
+
+ところどころ`http.request()`の項目と`http.IncomingMessage`の項目を前提としている部分有。
+
+すべてが成功した場合：
+
+- `http.request()`
+- リクエスト送信完了を示すため`request.end()`を明示的に呼び出す
+- リクエストのストリームにデータがフラッシュされてリクエスト送信が完了となる また、`request.writableEnded`が`true`になる
+- リクエストがフラッシュされたので`request.writableFinished`が`true`になる
+- 直ちに`finish`イベントが発行されてリクエスト送信完了となる
+- (サーバがリクエストを受信して返事を送信しだしたとする)
+- サーバから返事を受信して`response`イベントが一度だけ発行される
+- (on response)`data`イベントが、レスポンスbodyを取得しきるまで継続的に発行される 
+- (on response)bodyを取得しきったら`end`イベントが発行される
+- `close`イベントが発行されてリクエストが完了となる
+
+エラーを考慮にいれると：
+
+request.destroy()がどこかで呼び出される、request.abort()がどこかで呼び出される、接続が失敗した、無効なURLでサーバに接続しようとした、Ctrl + Cが入力されるなど。
+
+
 
 ## http.request()
 
@@ -154,58 +245,8 @@ req.write(postData);
 req.end();
 ```
 
-## `http.ClientRequest` Events
 
-#### `close`
-
-> リクエストが完了したか、基になる接続が途中で (レスポンスが完了する前に) 終了したことを示します。
-
-#### `connect`
-
-> サーバーが`CONNECT`メソッドでリクエストに応答するたびに発行されます。
-
-#### `continue`
-
-サーバが`100 Continue`のHTTPレスポンスを返したときに発行される。
-
-#### `finish`
-
-リクエストが送信されたときに発行される。
-
-#### `response`
-
-リクエストに対するレスポンスを受信したことを意味するイベント。**一度きりしか発行されない。**
-
-
-## `request` methods
-
-HTTPメソッドのことではなくて、`http.ClientRequest`APIのメソッド。
-
-#### `request.end()`
-
-リクエスト送信を完了させる。まだ未送信の部分がある場合、ストリームへフラッシュされる。
-
-もしコールバック引数を指定したら、そのコールバック関数はリクエストストリームが終了してから呼び出される。
-
-#### `request.destory()`
-
-> リクエストを破棄します。オプションで「エラー」イベントを発行し、「クローズ」イベントを発行します。これを呼び出すと、応答内の残りのデータがドロップされ、ソケットが破棄されます。
-
-`Writable.destory`と同じかと。
-
-## `http.ClientRequest` status properties
-
-#### `request.destoryed`
-
-`request.destroy()`呼び出し後ならば`true`。
-
-`Writable.destoryed`とおなじかと。
-
-#### `request.writableEnded`
-
-> request.end() が呼び出された場合、request.finished プロパティは true になります。リクエストが http.get() 経由で開始された場合、request.end() が自動的に呼び出されます。
-
-## ケース別発生イベント順序
+#### ケース別発生イベント順序
 
 https://nodejs.org/dist/latest-v16.x/docs/api/http.html#httprequestoptions-callback
 
@@ -239,7 +280,11 @@ https://nodejs.org/dist/latest-v16.x/docs/api/http.html#httprequestoptions-callb
 
 - 
 
-...もろもろのケースでは`close`には最終的にはなるけどエラーが起こったのかどうかは`error`にて、エラーコードやメッセージの確認が必要で、
+とにかく...
+
+- `close`にはなる
+- `request.destroy()`されたら`error`発行される
+
 
 
 

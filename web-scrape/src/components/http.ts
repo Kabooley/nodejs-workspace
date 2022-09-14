@@ -16,15 +16,15 @@ import * as https from 'https';
 interface iOptions extends http.RequestOptions {};
 
 export class Downloader {
-    draining: boolean = true;
-    res: http.IncomingMessage | null = null;
+    private draining: boolean = true;
+    private res: http.IncomingMessage | null = null;
     constructor(
         private options: iOptions, 
         private writeStream: fs.WriteStream,
     ) {
     };
 
-    request(options?: iOptions) {
+    download(options?: iOptions) {
         /**
          * IncomingMessage exntends stream.readable
          * 
@@ -36,40 +36,61 @@ export class Downloader {
             this.setEventListener();
         });
 
-        // Error among sending request will be caught here.
-        req.on('error', (e) => { 
-            console.error(e);
-            // req.destroy()だとまずい？
-            req.end();
-        });
-        // Make sure that request has been sent completely.
-        // request.end() must be invoked while using http.request().
-        req.on('finish', () => { req.end(); });
+        req.on('error', (e: Error) => { console.error(e);});
+        req.on('finish', () => { console.log("request finish"); });
+        req.on('close', () => { console.log("request closed"); });
+        req.end(() => {console.log("Request stream is finished"); });
     };
 
     setEventListener() {
         if(!this.res || !this.writeStream) return;
 
+        // Add listeners to response object.
         this.res.on("data", this.consumer);
-        this.res.on("error", this.responseErrorHandler);
-        this.res.on("end", this.responseEndHandler);
+        this.res.on("error", this.resErrorHandler);
+        this.res.on("aborted", this.resAbortedHandler);
+        this.res.on("end", this.resEndHandler);
+
+        // Add listeners to fs.WriteStream
         this.writeStream.on("error", this.writableErrorHandler);
         this.writeStream.on("drain", this.drainHandler);
         this.writeStream.on("end", this.writableEndHandler);
     };
 
-    responseErrorHandler(e: Error) {
-        if(this.res && !this.res.destroyed) this.res.destroy();
+    /***
+     * 
+     * */ 
+    resErrorHandler(e: Error) {
+        console.error(e.message);
+        // NOTE: ここで何をすべきかはケースごとかも
+        // if(this.res && !this.res.destroyed) this.res.destroy();      // デストロイすべきはリクエストオブジェクトのほうなのかも...
         if(!this.writeStream.destroyed) this.writeStream.destroy(e);
-
     };
 
-    responseEndHandler() {
+    /**
+     * It might be called request.destory() or request.abort()
+     * 
+     * */ 
+    resAbortedHandler() {}
+
+    /**
+     * Fired there is no more data to be consumed from response stream.
+     * 
+     * Checks message.complete if message was completely recieved or not.
+     * 
+     * Attaching data event listener to response stream, 
+     * this listener is required to invoke fs.WritableStream.end().
+     * */ 
+    resEndHandler() {
+        if(this.res && !this.res.complete){
+            this.res.emit('error', new Error('The connection was terminated while the message was still being sent'));
+        }
+        console.log('Response stream ended');
         this.writeStream.end();
     };
 
     writableErrorHandler(e: Error) {
-        if(this.res && !this.res.destroyed) this.res.destroy(e);
+        // if(this.res && !this.res.destroyed) this.res.destroy(e);      // デストロイすべきはリクエストオブジェクトのほうなのかも...
         if(!this.writeStream.destroyed) this.writeStream.destroy();
     };
 
@@ -77,10 +98,6 @@ export class Downloader {
         // CHECK STATUS OF requst and response ans writeStream
         // If all ok, then it is completely succeeded.
         console.log("Download successfully completed");
-        // TODO: 何か明示的に終了させる対象などがあるのかしら？
-        // 
-        // NOTE: Might as well delete instance itself.
-        // 
     }
     
     drainHandler() {
