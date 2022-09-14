@@ -484,15 +484,52 @@ await collectIdsFromResultPages(page, res);
 ```
 
 
-## 頻繁にログインページへアクセスすることに対する対策
+## セッションの維持
 
-botだろってrecaptchaが発動するので
+recaptcha対策。
 
-二回目以降のログインはクッキーセッションを渡してそのままパスするようにできないか？
+一度ログインしたらしばらくログイン状態を保ちたい。
 
-これができたら採用、出来なかったら怪しいAPIに手を出す。
+デバグのたびにログインしたくない。
 
-https://stackoverflow.com/questions/55678095/bypassing-captchas-with-headless-chrome-using-puppeteer
+なのでセッションを活用できないか模索する。
+
+https://stackoverflow.com/questions/48608971/how-to-manage-log-in-session-through-headless-chrome
+
+https://stackoverflow.com/questions/57987585/puppeteer-how-to-store-a-session-including-cookies-page-state-local-storage#57995750
+
+
+```TypeScript
+const options: puppeteer.PuppeteerLaunchOptions = {
+    headless: true,
+	// 多分./distが起点となるから...
+	// ./distから見て../userdata/をユーザディレクトリとする。
+    userDataDir: "../userdata/"
+};
+
+const browser = await puppeteer.launch(options);
+```
+
+デフォルトのユーザディレクトリ：
+
+~/.config/chromium
+
+探してみたけどなかった。
+
+勝手にディレクトリを作成してみる。
+
+ユーザディレクトリのオーバーライド方法：
+
+`PuppeteerLaunchOptions.BrowserLaunchArgumentOptions.userDataDir`にユーザデータディレクトリを指定する
+
+
+検証の前に：ログイン済みであるのかの確認方法。
+
+今のところ毎回ログイン画面直行なので「セッションが生きていてそのままログインされた後のページへ移動した」ことを検知できないといけない。
+
+これはセッションについて詳しいニキにならないといかんのでは？
+
+
 
 ## artworkページへ片っ端からアクセスする
 

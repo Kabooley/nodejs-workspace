@@ -19,7 +19,8 @@ interface iCommand {
 let browser: puppeteer.Browser | undefined;
 const commands: iCommand = {};
 const options: puppeteer.PuppeteerLaunchOptions = {
-    headless: true
+    headless: true,
+    userDataDir: "../userdata/"
 };
 
 // 
@@ -36,7 +37,7 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
 }).argv;
 
 // 
-// -- MAIN PROCESS --
+// -- MAIN PROCESS --: BEFORE MODIFIED.
 // 
 (async function() {
     try {
@@ -70,3 +71,38 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         if(browser !== undefined) await browser.close();
     }
 })();
+// // 
+// // -- MAIN PROCESS --: BEFORE MODIFIED.
+// // 
+// (async function() {
+//     try {
+//         const {username, password, keyword} = commands;
+//         if(!username || !password || !keyword) throw new Error("command option is required");
+
+//         browser = await puppeteer.launch(options);
+//         // launch()した時点でタブはすでに生成されている。newPage()禁止。
+//         const page: puppeteer.Page | undefined = (await browser.pages())[0];
+//         if(!page) throw new Error("Open tab was not exist!!");
+
+//         await login(page, {username: username, password: password});
+
+//         // DEBUG: make sure succeeded so far.
+//         console.log(page.url());
+
+//         const res: puppeteer.HTTPResponse = await search(page, keyword);
+//         // DEBUG: make sure succeeded so far.
+//         console.log(page.url());
+//         const ids: string[] = await collectIdsFromResultPages(page, keyword, res);
+//         // DEBUG: make sure succeeded so far.
+//         console.log(ids);
+
+        
+//     }
+//     catch(e) {
+//         console.error(e);
+//     }
+//     finally{
+//         console.log("browser closed explicitly");
+//         if(browser !== undefined) await browser.close();
+//     }
+// })();
