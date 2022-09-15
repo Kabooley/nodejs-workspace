@@ -1,57 +1,58 @@
 "use strict";
-// "use strict";
-// // #@@range_begin(list1) // ←これは本にコードを引用するためのものです。読者の皆さんは無視ししてください。
-// const request = require('node:request');
-// const fs = require('fs');
-// const mkdirp = require('mkdirp');
-// const path = require('path');
-// const utilities = require('./utilities');
-// // #@@range_end(list1)
-// type spiderCallback = (error: Error | null, filename?: string, bool?: boolean) => void;
-// // #@@range_begin(list2)
-// function spider(url: string, callback: spiderCallback) {
-//   const filename = utilities.urlToFilename(url);
-//   fs.exists(filename, exists => {        // ❶
-//     if(!exists) {
-//       console.log(`Downloading ${url}`);
-//       request(url, (err, response, body) => {      // ❷
-//         if(err) {
-//           callback(err);
-//         } else {
-//           mkdirp(path.dirname(filename), err => {    // ❸
-//             if(err) {
-//               callback(err);
-//             } else {
-//               fs.writeFile(filename, body, err => { // ❹
-//                 if(err) {
-//                   callback(err);
-//                 } else {
-//                   callback(null, filename, true);
-//                 }
-//               });
-//             }
-//           });
-//         }
-//       });
-//     } else {
-//       callback(null, filename, false);
-//     }
-//   });
-// }
-// // #@@range_end(list2)
-// // #@@range_begin(list3)
-// spider(process.argv[2], (err, filename, downloaded) => {
-//   if(err) {
-//     console.log(err);
-//   } else if(downloaded){
-//     console.log(`Completed the download of "${filename}"`);
-//   } else {
-//     console.log(`"${filename}" was already downloaded`);
-//   }
-// });
-// // #@@range_end(list3)
-const request = require('request');
-const fs = require('fs');
-const mkdirp = require('mkdirp');
-const path = require('path');
-const utilities = require('./utilities');
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const fs = __importStar(require("fs"));
+const url = __importStar(require("url"));
+const downloader_1 = require("./downloader");
+const _url = new url.URL("https://raw.githubusercontent.com/wiki/Microsoft/DirectXTK/images/cat.png");
+const filepath = "./dist/cat.png";
+const options = {
+    method: "GET",
+    host: _url.host,
+    path: _url.pathname,
+    protocol: "https:",
+};
+(function (options) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const wfs = fs.createWriteStream(filepath, {
+            encoding: 'binary',
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 1024 /* default: 64 * 1024 */
+        });
+        console.log(wfs);
+        const downloader = new downloader_1.Downloader(options, wfs);
+        yield downloader.download();
+    });
+})(options);

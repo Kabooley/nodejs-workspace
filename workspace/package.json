@@ -9,7 +9,6 @@
     "start": "concurrently npm:start:*"
   },
   "devDependencies": {
-    "@types/cheerio": "^0.22.31",
     "@types/mkdirp": "^1.0.2",
     "@types/node": "^18.6.2",
     "@types/request": "^2.48.8",
