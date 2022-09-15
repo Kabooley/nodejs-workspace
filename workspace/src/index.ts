@@ -15,13 +15,17 @@ const options: http.RequestOptions = {
 };
 
 (async function(options) {
-    const wfs: fs.WriteStream = fs.createWriteStream(filepath, { 
-        encoding: 'binary',     /* default: 'utf8' */
-        autoClose: true,
-        emitClose: true,
-        highWaterMark: 1024     /* default: 64 * 1024 */
-    });
-    console.log(wfs);
-    const downloader = new Downloader(options, wfs);
-    await downloader.download();
+    try {
+        const wfs: fs.WriteStream = fs.createWriteStream(filepath, { 
+            encoding: 'binary',     /* default: 'utf8' */
+            autoClose: true,
+            emitClose: true,
+            highWaterMark: 1024     /* default: 64 * 1024 */
+        });
+        const downloader = new Downloader(options, wfs);
+        await downloader.download();
+    }
+    catch(e) {
+        console.error(e);
+    }
 })(options);

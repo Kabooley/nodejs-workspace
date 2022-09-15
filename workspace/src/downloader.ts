@@ -25,9 +25,17 @@ export class Downloader {
         private options: iOptions, 
         private writeStream: fs.WriteStream,
     ) {
-        // ここまででちゃんと取得しているのに...
-        this.options = options;
-        this.writeStream = writeStream;
+
+        this.download = this.download.bind(this);
+        this.setEventListener = this.setEventListener.bind(this);
+        this.resErrorHandler = this.resErrorHandler.bind(this);
+        this.resAbortedHandler = this.resAbortedHandler.bind(this);
+        this.resEndHandler = this.resEndHandler.bind(this);
+        this.writableEndHandler = this.writableEndHandler.bind(this);
+        this.writableErrorHandler = this.writableErrorHandler.bind(this);
+        this.writableCloseHandler = this.writableCloseHandler.bind(this);
+        this.drainHandler = this.drainHandler.bind(this);
+        this.consumer = this.consumer.bind(this);
     };
 
     download(options?: iOptions) {
@@ -38,6 +46,7 @@ export class Downloader {
          * */ 
         const req: http.ClientRequest = https.request(options ? options : this.options, (res: http.IncomingMessage)  => {
             if(res.statusCode !== 200) throw new Error(`Error: Server reapond ${res.statusCode}. ${res.statusMessage}`);
+            console.log(`response: ${res.statusCode} ${res.statusMessage}`);
             this.res = res;
             this.setEventListener();
         });
@@ -45,6 +54,8 @@ export class Downloader {
         req.on('error', (e: Error) => { console.error(e);});
         req.on('finish', () => { console.log("request finish"); });
         req.on('close', () => { console.log("request closed"); });
+        // NOTE: req.end()が呼び出されないと永遠に待機状態のようになる（何も始まらない..)
+        // 
         req.end(() => {console.log("Request stream is finished"); });
     };
 
@@ -61,6 +72,9 @@ export class Downloader {
         this.writeStream.on("error", this.writableErrorHandler);
         this.writeStream.on("drain", this.drainHandler);
         this.writeStream.on("end", this.writableEndHandler);
+        this.writeStream.on("close", this.writableCloseHandler);
+
+        console.log('event listeners are set.');
     };
 
     /***
@@ -96,18 +110,24 @@ export class Downloader {
     };
 
     writableErrorHandler(e: Error) {
+        console.error(e.message);
         // if(this.res && !this.res.destroyed) this.res.destroy(e);      // デストロイすべきはリクエストオブジェクトのほうなのかも...
         if(!this.writeStream.destroyed) this.writeStream.destroy();
     };
 
+    // fs.WriteStreamにはendなんてイベントないかも...
     writableEndHandler() {
-        // CHECK STATUS OF requst and response ans writeStream
-        // If all ok, then it is completely succeeded.
-        console.log("Download successfully completed");
+        console.log("fs.writeStream ended");
+    }
+
+    writableCloseHandler() {
+        console.log("fs.writeStream has been closed");
     }
     
     drainHandler() {
+        console.log("Consume again.");
         this.draining = true;
+        if(this.res) this.res.resume();
     }
 
     /**
@@ -116,10 +136,90 @@ export class Downloader {
      * If error occured while write(), writable.on('error') fires.
      * */ 
     consumer(chunk: any) {
-        console.log(this.writeStream);
         this.draining = this.writeStream.write(chunk, (e: Error | null | undefined) => {
+            console.log(`wrote: ${chunk.length}`)
             if(e) throw e;
         });
-        if(!this.draining && this.res) this.res.pause();
+        if(!this.draining && this.res){ 
+            console.log("Stopped consuming")
+            this.res.pause();
+        };
     }
-}
+};
+
+
+/*********************************************************************************
+ * 
+ * 実行結果：
+ * 
+```bash
+request finish              # `finish` on request
+Request stream is finished  # request.end() callback 
+response: 200 OK            # http.request() callback 
+event listeners are set.    # setEventListener()
+
+# `data` on response, 
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Stopped consuming
+
+request closed              # `close` on request
+
+Consume again.
+wrote: 1378
+
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Stopped consuming
+Consume again.
+wrote: 1378
+
+Response stream ended       # `end` on response
+
+wrote: 83
+
+fs.writeStream has been closed      # `close` on fs.WriteStream
+
+# cat.png successfully downloaded.
+```
+
+`finish` on request > request.end() callback > http.request() callback > set listeners > `data` on reqponse ここまでは想定通り。
+
+response と fs.WriteStream がやり取りしている間に `close` on request が発生したのが想定外。
+
+`end` on response > `close` on fs.WriteStream は想定通り。
+
+正常運転が実現できているならば、`close` on requestは一番最後（`end` on responseよりあと）のはずだと思ったけれど、結果ファイルは取得できている。
+******************************************************************************/ 
