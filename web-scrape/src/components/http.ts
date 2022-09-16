@@ -8,6 +8,9 @@
  * コーディング心得：
  * 
  * - コールバックAPIとPromiseAPI統一すること
+ * 
+ * 
+ * http.request()
  * *********************************************************/ 
 import type http from 'http';
 import type fs from 'fs';

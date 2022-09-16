@@ -9,6 +9,8 @@
 
 ## TODOS
 
+- 開発ベストプラクティスを導入する(TEST, ES-LINT, )(https://github.com/goldbergyoni/nodebestpractices)
+- セッション有効期限次第なログイン回避or通過をどう実装するのか
 - collect動作確認
 - （暇なら）collect収集件数上限の設定（うっかり大変な数にならないように）
 - （暇なら）検索結果ページ複数の時の次ページ遷移方法の改善(HTTPつかえない？)
