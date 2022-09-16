@@ -52,12 +52,10 @@
   resolved "https://registry.yarnpkg.com/@types/caseless/-/caseless-0.12.2.tgz#f65d3d6389e01eeb458bd54dc8f52b95a9463bc8"
   integrity sha512-6ckxMjBBD8URvjB6J3NcnuAn5Pkl7t3TizAg+xdlzzQGSPSmBcXf8KoIH0ua/i+tio+ZRUHEXp0HEmvaR4kt0w==
 
-"@types/mkdirp@^1.0.2":
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/@types/mkdirp/-/mkdirp-1.0.2.tgz#8d0bad7aa793abe551860be1f7ae7f3198c16666"
-  integrity sha512-o0K1tSO0Dx5X6xlU5F1D6625FawhC3dU3iqr25lluNv/+/QIVH8RLNEiVokgIZo+mz+87w/3Mkg/VvQS+J51fQ==
-  dependencies:
-    "@types/node" "*"
+"@types/cheerio@0.22.0":
+  version "0.22.0"
+  resolved "https://registry.yarnpkg.com/@types/cheerio/-/cheerio-0.22.0.tgz#4e308bf0e223c632b3de3adf521139dc7aa51e34"
+  integrity sha512-dVL3RISC1jdrXilyqmPIga6LmjHwrDbWQoUyHuf/bGjP+HiNtyFJ3Gga1FCu55UYOqbuUGLPzkGkcsplkpSm8Q==
 
 "@types/node@*":
   version "18.7.14"
@@ -79,10 +77,10 @@
     "@types/tough-cookie" "*"
     form-data "^2.5.0"
 
-"@types/slug@^5.0.3":
-  version "5.0.3"
-  resolved "https://registry.yarnpkg.com/@types/slug/-/slug-5.0.3.tgz#6186849366580a99cdd6f1b50e2b863a62105c95"
-  integrity sha512-yPX0bb1SvrpaGlHuSiz6EicgRI4VBE+LO7IANlZagQwtaoKjLLcZc8y6s13vKp41mYvMCSzjtObxvU7/0JRPaA==
+"@types/slug@^0.9.1":
+  version "0.9.1"
+  resolved "https://registry.yarnpkg.com/@types/slug/-/slug-0.9.1.tgz#16dbf8b77d73e0a09ce51a96400878f33806ab32"
+  integrity sha512-zR/u8WFQ4/6uCIikjI00a5uB084XjgEGNRAvM4a1BL39Bw9yEiDQFiPS2DgJ8lPDkR2Qd/vZ26dCR9XqlKbDqQ==
 
 "@types/tough-cookie@*":
   version "4.0.2"
@@ -896,10 +894,12 @@ simple-update-notifier@^1.0.7:
   dependencies:
     semver "~7.0.0"
 
-slug@^7.0.0:
-  version "7.0.0"
-  resolved "https://registry.yarnpkg.com/slug/-/slug-7.0.0.tgz#4734582a4047822b0a8c777e1eff8f4127a4eea4"
-  integrity sha512-mniXJolENrn6+Si70Tg+toF0qjbr+71ULGKLviwpmTMezSTdmSAiNoCyL2gVIaiyiOMgDj1APpmn2BIAdw6COA==
+slug@^0.9.1:
+  version "0.9.4"
+  resolved "https://registry.yarnpkg.com/slug/-/slug-0.9.4.tgz#fad5f1ef33150830c7688cd8500514576eccabd8"
+  integrity sha512-3YHq0TeJ4+AIFbJm+4UWSQs5A1mmeWOTQqydW3OoPmQfNKxlO96NDRTIrp+TBkmvEsEFrd+Z/LXw8OD/6OlZ5g==
+  dependencies:
+    unicode ">= 0.3.1"
 
 spawn-command@^0.0.2-1:
   version "0.0.2-1"
@@ -1037,6 +1037,11 @@ undefsafe@^2.0.5:
   version "2.0.5"
   resolved "https://registry.yarnpkg.com/undefsafe/-/undefsafe-2.0.5.tgz#38733b9327bdcd226db889fb723a6efd162e6e2c"
   integrity sha512-WxONCrssBM8TSPRqN5EmsjVrsv4A8X12J4ArBiiayv3DyyG3ZlIg6yysuuSYdZsVz3TKcTg2fd//Ujd4CHV1iA==
+
+"unicode@>= 0.3.1":
+  version "14.0.0"
+  resolved "https://registry.yarnpkg.com/unicode/-/unicode-14.0.0.tgz#d821f900705787eba935859518d5482e4b7117de"
+  integrity sha512-BjinxTXkbm9Jomp/YBTMGusr4fxIG67fNGShHIRAL16Ur2GJTq2xvLi+sxuiJmInCmwqqev2BCFKyvbfp/yAkg==
 
 uri-js@^4.2.2:
   version "4.4.1"
