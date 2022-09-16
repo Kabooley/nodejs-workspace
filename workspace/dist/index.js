@@ -45,14 +45,18 @@ const options = {
 };
 (function (options) {
     return __awaiter(this, void 0, void 0, function* () {
-        const wfs = fs.createWriteStream(filepath, {
-            encoding: 'binary',
-            autoClose: true,
-            emitClose: true,
-            highWaterMark: 1024 /* default: 64 * 1024 */
-        });
-        console.log(wfs);
-        const downloader = new downloader_1.Downloader(options, wfs);
-        yield downloader.download();
+        try {
+            const wfs = fs.createWriteStream(filepath, {
+                encoding: 'binary',
+                autoClose: true,
+                emitClose: true,
+                highWaterMark: 1024 /* default: 64 * 1024 */
+            });
+            const downloader = new downloader_1.Downloader(options, wfs);
+            yield downloader.download();
+        }
+        catch (e) {
+            console.error(e);
+        }
     });
 })(options);
