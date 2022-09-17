@@ -188,6 +188,14 @@ function spiderLinks(currentUrl, body, nesting) {
   return promise;
 }
 
+// 呼び出し側
+spiderLinks(currentUrl, body, nesting)
+.then(
+    // すべてのタスクが完了したときに行う処理
+)
+.catch(
+    // エラーが起こったときの処理
+)
 ```
 
 これまた圧倒的にコード量が減っている。
@@ -227,9 +235,25 @@ promise
 
 これなら確かに順番通りの実行が担保されている！
 
-で最終的にreturnするpromiseは最後の結果になっている。
+で最終的にreturnするpromiseは最後のコールバックの結果になっている。
 
 
+
+## 逐次イテレーション・パターン
+
+先の配列逐次処理の一般化
+
+```JavaScript
+let tasks = [/* ...tasks */];
+let promise = Promise.resolve();    // 空の解決済プロミスの生成
+tasks.forEach(task => {
+    promise = promise.then(() => { return task(); });
+});
+
+promise.then(() => {
+    // All tasks completed.
+})
+```
 
 #### (自習) Promise + forEach()例
 
@@ -252,3 +276,103 @@ Promise.all(promises)
 
 これでもいいけど、「順番通りに実行する」は実現できていないかもしれない。
 Promise.all()は配列の中のプロミスのうちいずれかが拒否されたらすぐさま拒否を返す。
+
+## 並列処理
+
+Promise.all()を使えば並列処理を実現できる。
+
+Promise.all()の特徴として、
+
+- すべて解決されたときにのみ解決とする
+- 一つでも拒否が返されたら即座に拒否を返し残ったプロミスは無視される
+- どのプロミスが先に処理完了するのかは定かではない
+
+並列処理をコールバックAPIベースの並列処理からプロミスベースの並列処理に変換する
+
+```JavaScript
+// 変換前
+function spiderLinks(currentUrl, body, nesting, callback) {
+  if(nesting === 0) {
+    return process.nextTick(callback);
+  }
+
+  const links = utilities.getPageLinks(currentUrl, body);  //[1]
+  if(links.length === 0) {
+    return process.nextTick(callback);
+  }
+
+  let completed = 0, hasErrors = false;
+
+  function done(err) {
+    if(err) {
+      hasErrors = true;
+      return callback(err);
+    }
+    if(++completed === links.length && !hasErrors) {
+      return callback();
+    }
+  }
+
+  links.forEach(function(link) {
+    spider(link, nesting - 1, done);
+  });
+}
+
+// 変換後
+function spiderLinks(currentUrl, body, nesting) {
+  if(nesting === 0) {
+    return Promise.resolve();
+  }
+  
+  const links = utilities.getPageLinks(currentUrl, body);
+  //  spider()はプロミスを返す
+  const promises = links.map(link => spider(link, nesting - 1));
+  
+  return Promise.all(promises);
+}
+```
+
+すごく短い！
+
+- mapで`link => spider()`から返されるプロミスを配列で格納する
+- Promise.all()するだけ
+
+比較すると、
+
+- `done`がいらなくなった
+
+## 同時実行数を制限した並列処理パターン
+
+ES6のAPIに同時実行数を制限する機能はない。
+
+前章のTaskQueueに変更を加えて実現する。
+
+```JavaScript
+// 変更前
+class TaskQueue {
+  constructor (concurrency) {
+    this.concurrency = concurrency;     // 同時実行数上限
+    this.running = 0;                   // 実行ちゅうタスク数
+    this.queue = [];                    // タスクキュー
+  }
+
+  pushTask (task) {
+    this.queue.push(task);
+    this.next();
+  }
+
+  next() {
+    while (this.running < this.concurrency && this.queue.length) {
+      const task = this.queue.shift();  // 次のタスクを取得
+      task (() => {                     // タスクを実行する。その際、コールバックAPIの第一引数
+        this.running--;
+        this.next();
+      });
+      this.running++;
+    }
+  }
+};
+```
+
+```JavaScript
+```
