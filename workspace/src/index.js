@@ -1,32 +1,54 @@
 "use strict";
 
-// #@@range_begin(list1)
 const path = require('path');
 const utilities = require('./utilities');
-
+const TaskQueue = require('./taskQueue');
 const request = utilities.promisify(require('request'));
 const fs = require('fs');
 const mkdirp = utilities.promisify(require('mkdirp'));
 const readFile = utilities.promisify(fs.readFile);
 const writeFile = utilities.promisify(fs.writeFile);
+
+let downloadQueue = new TaskQueue(2);
+
+// #@@range_begin(list1)
+function spiderLinks(currentUrl, body, nesting) {
+  if(nesting === 0) {
+    return Promise.resolve();
+  }
+  
+  const links = utilities.getPageLinks(currentUrl, body);
+  //we need the following because the Promise we create next
+  //will never settle if there are no tasks to process
+  if(links.length === 0) {
+    return Promise.resolve();
+  }
+  
+  return new Promise((resolve, reject) => {
+    let completed = 0;
+    let errored = false;
+    links.forEach(link => {
+      let task = () => {
+        return spider(link, nesting - 1)
+          .then(() => {
+            if(++completed === links.length) {
+              resolve();
+            }
+          })
+          .catch(() => {
+            if (!errored) {
+              errored = true;
+              reject();
+            }
+          })
+        ;
+      };
+      downloadQueue.pushTask(task);
+    }); 
+  });
+}
 // #@@range_end(list1)
 
-// #@@range_begin(list4)
-function spiderLinks(currentUrl, body, nesting) {
-  let promise = Promise.resolve();
-  if(nesting === 0) {
-    return promise;
-  }
-  const links = utilities.getPageLinks(currentUrl, body);
-  links.forEach(link => {
-    promise = promise.then(() => spider(link, nesting - 1));
-  });
-  
-  return promise;
-}
-// #@@range_end(list4)
-
-// #@@range_begin(list5)
 function download(url, filename) {
   console.log(`Downloading ${url}`);
   let body;
@@ -42,15 +64,19 @@ function download(url, filename) {
     })
   ;
 }
-// #@@range_end(list5)
 
-// #@@range_begin(list2)
+const spidering = new Map();
 function spider(url, nesting) {
+  if(spidering.has(url)) {
+    return Promise.resolve();
+  }
+  spidering.set(url, true);
+  
   let filename = utilities.urlToFilename(url);
   return readFile(filename, 'utf8')
     .then(
-      (body) => (spiderLinks(url, body, nesting)),
-      (err) => {
+      body => spiderLinks(url, body, nesting),
+      err => {
         if(err.code !== 'ENOENT') {
           throw err;
         }
@@ -59,12 +85,11 @@ function spider(url, nesting) {
           .then(body => spiderLinks(url, body, nesting))
         ;
       }
-    );
+    )
+  ;
 }
-// #@@range_end(list2)
 
-// #@@range_begin(list3)
 spider(process.argv[2], 1)
-  .then(() => console.log('Download complete')) // ダウンロード完了
-  .catch(err => console.log(err));
-// #@@range_end(list3)
+  .then(() => console.log('Download complete'))
+  .catch(err => console.log(err))
+;

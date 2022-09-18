@@ -11,9 +11,8 @@ module.exports.urlToFilename = function urlToFilename(url) {
   let urlPath = parsedUrl.path.split('/')
     .filter(component => !!component)
     .map(component => slug(component))
-    .join('/')
-    ;
-  let filename = path.join(parsedUrl.hostname, urlPath);
+    .join('/');
+  var filename = path.join(parsedUrl.hostname, urlPath);
   if(!path.extname(filename).match(/htm/)) {
     filename += '.html';
   }
@@ -31,16 +30,6 @@ module.exports.getLinkUrl = function getLinkUrl(currentUrl, element) {
   return link;
 };
 
-/***
- * @param {string} currentUrl   - url
- * @param {string} body         - body of html
- * 
- * cheerio.load(body)でcheerioのメソッドを呼び出して、cheerio.load()()でaタグHTMLを返している
- * [].slice.call()で上記の呼び出しで返されるaタグを配列に格納する
- * .map()でaタグ内のurlに対して
- * 
- * 
- * */ 
 module.exports.getPageLinks = function getPageLinks(currentUrl, body) {
   return [].slice.call(cheerio.load(body)('a'))
     .map(element => module.exports.getLinkUrl(currentUrl, element))
