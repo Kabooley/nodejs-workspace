@@ -375,4 +375,182 @@ class TaskQueue {
 ```
 
 ```JavaScript
+// 変更後
+class TaskQueue {
+  constructor(concurrency) {
+    this.concurrency = concurrency;
+    this.running = 0;
+    this.queue = [];
+  }
+
+  pushTask(task) {
+    this.queue.push(task);
+    this.next();
+  }
+
+  next() {
+    while(this.running < this.concurrency && this.queue.length) {
+      const task = this.queue.shift();
+      task().then(() => {
+        this.running--;
+        this.next();
+      });
+      this.running++;
+    }
+  }
+};
+```
+
+task()の実行の仕方が異なる。
+
+プロミス：`task().then()`でtask()を実行して、then()で同時実行数の更新を行う
+
+コールバックAPIでは`task(() => {})`でtask()がコールバック引数を受け取ることを利用している。
+
+そこだけ。
+
+使う側：
+
+```JavaScript
+let downloadQueue = new TaskQueue(2);
+
+function spiderLinks(currentUrl, body, nesting) {
+  if(nesting === 0) {
+    return Promise.resolve();
+  }
+  
+  const links = utilities.getPageLinks(currentUrl, body);
+  //we need the following because the Promise we create next
+  //will never settle if there are no tasks to process
+  if(links.length === 0) {
+    return Promise.resolve();
+  }
+  
+  return new Promise((resolve, reject) => {
+    let completed = 0;
+    let errored = false;
+    links.forEach(link => {
+      // Task that is registered to taskQueue
+      let task = () => {
+        return spider(link, nesting - 1)
+          .then(() => {
+            // Check if all tasks are done.
+            if(++completed === links.length) {
+              resolve();
+            }
+          })
+          .catch(() => {
+            if (!errored) {
+              errored = true;
+              reject();
+            }
+          })
+        ;
+      };
+      // --------------------------------------
+      downloadQueue.pushTask(task);
+    }); 
+  });
+}
+```
+
+ということで、
+
+taskQueueに登録されるタスク: `spider().then().catch()`を実行する関数
+
+このtask()が実行さるごとに`completed`がインクリメントされて毎task()実行時にチェックされ、全てのtask()が完了したらresolve()になる。
+
+task()には、実行したい処理に加えて、並列処理したいタスク群がすべて完了したのかどうかチェックするロジックを組み込むこと(エラーチェックロジックもね)。
+
+#### 検証： Promise化したtaskQueueを使ってみる
+
+サンプルプログラムを動かすだけだけど、同時実行数が制限通りになっているのかログをとる。
+
+```JavaScript
+// TaskQeue.js
+class TaskQueue {
+  constructor(concurrency) {
+    this.concurrency = concurrency;
+    this.running = 0;
+    this.queue = [];
+  }
+
+  pushTask(task) {
+    this.queue.push(task);
+    this.next();
+  }
+
+  next() {
+    // LOG ---
+    console.log(`next() running: ${this.running} / ${this.concurrency}`);
+    // -------
+    while(this.running < this.concurrency && this.queue.length) {
+      const task = this.queue.shift();
+      task().then(() => {
+        this.running--;
+        this.next();
+      });
+      this.running++;
+    }
+  }
+};
+```
+
+で確認したら確かに`1/2`または`2/2`で同時実行数が制限されていた。
+
+## Promise化並列処理（同時実行数制限有）まとめ
+
+同時実行数制限タスクキュー：
+
+```JavaScript
+// TaskQeue.js
+class TaskQueue {
+  constructor(concurrency) {
+    this.concurrency = concurrency;   // 同時実行上限数
+    this.running = 0;                 // 現在同時実行しているタスク数
+    this.queue = [];                  // タスクを格納している配列
+  }
+
+  // とにかくタスクをqueueに突っ込んでnext()へ丸投げするだけ
+  // そのタスクを実行するのかどうかは完全にnext()が判断するので
+  // pushTask()はキューに突っ込んでそれをすぐに実行するのかどうかはnext()に委譲する
+  pushTask(task) {
+    this.queue.push(task);
+    this.next();
+  }
+
+  next() {
+    // LOG ---
+    console.log(`next() running: ${this.running} / ${this.concurrency}`);
+    // -------
+
+    // 1. 現在実行数が上限を下回るときだけwhileループが回る
+    while(this.running < this.concurrency && this.queue.length) {
+      const task = this.queue.shift();
+      // task()をひとまず走らせる
+      // task()は非同期処理なのでtask()の呼出だけして完了は待たずにwhileループは回る
+      task().then(() => {
+      // taskが完了したらrunningをデクリメントしてnext()を呼び出す
+        this.running--;
+        this.next();
+      });
+      // task()を呼び出したらインクリメント
+      this.running++;
+    }
+  }
+};
+```
+
+処理の流れ：
+
+next()>while(0 < 2)>task1() running++>while(1 < 2)>task2() running++> while loop done.
+
+task1().then() running-->next()>while(1 < 2)>task3() running++>while loop done.
+
+くりかえし...
+
+
+呼び出し側：
+
+```JavaScript
 ```
