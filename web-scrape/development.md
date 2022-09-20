@@ -1,5 +1,7 @@
 # Puppeteerでwebscrapingすっぞ
 
+pix*vで画像収集...はまずいので、せめて人気なイラストを独自収集するスクレイピングアプリを制作する。
+
 ## 目次
 
 [TODOS](#TODOS)
@@ -1057,3 +1059,23 @@ https://stackoverflow.com/questions/55408302/how-to-get-the-download-stream-buff
 > 問題は、何らかのナビゲーション要求が発生するとすぐにBufferがクリアされることです。あなたの場合、これはリダイレクトまたはページのリロードである可能性があります。 この問題を解決するには、リソースのダウンロードが完了していない限り、ページがナビゲーション リクエストを行わないようにする必要があります。これを行うには、page.setRequestInterception を使用できます。 この問題には、簡単な解決策がありますが、これは常に機能するとは限りません。また、この問題に対するより複雑な解決策もあります。
 
 じゃあBufferじゃなくてstreamでいいよね？
+
+## 処理の精査
+
+逐次処理はどこで？並列処理はどこで？同時実行制限数はいくつ？など考察する。
+
+1. 次のページへ遷移させるトリガーと、ページ遷移完了が噛み合わない。
+
+検索結果から収集するとき、
+
+```TypeScript
+await page.type(keyword);
+const waitJson = page.waitForRequest();		// 指定したURLに対するレスポンスを待つ
+const loaded = page.waitForNavigation();	// loadとdocumentloadedを待つ
+page.keyboard.press('Enter');				// 検索開始
+await waitJson;				// リクエストまち
+await loaded;				// ページ遷移完了
+```
+
+なんだけど...
+

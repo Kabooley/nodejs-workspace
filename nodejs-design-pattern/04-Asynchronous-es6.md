@@ -554,3 +554,83 @@ task1().then() running-->next()>while(1 < 2)>task3() running++>while loop done.
 
 ```JavaScript
 ```
+
+## コールバックとプロミスを両立するAPI
+
+APIをライブラリで公開するとき、プロミスベースにするべきか、コールバックベースにするべきか。
+
+コールバックベースAPIを基本的に提供するけど、コールバックが省略されたときはプロミスを提供するようにする。
+
+```JavaScript
+// 割り算を行うAPI
+module.exports = function asyncDivision (dividend, divisor, cb) {
+  return new Promise((resolve, reject) => {  // ❶
+
+    // 次コールスタックが空になったら実行される
+    process.nextTick(() => {
+      const result = dividend / divisor;
+      if (isNaN(result) || !Number.isFinite(result)) {
+        const error = new Error('Invalid operands');
+        if (cb) { cb(error); }  // ❷
+        return reject(error);
+      }
+
+      if (cb) { cb(null, result); }  // ❸
+      resolve(result);
+    });
+
+  });
+};
+```
+
+エラーでもfullFilledでも、コールバック引数があればその結果を、コールバック引数があろうとなかろうとプロミスを返す。
+
+```JavaScript
+// Usage
+
+asyncDivision(10, 2, (err, result) => {
+  if(err)console.error(err.message);
+  console.log(result)
+})
+
+asyncDivision(10, 2).then(result => console.log(result)).catch(err => console.error(err.message));
+```
+
+
+#### (自習) `process.nextTick()`
+
+https://nodejs.org/dist/latest-v16.x/docs/api/process.html#processnexttickcallback-args
+
+> process.nextTick()はコールバック引数を「次のtickキュー」に追加する。
+
+> このキューは、JavaScript スタックでの現在の操作が完了するまで実行された後、イベント ループの続行が許可される前に完全に排出されます。 process.nextTick() を再帰的に呼び出すと、無限ループが発生する可能性があります。背景の詳細​​については、イベント ループ ガイドを参照してください。
+
+ということで、
+
+コールスタックが空になって、イベントキューがキューからイベントをコールスタックへ送る前に、tickキューの中身は完全に排出される（コールスタックへ）。
+
+ということかしら？
+
+https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
+
+> process.nextTick()は非同期APIだけど、技術的にはイベントループの一部ではない。
+
+> 代わりに、イベントループの現在のフェーズに関係なく、現在の操作が完了した後に nextTickQueue が処理されます。ここで、操作は、基礎となる C/C++ ハンドラーからの移行として定義され、実行する必要がある JavaScript を処理します。
+
+> 図を振り返ると、特定のフェーズで process.nextTick() を呼び出すたびに、process.nextTick() に渡されたすべてのコールバックが解決されてから、イベント ループが続行されます。これにより、再帰的な process.nextTick() 呼び出しを行ってしまうと I/O を「枯渇」させ、イベント ループがポーリング フェーズに到達できなくなるため、いくつかの悪い状況が発生する可能性があります。
+
+あんまり詳細に入るつもりはないのでこの辺で。
+
+まとめ：
+
+- `process.nextTick()`は、そのコールバック引数を`nextTickQueue`へ追加するメソッドである。
+
+- `nextTickQueue`は、コールスタックが空になったら、イベントループが稼働する前に、そのキューの中身をすべて排出（実行）する。
+
+
+
+## ジェネレータ
+
+割愛。
+
+今のところ使うことはなさそうなので。
