@@ -58,6 +58,7 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
             height: 1080
         });
 
+        // セッションなしだと
         await page.goto("https://www.pixiv.net/");
         await page.waitForNetworkIdle();
 

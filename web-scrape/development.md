@@ -7,6 +7,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストを独
 [TODOS](#TODOS)
 [セレクタ調査](#セレクタ調査)
 [自習](#自習)
+[ログインすべきかしなくていいか区別する](#ログインすべきかしなくていいか区別する)
 
 
 ## TODOS
@@ -1079,3 +1080,349 @@ await loaded;				// ページ遷移完了
 
 なんだけど...
 
+## ログインすべきかしなくていいか区別する
+
+プライベートモードで`https://www.pixiv.net/`へアクセスした：
+
+`GET https://www.pixiv.net/ HTTP/2`
+
+request
+
+```JSON
+{
+	"要求ヘッダー (974 バイト)": {
+		"headers": [
+			{
+				"name": "Accept",
+				"value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+			},
+			{
+				"name": "Accept-Encoding",
+				"value": "gzip, deflate, br"
+			},
+			{
+				"name": "Accept-Language",
+				"value": "ja,en-US;q=0.7,en;q=0.3"
+			},
+			{
+				"name": "Connection",
+				"value": "keep-alive"
+			},
+			{
+				"name": "Cookie",
+				"value": "first_visit_datetime_pc=2022-09-21+04%3A17%3A33; PHPSESSID=4kn6hup2mr8e0adnnvt5uabvfororsoo; 
+                p_ab_id=7; 
+                p_ab_id_2=6; 
+                p_ab_d_id=318830242; 
+                yuid_b=MnlkkRc; 
+                __cf_bm=ZgrOVC3YMyfnybA9msHDDvBw.h7K4f6JeF20JbxNmH8-1663701454-0-AWDJQy0LQKnptETc6nLjGptqeV/xnMnBGcmnu/y0tdbrd0tz73VpfN6hA2b2VJQhH9LXqhZXo9nSBVNIeh+c2fW1F437koVIStoWL7HaBYrkjjKe+i4Fp1pfIewioxm3PDejpXO/mUsAVche/BOkCYiOmRwNopPNi3e2laoaFqL73D1i0msbYPzZWEYPVBwLtQ==;
+                _ga_75BBYNYN9J=GS1.1.1663701455.1.0.1663701455.0.0.0; 
+                _ga=GA1.1.1530619587.1663701456"
+			},
+			{
+				"name": "DNT",
+				"value": "1"
+			},
+			{
+				"name": "Host",
+				"value": "www.pixiv.net"
+			},
+			{
+				"name": "Sec-Fetch-Dest",
+				"value": "document"
+			},
+			{
+				"name": "Sec-Fetch-Mode",
+				"value": "navigate"
+			},
+			{
+				"name": "Sec-Fetch-Site",
+				"value": "none"
+			},
+			{
+				"name": "Sec-Fetch-User",
+				"value": "?1"
+			},
+			{
+				"name": "TE",
+				"value": "trailers"
+			},
+			{
+				"name": "Upgrade-Insecure-Requests",
+				"value": "1"
+			},
+			{
+				"name": "User-Agent",
+				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
+			}
+		]
+	}
+}
+```
+
+response
+
+200 OK
+
+```JSON
+{
+	"応答ヘッダー (540 バイト)": {
+		"headers": [
+			{
+				"name": "alt-svc",
+				"value": "h3=\":443\"; ma=86400, h3-29=\":443\"; ma=86400"
+			},
+			{
+				"name": "cache-control",
+				"value": "no-store, no-cache, must-revalidate"
+			},
+			{
+				"name": "cf-cache-status",
+				"value": "DYNAMIC"
+			},
+			{
+				"name": "cf-ray",
+				"value": "74dce783a8e1e086-NRT"
+			},
+			{
+				"name": "content-encoding",
+				"value": "gzip"
+			},
+			{
+				"name": "content-length",
+				"value": "10026"
+			},
+			{
+				"name": "content-type",
+				"value": "text/html; charset=UTF-8"
+			},
+			{
+				"name": "date",
+				"value": "Tue, 20 Sep 2022 19:17:59 GMT"
+			},
+			{
+				"name": "expires",
+				"value": "Thu, 19 Nov 1981 08:52:00 GMT"
+			},
+			{
+				"name": "pragma",
+				"value": "no-cache"
+			},
+			{
+				"name": "server",
+				"value": "cloudflare"
+			},
+			{
+				"name": "strict-transport-security",
+				"value": "max-age=31536000"
+			},
+			{
+				"name": "vary",
+				"value": "User-Agent,Accept-Encoding"
+			},
+			{
+				"name": "x-frame-options",
+				"value": "SAMEORIGIN"
+			},
+			{
+				"name": "x-host-time",
+				"value": "112"
+			},
+			{
+				"name": "x-xss-protection",
+				"value": "1; mode=block"
+			}
+		]
+	}
+}
+```
+
+ログイン認証済ませてからログイン後の`https://www.pixiv.net/`へ移動するとき
+
+request
+
+```JSON
+{
+	"要求ヘッダー (1.081 KB)": {
+		"headers": [
+			{
+				"name": "Accept",
+				"value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+			},
+			{
+				"name": "Accept-Encoding",
+				"value": "gzip, deflate, br"
+			},
+			{
+				"name": "Accept-Language",
+				"value": "ja,en-US;q=0.7,en;q=0.3"
+			},
+			{
+				"name": "Connection",
+				"value": "keep-alive"
+			},
+			{
+				"name": "Cookie",
+				"value": "first_visit_datetime_pc=2022-09-21+04%3A17%3A33; PHPSESSID=8675089_VqrR1iK0q5Wuh9zt9Ib5PLhGy9hax6xf; 
+                p_ab_id=7; 
+                p_ab_id_2=6; 
+                p_ab_d_id=318830242; 
+                yuid_b=MnlkkRc; 
+                __cf_bm=ZgrOVC3YMyfnybA9msHDDvBw.h7K4f6JeF20JbxNmH8-1663701454-0-AWDJQy0LQKnptETc6nLjGptqeV/xnMnBGcmnu/y0tdbrd0tz73VpfN6hA2b2VJQhH9LXqhZXo9nSBVNIeh+c2fW1F437koVIStoWL7HaBYrkjjKe+i4Fp1pfIewioxm3PDejpXO/mUsAVche/BOkCYiOmRwNopPNi3e2laoaFqL73D1i0msbYPzZWEYPVBwLtQ==;
+                _ga_75BBYNYN9J=GS1.1.1663701455.1.1.1663701640.0.0.0; 
+                _ga=GA1.1.1530619587.1663701456; 
+                _gcl_au=1.1.2079482580.1663701480; 
+                device_token=526aca1e8bd83bac65072b3439d3e1e0"
+			},
+			{
+				"name": "DNT",
+				"value": "1"
+			},
+			{
+				"name": "Host",
+				"value": "www.pixiv.net"
+			},
+			{
+				"name": "Referer",
+				"value": "https://accounts.pixiv.net/"
+			},
+			{
+				"name": "Sec-Fetch-Dest",
+				"value": "document"
+			},
+			{
+				"name": "Sec-Fetch-Mode",
+				"value": "navigate"
+			},
+			{
+				"name": "Sec-Fetch-Site",
+				"value": "same-site"
+			},
+			{
+				"name": "Sec-Fetch-User",
+				"value": "?1"
+			},
+			{
+				"name": "TE",
+				"value": "trailers"
+			},
+			{
+				"name": "Upgrade-Insecure-Requests",
+				"value": "1"
+			},
+			{
+				"name": "User-Agent",
+				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
+			}
+		]
+	}
+}
+```
+
+response
+
+```JSON
+{
+	"応答ヘッダー (1.256 KB)": {
+		"headers": [
+			{
+				"name": "alt-svc",
+				"value": "h3=\":443\"; ma=86400, h3-29=\":443\"; ma=86400"
+			},
+			{
+				"name": "cache-control",
+				"value": "no-store, no-cache, must-revalidate"
+			},
+			{
+				"name": "cf-cache-status",
+				"value": "DYNAMIC"
+			},
+			{
+				"name": "cf-ray",
+				"value": "74dcebd24bcbaf9f-NRT"
+			},
+			{
+				"name": "content-encoding",
+				"value": "gzip"
+			},
+			{
+				"name": "content-length",
+				"value": "3943"
+			},
+			{
+				"name": "content-type",
+				"value": "text/html; charset=UTF-8"
+			},
+			{
+				"name": "date",
+				"value": "Tue, 20 Sep 2022 19:20:55 GMT"
+			},
+			{
+				"name": "expires",
+				"value": "Thu, 19 Nov 1981 08:52:00 GMT"
+			},
+			{
+				"name": "pragma",
+				"value": "no-cache"
+			},
+			{
+				"name": "server",
+				"value": "cloudflare"
+			},
+			{
+				"name": "set-cookie",
+				"value": "c_type=32; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure"
+			},
+			{
+				"name": "set-cookie",
+				"value": "PHPSESSID=8675089_VqrR1iK0q5Wuh9zt9Ib5PLhGy9hax6xf; expires=Thu, 20-Oct-2022 19:20:55 GMT; Max-Age=2592000; path=/; domain=.pixiv.net; secure; HttpOnly"
+			},
+			{
+				"name": "set-cookie",
+				"value": "privacy_policy_agreement=0; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure; HttpOnly"
+			},
+			{
+				"name": "set-cookie",
+				"value": "privacy_policy_notification=0; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure; HttpOnly"
+			},
+			{
+				"name": "set-cookie",
+				"value": "a_type=0; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure"
+			},
+			{
+				"name": "set-cookie",
+				"value": "b_type=1; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure"
+			},
+			{
+				"name": "strict-transport-security",
+				"value": "max-age=31536000"
+			},
+			{
+				"name": "vary",
+				"value": "X-UserId,Accept-Encoding"
+			},
+			{
+				"name": "x-frame-options",
+				"value": "SAMEORIGIN"
+			},
+			{
+				"name": "x-host-time",
+				"value": "111"
+			},
+			{
+				"name": "x-userid",
+				"value": "8675089"
+			},
+			{
+				"name": "x-xss-protection",
+				"value": "1; mode=block"
+			}
+		]
+	}
+}
+```
+
+requestヘッダのPHPSESSIDに、pixivユーザID番号から始まる新しいセッションIDが付与されているのが確認できる。
+
+
+TODO: page.goto()でピクシブのページへ移動したときのGET"https://www.pixiv.net/"リクエストのレスポンスを取得してログインパスできたのかどうかチェックするようにする

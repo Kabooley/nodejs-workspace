@@ -92,7 +92,7 @@ export class Downloader {
         this.writeStream.end();
     };
 
-    writableErrorHandler(e: Error) {
+    writableErrorHandler() {
         // if(this.res && !this.res.destroyed) this.res.destroy(e);      // デストロイすべきはリクエストオブジェクトのほうなのかも...
         if(!this.writeStream.destroyed) this.writeStream.destroy();
     };
