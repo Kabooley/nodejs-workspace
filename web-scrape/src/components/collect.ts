@@ -1,8 +1,6 @@
 /********************************************************************
  * 
- * 検索結果から次のページに移動するときのGETリクエスト
- * GET https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}&order=date_d&mode=all&p=2&s_mode=s_tag&type=all&lang=ja
- * ******************************************************************/ 
+ * *******************************************************************/ 
 import type puppeteer from 'puppeteer';
 import { selectors } from '../constants/selectors';
 
@@ -63,6 +61,51 @@ const collectElementsAsArray = <T>(data: T[], key: keyof T): T[keyof T][] => {
  * 
  * */ 
 export const collectIdsFromResultPages = async (page: puppeteer.Page, keyword: string, res: puppeteer.HTTPResponse): Promise<string[]> => {
+    console.log(`Collecting artwork id. Page: ${currentPage + 1}`);
+    try {
+        // Just to be safe, wait a few sec.
+        if(currentPage > 0) await page.waitForNetworkIdle();
+        const { illustManga } = await res.json();
+        // NOTE: Omit validation of JSON object.
+        // Collect ids of thumbnails
+        if(!illustManga || !illustManga.data || !illustManga.total) throw new Error('Unexpected JSON data has been received')
+        ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
+
+    
+        // Set only once.
+        if(currentPage === 0) {
+            numberOfResultPages = illustManga.total/illustManga.data.length;
+            escapedKeyword = encodeURIComponent(keyword);
+        }
+    
+        // Define wait functions
+        const waitJson = page.waitForResponse(res =>
+            res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
+            && res.status() === 200
+        );
+        const loaded = page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] });
+
+        // Transition and recursive call
+        if(currentPage < numberOfResultPages){
+            currentPage++;
+            await page.click(selectors.nextPage);
+            const r: puppeteer.HTTPResponse = await waitJson;
+            await loaded;
+            await collectIdsFromResultPages(page, keyword, r);
+        }
+        
+        // DEBUG: 再帰呼び出しだから余計なことをしていないか...
+        console.log("collectIdsFromResultPages() just before return");
+        return ids;
+    }
+    catch(e) {
+        await page.screenshot();
+        throw e;
+    }
+};
+
+
+export const collectIdsFromResultPagesVer2 = async (page: puppeteer.Page, keyword: string, res: puppeteer.HTTPResponse): Promise<string[]> => {
     console.log(`Collecting artwork id. Page: ${currentPage + 1}`);
     try {
         // Just to be safe, wait a few sec.
