@@ -1,28 +1,55 @@
 /*************************************************************************
  * Fill search form with keyword and press Enter.
  * 
+ * waitResponse waits for response of request that express... 
  * GET `https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}&order=date_d&mode=all&p=1&s_mode=s_tag&type=all&lang=ja
+ * 
+ * keywordが空白入りのもじれつだとしたら...
+ * 
+ * https://www.pixiv.net/tags/COWBOYBEBOP%20spike/artworks?s_mode=s_tag
+ * 
+ * TODO: 日本語をエンコードしなくてはならないからひっとしなかったんだった！
  * ***********************************************************************/ 
 import type puppeteer from 'puppeteer';
 import { selectors } from '../constants/selectors';
 
+const encodeWhiteSpaces = (str: string): string => {
+    // 文字列を空白ごと切り分ける
+    return str.split(/[ ,]+/).join('%20');
+}
 
+// こちらのsearch.tsはタイムアウト・エラーを起こすし、waitForResponse()は多分肝心なレスポンスを逃している。
+// 
 export const search = async (page: puppeteer.Page, keyword: string): Promise<puppeteer.HTTPResponse> => {
     try {
         await page.type(selectors.searchBox, keyword, { delay: 100 });
         // waitJson requires specified HTTPResponse 
-        const waitJson = page.waitForResponse(res =>
-            res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}`)
+        // const waitResponse = page.waitForResponse(res =>
+        //     res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}`)
+        //     && res.status() === 200
+        // );
+
+        const encoded: string = encodeWhiteSpaces(keyword);
+        console.log(`encoded: ${encoded}`);
+        // NOTE: Name it for ErrorStack.
+        const waitForResponseCallback = (res: puppeteer.HTTPResponse): boolean => {
+            console.log(res.url());
+            return res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${encoded}?word=${encoded}`)
             && res.status() === 200
-        );
+        };
+
+        const waitResponse = page.waitForResponse(waitForResponseCallback);
+        // Wait for navigation is completed.
         const loaded = page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] });
-        page.keyboard.press('Enter');
-        const json: puppeteer.HTTPResponse = await waitJson;
-        // NOTE: `loaded` MAY OCCURES ERROR. If many error occures, then delete it.
+        // Send keyword and triggers navigation.
+        // 
+        await page.keyboard.press('Enter');
+        // Get response of above request.
+        const res: puppeteer.HTTPResponse = await waitResponse;
+        // NOTE: `loaded` MAY OCCURES ERROR low probability.
         await loaded;
 
-        console.log('Moved to search result page');
-        return json;
+        return res;
     }
     catch(e) {
         // DEBUG: take screenshot to know what happened

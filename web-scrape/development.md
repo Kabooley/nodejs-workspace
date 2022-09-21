@@ -1,10 +1,17 @@
 # Puppeteerでwebscrapingすっぞ
 
-pix*vで画像収集...はまずいので、せめて人気なイラストを独自収集するスクレイピングアプリを制作する。
+pix*vで画像収集...はまずいので、せめて人気なイラストURLを独自収集するスクレイピングアプリを制作する。
 
 ## 目次
 
 [TODOS](#TODOS)
+[ページ遷移とレスポンスの取得の両立](#ページ遷移とレスポンスの取得の両立)
+[ページ遷移と特定のレスポンスを取得する方法](#ページ遷移と特定のレスポンスを取得する方法)
+[セッションの維持](#セッションの維持)
+[キーワード検索結果を収集する方法の模索]](#キーワード検索結果を収集する方法の模索)
+[artworkページでbookmark数を取得する方法の模索](#artworkページでbookmark数を取得する方法の模索)
+[](#)
+[](#)
 [セレクタ調査](#セレクタ調査)
 [自習](#自習)
 [ログインすべきかしなくていいか区別する](#ログインすべきかしなくていいか区別する)
@@ -12,15 +19,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストを独
 
 ## TODOS
 
-- 開発ベストプラクティスを導入する(TEST, ES-LINT, )(https://github.com/goldbergyoni/nodebestpractices)
-- セッション有効期限次第なログイン回避or通過をどう実装するのか
-- collect動作確認
-- （暇なら）collect収集件数上限の設定（うっかり大変な数にならないように）
-- （暇なら）検索結果ページ複数の時の次ページ遷移方法の改善(HTTPつかえない？)
-- どうもsearch()が返すHTTPResponseが空である件の修正
-- artworkページにアクセスしてからの処理内容を詰める
-- downloaderの実装
-- Node.jsのデザインパターンの導入（逐次処理、並列処理。これがやりたかったことですわ）
+- TODO: components/search.tsで検索リクエストに対するレスポンスを取得してそのbodyを呼び出し元へ帰す
 
 ## chromium起動できない問題
 
@@ -165,15 +164,40 @@ if(response.status() === 200 && response.ok()) return true; // true as succeeded
 
 ## ページ遷移とレスポンスの取得の両立
 
+https://github.com/puppeteer/puppeteer/issues/1205
+
+`page.goto()`はその引数のURLに対する`HTTP.Response`を戻り値として返す。
+
+なのでそのURLのレスポンスを取得するために`page.waitForResponse()`と一緒に使う必要はない。
+
+だから、gotoのベストプラクティスはそのまま使える。
+
+```JavaScript
+const [response] = await Promise.all([
+	page.goto('https://www.example.com/'),
+	page.waitForNavigation({ waitUntil: ["load", "networkidle02"]})
+]);
+
+expect(response.status()).to.equal(200)
+```
+
+## ページ遷移と特定のレスポンスを取得する方法
+
+先の例と異なり、page.goto()以外のメソッドがページ遷移をトリガーしたときに、
+
+特定のレスポンスを取得したい。
+
+そんなとき。
+
 参考：
 
 https://stackoverflow.com/a/71521550/13891684
 
 https://pixeljets.com/blog/puppeteer-click-get-xhr-response/
 
-`page.click`か`page.keyboard.press()`と、それに伴って発生するhttpResponseから任意のレスポンスを取得を両立する方法
+`page.click`か`page.keyboard.press()`と、それに伴って発生するhttpResponseから任意のレスポンスを取得を両立する方法。
 
-うまくいかない例：
+例：
 
 ```TypeScript
 const requiredResponseURL = "https://www.hogehoge.hoge/resource";
@@ -315,20 +339,8 @@ promise.all()で`page.click()`と`page.waitForNavigation()`を組み合わせる
 }
 ```
 
-ほしい情報は、
+これで取得できた。
 
-- トータルヒット数
-- サムネイルのid
-
-
-注目してもいいところ
-
-- `data[0].tags`:登録されているタグがここに格納されているかも
-- `bookmarkRanges`はブックマークされている
-
-## ページ遷移プロセスを再利用可能にする
-
-頑張って。
 
 ## 検索結果ページ複数になる時の次のページへ行くトリガー
 
@@ -339,56 +351,6 @@ promise.all()で`page.click()`と`page.waitForNavigation()`を組み合わせる
 ```
 
 `>`だけクリックしていけば1ページずつ移動してくれる
-
-## 検索結果とかresponseから取得できない？
-
-できるっぽい。ただし問題は、
-
-- 検索結果ページへ行くのにpage.goto()じゃなくてpage.click()を使っているのでレスポンスを取得できるのか不明
-- RESTAPIワカラナイ
-
-検索キーワード:"西住まほ"
-
-`GET`
-`https://www.pixiv.net/ajax/search/artworks/%E8%A5%BF%E4%BD%8F%E3%81%BE%E3%81%BB?word=西住まほ&order=date_d&mode=all&p=1&s_mode=s_tag&type=all&lang=ja`
-
-の、
-
-`response.body.illustManga.data`に検索結果のデータ
-
-`response.body.illustManga.total`に検索ヒット数
-
-dataの各要素がサムネイルの情報と同じなので
-
-```JSON
-"data": [
-    {"id": 123456, "title": "ARTWORK-TITLE", "userid": "987654"},
-    {"id": 123456, "title": "ARTWORK-TITLE"},
-    {"id": 123456, "title": "ARTWORK-TITLE"},
-]
-```
-
-idはそのままartworkページへのURL末尾になる
-
-`https://www.pixiv.net/artworks/12345678`
-
-
-TODO: EventEmitterとRESTAPIスキルを習得する
-
-`page.click()`する前に`page.once('response')`用意しておけばいいかな...
-
-pageはEventEmitterを継承したクラスなのでいけるよね...
-
-TODO: すべてのレスポンスを取得するヒント
-
-https://stackoverflow.com/questions/52969381/how-can-i-capture-all-network-requests-and-full-response-data-when-loading-a-pag
-
-## Node.js HTTP `http.ClientRequest`
-
-https://nodejs.org/dist/latest-v16.x/docs/api/http.html#class-httpclientrequest
-
-このオブジェクトは内部的に作られ、`http.request()`から返されます。
-
 
 
 ## オブジェクト validation
@@ -602,6 +564,14 @@ CacheやSession Storageなどのディレクトリが追加されていた。
 - 毎回セッションが生きているのか確認する機能をつける
 
 暇ならね...そこはメインじゃないから...
+
+## キーワード検索結果を収集する方法の模索
+
+search.tsが返すレスポンスが内包するJSON
+
+```JSON
+
+```
 
 ## artworkページへ片っ端からアクセスする
 
@@ -1426,3 +1396,58 @@ requestヘッダのPHPSESSIDに、pixivユーザID番号から始まる新しい
 
 
 TODO: page.goto()でピクシブのページへ移動したときのGET"https://www.pixiv.net/"リクエストのレスポンスを取得してログインパスできたのかどうかチェックするようにする
+
+ログイン：
+
+## 自習
+
+1. ページ遷移トリガーまとめ
+
+#### page.goto()
+
+URLを指定して遷移させる場合。
+
+page.goto()はPromise<HTTP.Response|null>を返す。
+
+複数リダイレクトが発生した場合、最後のレスポンスでプロミスは解決することになる。
+
+goto()のオプショナル引数`waitUntil`はデフォルトで`load`に設定されている。
+
+`waitUntil`は何かというと、そのURLへの遷移がどのタイミングで成功したと判断するのかのタイミングを指定するのである。
+
+なので`load`と設定すれば、ロードイベントが発生したらこのページ遷移は成功したと判断される（それでプロミスが満たされる）
+
+`referer`はリクエスト・ヘッダにリファラを追加する。
+
+例外をスローする場合：
+
+SSLエラー、無効なＵＲＬ、ナビゲーションがタイムアウトになった、リソースがロード不可能などなど。
+
+例外をスローしない場合：
+
+有効なHTTPステータスコードが返される限り例外は発生しない。
+
+404も500も対象である。
+
+ということで、ステータスコードは自前で検査しなくてなならない。
+
+#### page.click()
+
+引数で渡された要素の中央をクリックする。
+
+指定要素が成功裏にクリックされたらプロミスが解決される。
+
+click()がナビゲーションイベントをトリガーする場合（ページ遷移イベントなどのこと）、
+
+その時は`page.waitForNavigation()`と一緒に使うことでプロミスが解決される。
+
+
+#### page.keyboard.press()
+
+#### リクエストを送信する
+
+https://stackoverflow.com/a/49385769
+
+puppeteerにはリクエストを送信する機能はなくて、リクエストを送信されたことをインターセプトすることならできる。
+
+
