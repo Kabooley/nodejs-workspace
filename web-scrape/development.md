@@ -19,7 +19,8 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 
 ## TODOS
 
-- TODO: components/search.tsで検索リクエストに対するレスポンスを取得してそのbodyを呼び出し元へ帰す
+- TODO: search()の挙動確認
+- TODO: artworkページでブックマークフィルタリング
 
 ## chromium起動できない問題
 
@@ -567,10 +568,370 @@ CacheやSession Storageなどのディレクトリが追加されていた。
 
 ## キーワード検索結果を収集する方法の模索
 
-search.tsが返すレスポンスが内包するJSON
+search()で次のリクエストが成功したら、
 
 ```JSON
+{
+	"GET": {
+		"scheme": "https",
+		"host": "www.pixiv.net",
+		"filename": "/ajax/search/artworks/%E5%B0%84%E5%91%BD%E4%B8%B8%E6%96%87",
+		"query": {
+			"word": "射命丸文",
+			"order": "date_d",
+			"mode": "all",
+			"p": "1",
+			"s_mode": "s_tag",
+			"type": "all",
+			"lang": "ja"
+		},
+		"remote": {
+			"アドレス": "104.18.36.166:443"
+		}
+	}
+}
+```
 
+レスポンスに次のようなbodyがつく。
+
+```JSON
+{
+	"error": false,
+	"body": {
+        // この中の`data`配列の中に検索結果（の1ページ目のサムネイル情報）が入っている
+		"illustManga": {
+			"data": [
+				{
+					"id": "101393474",
+					"title": "彼岸の庭渡久１２０６",
+					"illustType": 1,
+					"xRestrict": 0,
+					"restrict": 0,
+					"sl": 2,
+					"url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/22/00/05/55/101393474_p0_square1200.jpg",
+					"description": "",
+					"tags": [
+						"東方",
+						"彼岸の庭渡様",
+						"庭渡久侘歌",
+						"豪徳寺ミケ",
+						"少名針妙丸",
+						"射命丸文",
+						"リリーホワイト",
+						"リリーブラック"
+					],
+					"userId": "9824519",
+					"userName": "人郷想幻（げんそうきょうじん）",
+					"width": 287,
+					"height": 821,
+					"pageCount": 1,
+					"isBookmarkable": true,
+					"bookmarkData": null,
+					"alt": "#東方 彼岸の庭渡久１２０６ - 人郷想幻（げんそうきょうじん）のマンガ",
+					"titleCaptionTranslation": {
+						"workTitle": null,
+						"workCaption": null
+					},
+					"createDate": "2022-09-22T00:05:55+09:00",
+					"updateDate": "2022-09-22T00:05:55+09:00",
+					"isUnlisted": false,
+					"isMasked": false,
+					"profileImageUrl": "https://i.pximg.net/user-profile/img/2022/06/17/10/08/33/22889909_0d5609f386476846aa404ad4c634e38f_50.jpg"
+				},
+				{
+					"id": "101381167",
+					"title": "落書き11",
+					"illustType": 0,
+					"xRestrict": 1,
+					"restrict": 0,
+					"sl": 6,
+					"url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/21/12/18/49/101381167_p0_square1200.jpg",
+					"description": "",
+					"tags": [
+						"R-18",
+						"東方Project",
+						"犬走椛",
+						"射命丸文"
+					],
+					"userId": "4472917",
+					"userName": "kjo",
+					"width": 960,
+					"height": 1280,
+					"pageCount": 20,
+					"isBookmarkable": true,
+					"bookmarkData": null,
+					"alt": "#東方Project 落書き11 - kjoのイラスト",
+					"titleCaptionTranslation": {
+						"workTitle": null,
+						"workCaption": null
+					},
+					"createDate": "2022-09-21T12:18:49+09:00",
+					"updateDate": "2022-09-21T12:18:49+09:00",
+					"isUnlisted": false,
+					"isMasked": false,
+					"profileImageUrl": "https://i.pximg.net/user-profile/img/2020/02/22/02/55/14/17967117_9033a06b5f70d391c5cf66d4e248d847_50.jpg"
+				},
+				{
+					"id": "101380663",
+					"title": "東方二次小説（第13話）「アイドル天狗はたて」（2）～（7）",
+					"illustType": 0,
+					"xRestrict": 1,
+					"restrict": 0,
+					"sl": 6,
+					"url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/21/11/33/07/101380663_p0_square1200.jpg",
+					"description": "",
+					"tags": [
+						"R-18",
+						"姫海棠はたて",
+						"東方project",
+						"射命丸文",
+						"管牧典",
+						"二ツ岩マミゾウ",
+						"封獣ぬえ",
+						"ちんぽ",
+						"パンチラ"
+					],
+					"userId": "52941975",
+					"userName": "美少女帝国",
+					"width": 1280,
+					"height": 720,
+					"pageCount": 6,
+					"isBookmarkable": true,
+					"bookmarkData": null,
+					"alt": "#姫海棠はたて 東方二次小説（第13話）「アイドル天狗はたて」（2）～（7） - 美少女帝国のイラスト",
+					"titleCaptionTranslation": {
+						"workTitle": null,
+						"workCaption": null
+					},
+					"createDate": "2022-09-21T11:33:07+09:00",
+					"updateDate": "2022-09-21T11:33:07+09:00",
+					"isUnlisted": false,
+					"isMasked": false,
+					"profileImageUrl": "https://s.pximg.net/common/images/no_profile_s.png"
+				},
+                // ...
+			],
+			"total": 49561,
+			"bookmarkRanges": [
+				{
+					"min": null,
+					"max": null
+				},
+				{
+					"min": 10000,
+					"max": null
+				},
+				{
+					"min": 5000,
+					"max": null
+				},
+				{
+					"min": 1000,
+					"max": null
+				},
+				{
+					"min": 500,
+					"max": null
+				},
+				{
+					"min": 300,
+					"max": null
+				},
+				{
+					"min": 100,
+					"max": null
+				},
+				{
+					"min": 50,
+					"max": null
+				}
+			]
+		},
+        // 人気順情報
+		"popular": {
+			"recent": [
+				{
+					"id": "101263412",
+					"title": "ルポライター文ちゃん",
+					"illustType": 0,
+					"xRestrict": 0,
+					"restrict": 0,
+					"sl": 2,
+					"url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/16/18/05/12/101263412_p0_square1200.jpg",
+					"description": "",
+					"tags": [
+						"東方Project",
+						"射命丸文",
+						"清く正しい射命丸",
+						"東方鈴奈庵",
+						"キャスケット文",
+						"文ちゃんマジ天使",
+						"稗田阿求",
+						"笑顔",
+						"東方Project1000users入り",
+						"社会派ルポライターあや"
+					],
+					"userId": "2520952",
+					"userName": "カンパ",
+					"width": 1433,
+					"height": 1013,
+					"pageCount": 1,
+					"isBookmarkable": true,
+					"bookmarkData": null,
+					"alt": "#東方Project ルポライター文ちゃん - カンパのイラスト",
+					"titleCaptionTranslation": {
+						"workTitle": null,
+						"workCaption": null
+					},
+					"createDate": "2022-09-16T18:05:12+09:00",
+					"updateDate": "2022-09-16T18:05:12+09:00",
+					"isUnlisted": false,
+					"isMasked": false,
+					"profileImageUrl": "https://i.pximg.net/user-profile/img/2017/02/14/22/11/58/12148643_e5fd596badc37b70db02a2b2c1c36e69_50.jpg"
+				},
+                // ...
+			],
+            // わからん
+			"permanent": [
+				{
+					"id": "86142125",
+					"title": "自機の人たち",
+					"illustType": 0,
+					"xRestrict": 0,
+					"restrict": 0,
+					"sl": 2,
+					"url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2020/12/07/00/03/57/86142125_p0_square1200.jpg",
+					"description": "",
+					"tags": [
+						"東方",
+						"博麗霊夢",
+						"霧雨魔理沙",
+						"十六夜咲夜",
+						"魂魄妖夢",
+						"鈴仙・優曇華院・イナバ",
+						"東風谷早苗",
+						"チルノ",
+						"射命丸文",
+						"東方Project50000users入り"
+					],
+					"userId": "2179695",
+					"userName": "羽々斬＠秋季例大祭あ05a",
+					"width": 3000,
+					"height": 1000,
+					"pageCount": 10,
+					"isBookmarkable": true,
+					"bookmarkData": null,
+					"alt": "#東方 自機の人たち - 羽々斬＠秋季例大祭あ05aのイラスト",
+					"titleCaptionTranslation": {
+						"workTitle": null,
+						"workCaption": null
+					},
+					"createDate": "2020-12-07T00:03:57+09:00",
+					"updateDate": "2020-12-07T00:03:57+09:00",
+					"isUnlisted": false,
+					"isMasked": false,
+					"profileImageUrl": "https://i.pximg.net/user-profile/img/2020/02/23/20/48/12/17978154_7be0feb98ff0948344e60b93dacf067e_50.png"
+				},
+                // ...
+			]
+		},
+		"relatedTags": [
+			"姫海棠はたて",
+			"射命丸",
+			"犬走椛",
+			"東方",
+			"東風谷早苗",
+			"鈴仙・優曇華院・イナバ",
+			"文",
+			"霊烏路空",
+			"博麗霊夢",
+			"河城にとり",
+			"魂魄妖夢",
+			"十六夜咲夜",
+			"アリス・マーガトロイド",
+			"比那名居天子",
+			"茨木華扇",
+			"多々良小傘",
+			"四季映姫・ヤマザナドゥ",
+			"西行寺幽々子",
+			"八雲紫",
+			"風見幽香",
+			"東方Project",
+			"東方project",
+			"犬走椛",
+			"庭渡久侘歌",
+			"豪徳寺ミケ",
+			"きょぬーまる",
+			"彼岸の庭渡様",
+			"アナログ",
+			"博麗霊夢",
+			"姫海棠はたて",
+			"少名針妙丸",
+			"toho_vote18",
+			"週末天狗",
+			"おっぱい",
+			"あやれいむ",
+			"第18回東方Project人気投票"
+		],
+		"tagTranslation": [],
+		"zoneConfig": {
+			"header": {
+				"url": "https://pixon.ads-pixiv.net/show?zone_id=header&format=js&s=1&up=0&a=32&ng=g&l=ja&uri=%2Fajax%2Fsearch%2Fartworks%2F_PARAM_&ref=www.pixiv.net%2Ftags%2F%25E5%25B0%2584%25E5%2591%25BD%25E4%25B8%25B8%25E6%2596%2587%2Fartworks%3Fs_mode%3Ds_tag&is_spa=1&K=12e90252bb6aa&ab_test_digits_first=0&uab=10&yuid=KDBDFFM&suid=Ph6esy7s20qgoyz8y&num=632b5bf4682"
+			},
+			"footer": {
+				"url": "https://pixon.ads-pixiv.net/show?zone_id=footer&format=js&s=1&up=0&a=32&ng=g&l=ja&uri=%2Fajax%2Fsearch%2Fartworks%2F_PARAM_&ref=www.pixiv.net%2Ftags%2F%25E5%25B0%2584%25E5%2591%25BD%25E4%25B8%25B8%25E6%2596%2587%2Fartworks%3Fs_mode%3Ds_tag&is_spa=1&K=12e90252bb6aa&ab_test_digits_first=0&uab=10&yuid=KDBDFFM&suid=Ph6esy7s24nj8nj11&num=632b5bf473"
+			},
+			"infeed": {
+				"url": "https://pixon.ads-pixiv.net/show?zone_id=illust_search_grid&format=js&s=1&up=0&a=32&ng=g&l=ja&uri=%2Fajax%2Fsearch%2Fartworks%2F_PARAM_&ref=www.pixiv.net%2Ftags%2F%25E5%25B0%2584%25E5%2591%25BD%25E4%25B8%25B8%25E6%2596%2587%2Fartworks%3Fs_mode%3Ds_tag&is_spa=1&K=12e90252bb6aa&ab_test_digits_first=0&uab=10&yuid=KDBDFFM&suid=Ph6esy7s27vo8ycqk&num=632b5bf444"
+			}
+		},
+		"extraData": {
+			"meta": {
+				"title": "#射命丸文のイラスト・マンガ作品（1万件超） - pixiv",
+				"description": "pixiv",
+				"canonical": "https://www.pixiv.net/tags/%E5%B0%84%E5%91%BD%E4%B8%B8%E6%96%87",
+				"alternateLanguages": {
+					"ja": "https://www.pixiv.net/tags/%E5%B0%84%E5%91%BD%E4%B8%B8%E6%96%87",
+					"en": "https://www.pixiv.net/en/tags/%E5%B0%84%E5%91%BD%E4%B8%B8%E6%96%87"
+				},
+				"descriptionHeader": "pixiv"
+			}
+		}
+	}
+}
+```
+
+長いのでまとめると...
+
+```JSON
+{
+    "error": false,
+    "illustManga": {
+        "data": [
+            {
+                // illust data
+            },
+        ],
+        "total": 49514
+    },
+    "popular": {
+        "recent": [],
+        "permanent": []
+    },
+    "relatedTags": [],
+    // 省略
+}
+```
+
+ここから取得したいのは...
+
+- `illustManga.data[]`は検索結果サムネイル情報。artworkページidを取得するため
+- `illustManga.total`は検索結果ヒット数。検索結果ページが何ページになるのか知るため
+- `illustManga.data.length`は検索結果サムネイル一覧が一ページに何枚になるのか知るため
+
+```TypeScript
+const res: puppeteer.HTTPResponse = await search(page, keyword);
+const ids: number[] = await collectIdsFromResultPages(page, keyword, res);
 ```
 
 ## artworkページへ片っ端からアクセスする

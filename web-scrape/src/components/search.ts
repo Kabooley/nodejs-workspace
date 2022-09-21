@@ -13,10 +13,10 @@
 import type puppeteer from 'puppeteer';
 import { selectors } from '../constants/selectors';
 
-const encodeWhiteSpaces = (str: string): string => {
-    // 文字列を空白ごと切り分ける
-    return str.split(/[ ,]+/).join('%20');
-}
+// const encodeWhiteSpaces = (str: string): string => {
+//     // 文字列を空白ごと切り分ける
+//     return str.split(/[ ,]+/).join('%20');
+// }
 
 // こちらのsearch.tsはタイムアウト・エラーを起こすし、waitForResponse()は多分肝心なレスポンスを逃している。
 // 
@@ -29,12 +29,13 @@ export const search = async (page: puppeteer.Page, keyword: string): Promise<pup
         //     && res.status() === 200
         // );
 
-        const encoded: string = encodeWhiteSpaces(keyword);
-        console.log(`encoded: ${encoded}`);
+        // const encoded: string = encodeWhiteSpaces(keyword);
+        const escapedKeyword: string = encodeURIComponent(keyword);
+        
         // NOTE: Name it for ErrorStack.
         const waitForResponseCallback = (res: puppeteer.HTTPResponse): boolean => {
             console.log(res.url());
-            return res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${encoded}?word=${encoded}`)
+            return res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
             && res.status() === 200
         };
 

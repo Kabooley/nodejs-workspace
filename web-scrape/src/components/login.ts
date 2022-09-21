@@ -42,6 +42,7 @@ export const login = async (page: puppeteer.Page,
         if(!response || response.url() !== urlLoggedIn && response.status() !== 200 || !response.ok())
         throw new Error('Failed to login');
 
+        console.log(response.headers());
         console.log("Logged in successfully");
     }
     catch(e) {

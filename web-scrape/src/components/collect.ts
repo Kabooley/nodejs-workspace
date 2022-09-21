@@ -33,28 +33,11 @@ interface iIllustMangaElement {
     profileImageUrl?: string;
 }
 
-interface iRequiredSearchResultData {
-    error:boolean;
-    body: {
-        illustManga: {
-            data: iIllustMangaElement[];
-            total: number;
-            bookmarkRanges?: any[];
-        },
-        popular?: {
-            recent?: any[];
-            permanent?: any[];
-        };
-        relatedTags?: string[];
-        tagTransition?: any;
-        zoneConfig?: any;
-        extraData?: any;
-    };
-};
 
 
+let escapedKeyword: string;
 let numberOfResultPages: number;
-let ids: string[];
+let ids: string[] = [];
 let currentPage: number = 0;
 
 
@@ -67,38 +50,43 @@ let currentPage: number = 0;
 const collectElementsAsArray = <T>(data: T[], key: keyof T): T[keyof T][] => {
     const arr = data.map((e: T) => {
         if(e[key] !== undefined) return e[key];
-        // TO SHUT UP COMPILER ERROR, I should add this stupid "else".
         else return undefined;
     });
     return arr.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
 }
 
-/***
+
+/**
+ * Collect artwork id from thumbnails in keyword search result page.
  * 
+ * If the result 
  * 
  * */ 
 export const collectIdsFromResultPages = async (page: puppeteer.Page, keyword: string, res: puppeteer.HTTPResponse): Promise<string[]> => {
     console.log(`Collecting artwork id. Page: ${currentPage + 1}`);
     try {
         // Just to be safe, wait a few sec.
-        await page.waitForNetworkIdle();
-        const json: iRequiredSearchResultData = await res.json();
+        if(currentPage > 0) await page.waitForNetworkIdle();
+        const { illustManga } = await res.json();
         // NOTE: Omit validation of JSON object.
         // Collect ids of thumbnails
-        if(!json.body.illustManga.data || !json.body.illustManga.total) throw new Error('')
-        ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(json.body.illustManga.data, 'id')];
+        if(!illustManga || !illustManga.data || !illustManga.total) throw new Error('Unexpected JSON data has been received')
+        ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
 
+    
+        // Set only once.
+        if(currentPage === 0) {
+            numberOfResultPages = illustManga.total/illustManga.data.length;
+            escapedKeyword = encodeURIComponent(keyword);
+        }
     
         // Define wait functions
         const waitJson = page.waitForResponse(res =>
-            res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}`)
+            res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
             && res.status() === 200
         );
         const loaded = page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] });
 
-        // Set only once.
-        if(currentPage === 0) numberOfResultPages = json.body.illustManga.total/json.body.illustManga.data.length;
-    
         // Transition and recursive call
         if(currentPage < numberOfResultPages){
             currentPage++;
@@ -117,3 +105,67 @@ export const collectIdsFromResultPages = async (page: puppeteer.Page, keyword: s
         throw e;
     }
 };
+
+
+
+// interface iRequiredSearchResultData {
+//     error:boolean;
+//     body: {
+//         illustManga: {
+//             data: iIllustMangaElement[];
+//             total: number;
+//             bookmarkRanges?: any[];
+//         },
+//         popular?: {
+//             recent?: any[];
+//             permanent?: any[];
+//         };
+//         relatedTags?: string[];
+//         tagTransition?: any;
+//         zoneConfig?: any;
+//         extraData?: any;
+//     };
+// };
+// 
+// ver.1
+// 
+// export const collectIdsFromResultPages = async (page: puppeteer.Page, keyword: string, res: puppeteer.HTTPResponse): Promise<string[]> => {
+//     console.log(`Collecting artwork id. Page: ${currentPage + 1}`);
+//     try {
+//         // Just to be safe, wait a few sec.
+//         await page.waitForNetworkIdle();
+//         const json: iRequiredSearchResultData = await res.json();
+//         // NOTE: Omit validation of JSON object.
+//         // Collect ids of thumbnails
+//         if(!json.body.illustManga.data || !json.body.illustManga.total) throw new Error('')
+//         ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(json.body.illustManga.data, 'id')];
+
+    
+//         // Define wait functions
+//         const waitJson = page.waitForResponse(res =>
+//             res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}`)
+//             && res.status() === 200
+//         );
+//         const loaded = page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] });
+
+//         // Set only once.
+//         if(currentPage === 0) numberOfResultPages = json.body.illustManga.total/json.body.illustManga.data.length;
+    
+//         // Transition and recursive call
+//         if(currentPage < numberOfResultPages){
+//             currentPage++;
+//             await page.click(selectors.nextPage);
+//             const r: puppeteer.HTTPResponse = await waitJson;
+//             await loaded;
+//             await collectIdsFromResultPages(page, keyword, r);
+//         }
+        
+//         // DEBUG: 再帰呼び出しだから余計なことをしていないか...
+//         console.log("collectIdsFromResultPages() just before return");
+//         return ids;
+//     }
+//     catch(e) {
+//         await page.screenshot();
+//         throw e;
+//     }
+// };

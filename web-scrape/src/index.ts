@@ -1,9 +1,9 @@
 import * as puppeteer from 'puppeteer';
 import yargs from 'yargs/yargs';
 import { commandName, commandDesc, builder } from './cliParser';
-// import { login } from './components/login';
+import { login } from './components/login';
 import { search } from './components/search';
-// import { collectIdsFromResultPages } from './components/collect';
+import { collectIdsFromResultPages } from './components/collect';
 // import { browserContextProcess } from './debug/closeAllBrowsers';
 
 // 
@@ -71,30 +71,36 @@ const pageSettings = async (page: puppeteer.Page): Promise<void> => {
         console.log(`Accessing to ${url} ...`);
 
         // Navigate to the URL
-        const [response] = await Promise.all([
-            page.goto("https://www.pixiv.net/"),
-            page.waitForNavigation({ waitUntil: ["load", "networkidle2"]})
-        ]);
-        if(!response || response.status() !== 200) throw new Error("Something went wrong while go to https://www.pixiv.net/");
+        // const [response] = await Promise.all([
+        //     page.goto(url),
+        //     page.waitForNavigation({ waitUntil: ["load", "networkidle2"]})
+        // ]);
+        // if(!response || response.status() !== 200) throw new Error(`Something went wrong while go to ${url}`);
+        // // DEBUG: make sure succeeded so far.
+        // console.log(`Logged into ${response.url()}`);
+        // console.log(await response.headers());
+
+        await login(page, { username: username, password: password});
 
         // DEBUG: make sure succeeded so far.
-        console.log(`Logged into ${response.url()}`);
-        console.log(await response.headers());
-
-        // DEBUG: make sure succeeded so far.
-        console.log(page.url());
         await page.screenshot({type: "png", path: "./dist/isSessionValid.png"});
 
         const res: puppeteer.HTTPResponse = await search(page, keyword);
+        const {illustManga} = await res.json();
+        if(!illustManga || !illustManga.data || !illustManga.total) 
+            throw new Error("Unexpected JSON data has been received");
+
+        
+
 
         // DEBUG: make sure succeeded so far.
         console.log(await res.json());
         console.log(page.url());
         await page.screenshot({type: "png", path: "./dist/isSearchResult.png"});
         
-        // const ids: string[] = await collectIdsFromResultPages(page, keyword, res);
-        // // DEBUG: make sure succeeded so far.
-        // console.log(ids);
+        const ids: string[] = await collectIdsFromResultPages(page, keyword, res);
+        // DEBUG: make sure succeeded so far.
+        console.log(ids);
 
         
     }
