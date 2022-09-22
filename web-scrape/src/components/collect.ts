@@ -70,7 +70,6 @@ export const collectIdsFromResultPages = async (page: puppeteer.Page, keyword: s
         // Collect ids of thumbnails
         if(!illustManga || !illustManga.data || !illustManga.total) throw new Error('Unexpected JSON data has been received')
         ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
-
     
         // Set only once.
         if(currentPage === 0) {

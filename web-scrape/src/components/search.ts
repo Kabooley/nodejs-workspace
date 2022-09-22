@@ -4,11 +4,6 @@
  * waitResponse waits for response of request that express... 
  * GET `https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}&order=date_d&mode=all&p=1&s_mode=s_tag&type=all&lang=ja
  * 
- * keywordが空白入りのもじれつだとしたら...
- * 
- * https://www.pixiv.net/tags/COWBOYBEBOP%20spike/artworks?s_mode=s_tag
- * 
- * TODO: 日本語をエンコードしなくてはならないからひっとしなかったんだった！
  * ***********************************************************************/ 
 import type puppeteer from 'puppeteer';
 import { selectors } from '../constants/selectors';

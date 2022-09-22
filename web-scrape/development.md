@@ -10,7 +10,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 [セッションの維持](#セッションの維持)
 [キーワード検索結果を収集する方法の模索]](#キーワード検索結果を収集する方法の模索)
 [artworkページでbookmark数を取得する方法の模索](#artworkページでbookmark数を取得する方法の模索)
-[](#)
+[デザインパターンの導入](#デザインパターンの導入)
 [](#)
 [セレクタ調査](#セレクタ調査)
 [自習](#自習)
@@ -1359,6 +1359,61 @@ Cookie: 省略
 	}
 }
 ```
+
+## デザインパターンの導入
+
+どこで逐次処理と並列処理が導入できそうか？
+
+まずは機能を最小単位へ分解しよう。
+
+1. 検索結果からartworkのidを取得する処理
+
+- ページ遷移時のHTTP Responseを取得してそのbodyからid情報などを取得する
+- 次のページへナビゲートする
+- 次のページへ遷移する際のHTTP Responseをキャプチャして次の呼び出しへ渡す
+
+```TypeScript
+let currentPage: number = 0;
+let lastPage: number = 0;
+let data: string[] = [];
+
+// 汎用性皆無ですな...
+const navigateToNextPage = async (page: puppetter.Page): Promise<puppeteer.HTTPResponse> => {
+	try {
+		let promise = Promise.resolve();
+		const waitForNextResultResponse = page.waitForResponse(cb);
+		const waitForNextResultLoad = page.waitForNavigation(options);
+
+		if(currrentPage < lastPage) {
+			currentPage++;
+			// Triggers navigation to next page.
+			await page.click(selectors.nextPage);
+			// Capture response of next page request.
+			const r: puppeteer.HTTPResponse = await waitForNextResultResponse;
+			await waitForNextResultLoad;
+			return r;
+		}
+		else {
+			// TODO: 最後のページに来たらどうするの？
+		}
+	}
+	catch(e) {
+		console.error(e);
+		throw e;
+	}
+};
+
+
+let res: puppeteer.HTTPResponse = await navigateNextPage(page);
+const { illustManga } = await res.json();
+if(!illustManga || !illustManga.data || !illustManga.data.total) throw new Error();
+data = [...data, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
+// Next page and process goes on...
+res = await navigateNextPage(page)
+
+
+```
+
 
 ## puppeteerでダウンロードするには？Github Issue
 
