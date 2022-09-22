@@ -19,8 +19,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 
 ## TODOS
 
-- TODO: search()の挙動確認
-- TODO: artworkページでブックマークフィルタリング
+- TODO: index.jsの挙動確認。ログインなしですむキーワードで。
 
 ## chromium起動できない問題
 

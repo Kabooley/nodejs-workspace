@@ -5,7 +5,7 @@ import type puppeteer from 'puppeteer';
 import { selectors } from '../constants/selectors';
 
 // Only requiring title and id.
-interface iIllustMangaElement {
+export interface iIllustMangaElement {
     id: string;
     title: string;
     illustType?: number;
@@ -45,7 +45,7 @@ let currentPage: number = 0;
  * @param
  * @param
  * */ 
-const collectElementsAsArray = <T>(data: T[], key: keyof T): T[keyof T][] => {
+export const collectElementsAsArray = <T>(data: T[], key: keyof T): T[keyof T][] => {
     const arr = data.map((e: T) => {
         if(e[key] !== undefined) return e[key];
         else return undefined;
