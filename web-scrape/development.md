@@ -1372,46 +1372,98 @@ Cookie: 省略
 - 次のページへナビゲートする
 - 次のページへ遷移する際のHTTP Responseをキャプチャして次の呼び出しへ渡す
 
+
 ```TypeScript
-let currentPage: number = 0;
-let lastPage: number = 0;
-let data: string[] = [];
+// navigateToNextPage()が汎用的な「ページ遷移」関数にできそう
 
-// 汎用性皆無ですな...
-const navigateToNextPage = async (page: puppetter.Page): Promise<puppeteer.HTTPResponse> => {
-	try {
-		let promise = Promise.resolve();
-		const waitForNextResultResponse = page.waitForResponse(cb);
-		const waitForNextResultLoad = page.waitForNavigation(options);
-
-		if(currrentPage < lastPage) {
-			currentPage++;
-			// Triggers navigation to next page.
-			await page.click(selectors.nextPage);
-			// Capture response of next page request.
-			const r: puppeteer.HTTPResponse = await waitForNextResultResponse;
-			await waitForNextResultLoad;
-			return r;
-		}
-		else {
-			// TODO: 最後のページに来たらどうするの？
-		}
-	}
-	catch(e) {
-		console.error(e);
-		throw e;
-	}
+interface iOptionNavigateToNextPage {
+    waitForResponseCallback?: ((res: puppeteer.HTTPResponse) => boolean | Promise<boolean>);
+    navigationOptions?: puppeteer.WaitForOptions;
 };
 
+const defaultWaitForResponseCallback = (res: puppeteer.HTTPResponse): boolean => {
+    return res.status() === 200;
+};
 
-let res: puppeteer.HTTPResponse = await navigateNextPage(page);
-const { illustManga } = await res.json();
-if(!illustManga || !illustManga.data || !illustManga.data.total) throw new Error();
-data = [...data, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
-// Next page and process goes on...
-res = await navigateNextPage(page)
+const defaultNavigationOption: puppeteer.WaitForOptions = {
+    waitUntil: ["load", "domcontentloaded"]
+};
 
+/******
+ * Navigate to next page and returns HTTP Response.
+ * 
+ * @param {() => Promise<void>} trigger - Function that triggers page transition.
+ * @param {iOptionNavigateToNextPage} [options] - Optional parameters 
+ * @return {Promise<puppeteer.HTTPResponse>} - HTTP Response waitForResponse() has been returned.
+ * 
+ * Trigger navigation by firing trigger(), get HTTP Response, wait for navigation has been done.
+ * */ 
+const navigateToNextPage = async (
+        page: puppeteer.Page, 
+        trigger: () => Promise<void>,
+        options? : iOptionsNavigateToNextPage
+    ): Promise<puppeteer.HTTPResponse> => {
+    try {
+        let cb = defaultWaitForResponseCallback;
+        let navOption = defaultNavigationOption;
+        if(options){
+            const { waitForResponseCallback, navigationOptions } = options;
+            cb = waitForResponseCallback ? waitForResponseCallback : cb;
+            navOption = navigationOptions ? navigationOptions : navOption;
+        }
+		const waitForNextResultResponse = page.waitForResponse(cb);
+		const waitForNextPageLoad = page.waitForNavigation(navigationOption);
 
+        // Triggers navigation to next page.
+        await trigger();
+        // Capture response of next page request.
+        const r: puppeteer.HTTPResponse = await waitForNextResultResponse;
+        await waitForNextPageLoad;
+        return r;
+    }
+    catch(e) {
+        throw e;
+    }
+}
+
+// USAGE
+const nextResultPageTrigger = async (): Promise<void> => {
+    await page.click(selectors.nextPage);
+}
+
+const keywordSearchTrigger = async (): Promise<void> => {
+    await page.keyboard.press('Enter');
+};
+
+const cb = (res: puppeteer.HTTPResponse): boolean => {
+    console.log(res.url());
+    return res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
+    && res.status() === 200
+};
+
+// while()で必須の変数
+let currentPage: number = 0;    // 0にしておかないとwhile()が機能しない
+let lastPage: number = 1;       // 1にしておかないとwhile()が機能しない
+let data: string[] = [];        // stringを前提にしているよ
+
+// 検索キーワードの入力
+await page.type(selectors.searchBox, keyword, { delay: 100 });
+
+// 検索結果ページすべてからartworkのid取得
+while(currentPage < lastPage) {
+    const res: puppeteer.HTTPResponse = await navigateToNextPage(page, nextResultPageTrigger, { waitForResponseCallback: cb });
+    const { illustManga } = await res.json();
+    if(!illustManga || !illustManga.data || !illustManga.data.total)
+        throw new Error("Unexpected HTTP response has been received");
+    data = [...data, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
+    if(currentPage === 0) {
+        // Update lastPage.
+        lastPage = illustManga0.data.length ? illustManga0.data.total / illustManga0.data.length : 1;
+        // これはよくないやりかたですな...
+        currentPage++;
+    }
+    currentPage++;
+}
 ```
 
 
