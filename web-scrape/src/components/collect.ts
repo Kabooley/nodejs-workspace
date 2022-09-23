@@ -148,6 +148,22 @@ export const collectIdsFromResultPagesVer2 = async (page: puppeteer.Page, keywor
     }
 };
 
+// TODO: USAGE of ./TaskQueue.ts
+
+import { TaskQueue } from './TaskQueue';
+
+const collectingQueue = new TaskQueue();
+function collectIds() {};
+function collectTitles() {};
+function collectAuthors() {};
+function completeCollect() {
+    return Promise.resolve();
+}
+
+collectingQueue.push(collectIds);
+collectingQueue.push(collectTitles);
+collectingQueue.push(collectAuthors);
+collectingQueue.execute(completeCollect);
 
 
 // interface iRequiredSearchResultData {
