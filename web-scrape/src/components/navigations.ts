@@ -1,3 +1,6 @@
+/**********************************************************************
+ * TODO: Make sure Navigation class works and then remove all functions but class.
+ * ********************************************************************/ 
 import type puppeteer from 'puppeteer';
 
 interface iOptionNavigateToNextPage {
@@ -49,3 +52,62 @@ export const navigateToNextPage = async (
         throw e;
     }
 };
+
+/****
+ * Navigation class
+ * 
+ * @constructor
+ * @param {puppeteer.Page} page - puppeteer page instance.
+ * @param {() => Promise<any>} trigger - Asychronous function taht triggers navigation.
+ * @param {puppeteer.WaitForOptions} [options] - Options for page.waitForNavigation.
+ * */ 
+export class Navigation {
+    private tasks: (() => Promise<void>)[];
+    private waitForNavigation: Promise<puppeteer.HTTPResponse | null>;
+    constructor(
+        page: puppeteer.Page, 
+        private trigger: () => Promise<any>,
+        options?: puppeteer.WaitForOptions) {
+            this.waitForNavigation = page.waitForNavigation(options ? options : { waitUntil: ["load", "domcontentloaded"]});
+            this.tasks = [];
+    };
+
+    push(task: () => Promise<any>): void {
+        this.tasks.push(task);
+    };
+
+    // Actually this is not totally private method at all.
+    // Optionally tasks execution just after trigger called.
+    async _executeTasks(): Promise<any[]> {
+        let result: any[] = [];
+        for(const task of this.tasks) {
+            const r = await task;
+            result.push(r);
+        } 
+        return result;
+    };
+
+    // Navigate to next page.
+    async navigate(): Promise<(puppeteer.HTTPResponse | any)[]> {
+        await this.trigger();
+        const rest: any[] = await this._executeTasks();
+        const res: puppeteer.HTTPResponse | null = await this.waitForNavigation;
+        return [res, ...rest];
+    };
+}
+
+
+// 
+// --- USAGE OF Navigation class
+// 
+// async function clickNextButton(page) {
+//     return await page.click("button.nextPage");
+// }
+// async function captureResponse(page) {
+//     return page.waitForResponse((res) => {
+//         res.status === 200;
+//     })
+// }
+// const navigation = new Navigation(page, clickNextButton);
+// navigation.push(captureResponse);
+// await navigation.navigate();

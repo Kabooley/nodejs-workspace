@@ -78,3 +78,71 @@ map()はコールバック内で定義する条件に一致しない要素は返
 なのでmap()を使った後はfilterでfalthyを排除する機能を追加してフィルタリングする場面が多い。
 
 `[...].map(/* get element you want */).filter(/* filter not to return falthy*/)`
+
+## Promiseとasync/awaitの変換
+
+基本: async関数の戻り値は暗黙的にPromiseにラップされる。
+
+```JavaScript
+async function bar() {
+  return 11;
+}
+
+// Very similar to next function
+
+function bar() {
+  return Promise.resolve(1);
+}
+```
+
+上記の例は同期的な呼び出しになる。
+
+async関数ではawait式が呼び出されるまで同期的に実行される。
+
+なので、await式のない非同期関数は同期的に実行されるのである。
+
+ということで、非同期に実行するには次の通りにする。
+
+```JavaScript
+// returnしていないので戻り値は暗黙的にundefinedをラップしたPromiseになる
+async function foo() {
+  await 1;
+};
+
+// Equal to next function.
+
+function foo() {
+  return Promise.resolve(1).then(() => undefined);
+};
+```
+
+Promiseへの変換を見ての通り、
+
+await式の後のコードは`.then`コールバックの中に存在すると考えていい。
+
+await式を含むasync関数のチェーン：
+
+```JavaScript
+async function task1() {
+  await Promise.solve("task 1 is done");
+}
+async function task2() {
+  await Promise.solve("task 2 is done");
+}
+async function task3() {
+  await Promise.solve("task 3 is done");
+}
+
+
+const t1 = task1();
+const t2 = task2();
+const t3 = task3();
+
+const tasks = [t1, t2, t3];
+let promise = Promise.resolve();
+tasks.forEach(task => {
+  promise = promise.then(() => return task());
+});
+
+await promise.then(() => console.log('done'));
+```
