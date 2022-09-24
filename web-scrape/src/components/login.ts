@@ -17,17 +17,6 @@ export const login = async (page: puppeteer.Page,
         console.log('Logging in...')
         await page.goto(url, { waitUntil: "domcontentloaded" });
 
-
-        // This may not necessary. After all page.type and page.click will throw error if the selector does not match anything.
-        // 
-        // Make sure required DOM is exists
-        await page.evaluate((selectors) => {
-            const $username: HTMLInputElement | null = document.querySelector<HTMLInputElement>(selectors.usernameForm);
-            const $password: HTMLInputElement | null = document.querySelector<HTMLInputElement>(selectors.passwordForm);
-            const $login: HTMLElement | null = document.querySelector<HTMLElement>(selectors.loginButton);
-            if(!$username || !$login || !$password) throw new Error('DOM: username or password or login-button were not found');
-        }, selectors);
-        
         console.log('Typing...')
         // Fill login form.
         await page.type(selectors.usernameForm, username, typeOptions);
@@ -53,31 +42,56 @@ export const login = async (page: puppeteer.Page,
 };
 
 
-// // 完全にひとまず感で
-// const makesurePassedLogin = async (page: puppeteer.Page) => {
+
+// --- LEGACY ---
+// 
+// // ver.1
+// export const login = async (page: puppeteer.Page, 
+//     {username, password}: {username: string, password: string}
+//     ): Promise<void> => {
 //     try {
+//         console.log('Logging in...')
+//         await page.goto(url, { waitUntil: "domcontentloaded" });
 
-//         // 通常のURLへ移動
-//         // ログイン必須検索ワードで検索開始
-//         // 検索結果ページに行かなかったらセッション使われていない
+
+//         // This may not necessary. After all page.type and page.click will throw error if the selector does not match anything.
 //         // 
-//         await page.goto(urlLoggedIn);
-//         await page.waitForNavigation({waitUntil: ["load", "networkidle2"]});
+//         // Make sure required DOM is exists
+//         await page.evaluate((selectors) => {
+//             const $username: HTMLInputElement | null = document.querySelector<HTMLInputElement>(selectors.usernameForm);
+//             const $password: HTMLInputElement | null = document.querySelector<HTMLInputElement>(selectors.passwordForm);
+//             const $login: HTMLElement | null = document.querySelector<HTMLElement>(selectors.loginButton);
+//             if(!$username || !$login || !$password) throw new Error('DOM: username or password or login-button were not found');
+//         }, selectors);
+        
+//         console.log('Typing...')
+//         // Fill login form.
+//         await page.type(selectors.usernameForm, username, typeOptions);
+//         await page.type(selectors.passwordForm, password, typeOptions);
 
-//         await page.type(selectors.searchBox, "R-18", { delay: 100 });
+//         // Click login and wait until network idle.
+//         const [response] = await Promise.all([
+//             page.waitForNavigation({ waitUntil: ["networkidle2"] }),
+//             page.click(selectors.loginButton)
+//         ]);
 
-//         await Promise.all([
-//             page.keyboard.press('Enter'),
-//             page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] })
-//         ])
+//         if(!response || response.url() !== urlLoggedIn && response.status() !== 200 || !response.ok())
+//         throw new Error('Failed to login');
+
+//         console.log(response.headers());
+//         console.log("Logged in successfully");
 //     }
 //     catch(e) {
+//         // DEBUG: take screenshot to know what happened
+//         await page.screenshot({type: "png", path: "./dist/errorLoggingIn.png"});
 //         throw e;
 //     }
-// }
-
-
-// // NOTE: Basic認証で突破することを試みる...やっぱだめだ
+// };
+// 
+// 
+// 
+// 
+// // Basic認証で突破することを試みる...やっぱだめだ
 // export async function login(
 //     page: puppeteer.Page, 
 //     {username, password}: {username: string, password: string}

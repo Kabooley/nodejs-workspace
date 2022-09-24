@@ -3,9 +3,9 @@ import yargs from 'yargs/yargs';
 import { commandName, commandDesc, builder } from './cliParser';
 import { login } from './components/login';
 // import { search } from './components/search';
-import { collectElementsAsArray } from './components/collect';
+import { Collect } from './components/collect';
+import { Navigation } from './components/Navigations';
 import type { iIllustMangaElement } from './components/collect';
-import { navigateToNextPage } from './components/navigations';
 import { selectors } from './constants/selectors';
 
 // 
@@ -24,7 +24,7 @@ const commands: iCommand = {};
 const options: puppeteer.PuppeteerLaunchOptions = {
     headless: true,
     args: ['--disable-infobars', ],
-    // userDataDir: "./userdata/",
+    userDataDir: "./userdata/",
     handleSIGINT: true,
     slowMo: 150,
 };
@@ -72,6 +72,7 @@ const pageSettings = async (page: puppeteer.Page): Promise<void> => {
         const page: puppeteer.Page = await getFirstTab(browser);
         await pageSettings(page);
 
+        // DEBUG:
         console.log(`Accessing to ${url} ...`);
 
         await login(page, { username: username, password: password});
@@ -132,6 +133,9 @@ const pageSettings = async (page: puppeteer.Page): Promise<void> => {
     }
 })();
 
+// --- LEGACY ---
+// 
+// 
 // // 
 // // -- MAIN PROCESS --: ver.2
 // // 
