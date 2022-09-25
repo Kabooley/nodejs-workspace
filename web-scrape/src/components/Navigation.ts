@@ -1,10 +1,15 @@
 /**********************************************************************
- * TODO: trigger()として受け入れる関数の型が通るように修正
+ * Navigation class:
+ * 
+ * TODO: puppeteer.Pageをコンストラクタ引数に取るようにしなくていいようにする。
+ * 
+ * プロミスだけ取得できればいいので。
  * ********************************************************************/ 
 import type puppeteer from 'puppeteer';
 
-// Default options for page.waitForNavigation()
+// Default settings for page.waitFor methods
 const defaultOptions: puppeteer.WaitForOptions = { waitUntil: ["load", "domcontentloaded"]};
+const defaultWaitForResponseCallback = function(res: puppeteer.HTTPResponse) { return res.status() === 200;};
 
 /****
  * Navigation class
@@ -13,45 +18,113 @@ const defaultOptions: puppeteer.WaitForOptions = { waitUntil: ["load", "domconte
  * @param {puppeteer.Page} page - puppeteer page instance.
  * @param {() => Promise<any>} trigger - Asychronous function taht triggers navigation.
  * @param {puppeteer.WaitForOptions} [options] - Options for page.waitForNavigation.
+ * 
+ * 
+ * Usage:
+ * ```
+ * navigate.resetWaitForResponse(page.waitForResponse(...));
+ * navigate.resetWaitForNavigation(page.waitForNavigation(...));
+ * navigate.push([...taskPromises]);
+ * const [responses] = await navigate(function() {return page.click(".button");});
+ * const [responses] = await navigateBy(function() {return page.click(".button");});
+ * const [responses] = await navigateBy(function() {return page.keyboard.press("Enter");});
+ * // Page transition has been completed...
+ * ```
+ * 
  * */ 
 export class Navigation {
-    private tasks: (() => Promise<void>)[];
+    private tasks: Promise<any>[];
     private waitForNavigation: Promise<puppeteer.HTTPResponse | null>;
+    private waitForResponse: Promise<puppeteer.HTTPResponse>;
     constructor(
-        page: puppeteer.Page, 
-        private trigger: () => Promise<any>,
-        options?: puppeteer.WaitForOptions
+        page: puppeteer.Page
         ) {
-            this.waitForNavigation = page.waitForNavigation(options ? options : defaultOptions);
+            this.waitForNavigation = page.waitForNavigation(defaultOptions);
+            this.waitForResponse = page.waitForResponse(defaultWaitForResponseCallback);
             this.tasks = [];
             this.push = this.push.bind(this);
+            this.navigateBy = this.navigateBy.bind(this);
             this.navigate = this.navigate.bind(this);
-            this._executeTasks = this._executeTasks.bind(this);
     };
 
-    push(task: () => Promise<any>): void {
+    push(task: Promise<any>): void {
         this.tasks.push(task);
     };
 
-    // Actually this is not totally private method at all.
-    // Optionally tasks execution just after trigger called.
-    async _executeTasks(): Promise<any[]> {
-        let result: any[] = [];
-        for(const task of this.tasks) {
-            const r = await task;
-            result.push(r);
-        } 
-        return result;
+    resetWaitForResponseCallback(cb: Promise<puppeteer.HTTPResponse>): void {
+        this.waitForResponse = cb;
     };
 
-    // Navigate to next page.
-    async navigate(): Promise<(puppeteer.HTTPResponse | any)[]> {
-        await this.trigger();
-        const rest: any[] = await this._executeTasks();
-        const res: puppeteer.HTTPResponse | null = await this.waitForNavigation;
-        return [...rest, res];
+    resetWaitForNavigation(p: Promise<puppeteer.HTTPResponse | null>): void {
+        this.waitForNavigation = p;
     };
-}
+
+    /******
+     * Navigate by trigger and execute tasks.
+     * 
+     * 
+     * */ 
+    async navigate(trigger: () => Promise<void>): Promise<(puppeteer.HTTPResponse | any)[]> {
+        return await Promise.all([
+            ...this.tasks,
+            this.waitForResponse,
+            this.waitForNavigation,
+            trigger()
+        ]);
+    };
+
+    /***
+     * Bit faster than navigate()
+     * navigate()とほぼ変わらないし影響もしないからいらないかも。
+     * */ 
+    async navigateBy(trigger: () => Promise<void>): Promise<(puppeteer.HTTPResponse | any)[]> {
+        return await Promise.all([
+            this.waitForResponse,
+            this.waitForNavigation,
+            trigger()
+        ]);
+    };
+};
+
+
+// export class Navigation {
+//     private tasks: (() => Promise<void>)[];
+//     private waitForNavigation: Promise<puppeteer.HTTPResponse | null>;
+//     constructor(
+//         page: puppeteer.Page, 
+//         private trigger: () => Promise<any>,
+//         options?: puppeteer.WaitForOptions
+//         ) {
+//             this.waitForNavigation = page.waitForNavigation(options ? options : defaultOptions);
+//             this.tasks = [];
+//             this.push = this.push.bind(this);
+//             this.navigate = this.navigate.bind(this);
+//             this._executeTasks = this._executeTasks.bind(this);
+//     };
+
+//     push(task: () => Promise<any>): void {
+//         this.tasks.push(task);
+//     };
+
+//     // Actually this is not totally private method at all.
+//     // Optionally tasks execution just after trigger called.
+//     async _executeTasks(): Promise<any[]> {
+//         let result: any[] = [];
+//         for(const task of this.tasks) {
+//             const r = await task;
+//             result.push(r);
+//         } 
+//         return result;
+//     };
+
+//     // Navigate to next page.
+//     async navigate(): Promise<(puppeteer.HTTPResponse | any)[]> {
+//         await this.trigger();
+//         const rest: any[] = await this._executeTasks();
+//         const res: puppeteer.HTTPResponse | null = await this.waitForNavigation;
+//         return [...rest, res];
+//     };
+// }
 
 
 // 
