@@ -3,7 +3,7 @@
  * *******************************************************************/ 
 
 // Only requiring title and id.
-export interface iIllustMangaElement {
+export interface iIllustMangaDataElement {
     id: string;
     title: string;
     illustType?: number;
@@ -27,6 +27,11 @@ export interface iIllustMangaElement {
     isUnlisted?: boolean;
     isMasked?: boolean;
     profileImageUrl?: string;
+};
+
+export interface iIllustManga {
+    data: iIllustMangaDataElement[],
+    total: number
 };
 
 
@@ -70,9 +75,9 @@ export class Collect<T> {
      * Reset data.
      * Remove reference of previous data.
      * */ 
-    resetData(data: T): void {
+    resetData(data: T[]): void {
         this.data = [];
-        this.data.concat(data);
+        this.data = [...data];
     }
 }
 

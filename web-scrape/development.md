@@ -933,6 +933,16 @@ const res: puppeteer.HTTPResponse = await search(page, keyword);
 const ids: number[] = await collectIdsFromResultPages(page, keyword, res);
 ```
 
+## illustManga.dataに挟まれる広告要素
+
+```JSON
+{
+    {
+        "isAdContainer": true
+    },
+}
+```
+
 ## artworkページへ片っ端からアクセスする
 
 - artworkページへアクセスしたらオリジナルのURLを取得できてしまうのか？
