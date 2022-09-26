@@ -34,6 +34,11 @@ export interface iIllustManga {
     total: number
 };
 
+export interface iBodyIncludesIllustManga {
+    error: boolean;
+    body: iIllustManga;
+};
+
 
 export class Collect<T> {
     private data: T[];

@@ -3,12 +3,11 @@
  * 
  * Collect ids from search result pages
  * 
- * TODO: 本当はresult.dataには広告要素が混じる。これをフィルタリングで排除すること。
  * 
  * */ 
 import type puppeteer from 'puppeteer';
 import { Collect } from './Collect';
-import type { iIllustMangaDataElement, iIllustManga  } from './Collect';
+import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } from './Collect';
 import { Navigation } from './Navigation';
 import { selectors } from '../constants/selectors';
 
@@ -19,15 +18,18 @@ import { selectors } from '../constants/selectors';
  * */ 
 export const collectFromSearchResult = async (
     page: puppeteer.Page, 
-    res: puppeteer.HTTPResponse, 
+    res: iBodyIncludesIllustManga, 
     key: keyof iIllustMangaDataElement,
     httpResponseFilter: (res: puppeteer.HTTPResponse) => boolean
     ): Promise<string[]> => {
         try {
-            let result: iIllustManga = (await res.json()).illustManga;
+            // Check if res is not includes required property.
+            // TODO: 型不一致エラーの修正と`.?`のことを調べる
+            // TODO: このチェックはこの関数に含めるべきか否か検討する
+            let result: iIllustManga = res?.body?.illustManga;
             
             // DEBUG:
-            // どうやらこの時点でundefinedな模様...
+            // TODO: illustMangaが取得できているか確認
             console.log(result);
 
             if(!result || !result.data || !result.total) throw new Error("Cannot capture illustManga data.");

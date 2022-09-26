@@ -6,10 +6,12 @@
  * 
  * ***********************************************************************/ 
 import type puppeteer from 'puppeteer';
+import type { iBodyIncludesIllustManga } from './Collect';
 import { Navigation } from './Navigation';
+import { getFirstElementToJson } from '../helper/lessCommons';
 import { selectors } from '../constants/selectors';
 
-export const search = async (page: puppeteer.Page, keyword: string): Promise<puppeteer.HTTPResponse> => {
+export const search = async (page: puppeteer.Page, keyword: string): Promise<iBodyIncludesIllustManga> => {
     try {
         const escapedKeyword: string = encodeURIComponent(keyword);
         const navigation = new Navigation(page);
@@ -19,13 +21,8 @@ export const search = async (page: puppeteer.Page, keyword: string): Promise<pup
         await page.type(selectors.searchBox, keyword, { delay: 100 });
         const res: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(function() { return page.keyboard.press('Enter')});
 
-        // 
-        // DEBUG:
-        console.log(page.url());
-        console.log(res);
-        console.log(res[0]);
-
-        return res[0];
+        // NOTE: スコープアウトする前にresponseをjson()してから返すこと
+        return await getFirstElementToJson<iBodyIncludesIllustManga>(res);
     }
     catch(e) {
         // DEBUG: take screenshot to know what happened

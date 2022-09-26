@@ -4,6 +4,7 @@ import { commandName, commandDesc, builder } from './cliParser';
 import { initialize } from './helper/initialize';
 import { search } from './components/search';
 import { collectFromSearchResult } from './components/collectFromResultPage';
+import type { iBodyIncludesIllustManga } from './components/Collect';
 // import { login } from './components/login';
 
 // 
@@ -59,7 +60,9 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         // await login(page, { username: username, password: password});
         await page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]});
 
-        const res: puppeteer.HTTPResponse = await search(page, keyword);
+        // TODO: search()で取得したHTTPResponseはそのまま返しても使い物にならない。
+        // なのでsearch()でjson()してから返すようにする
+        const res: iBodyIncludesIllustManga = await search(page, keyword);
         const ids: string[] = await collectFromSearchResult(page, res, 'id', (r) => {return r.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
         && r.status() === 200});
 
