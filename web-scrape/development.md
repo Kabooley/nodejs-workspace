@@ -5,8 +5,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 ## 目次
 
 [TODOS](#TODOS)
-[ページ遷移とレスポンスの取得の両立](#ページ遷移とレスポンスの取得の両立)
-[ページ遷移と特定のレスポンスを取得する方法](#ページ遷移と特定のレスポンスを取得する方法)
+[決定版：ページ遷移とレスポンス取得の両立](#決定版：ページ遷移とレスポンス取得の両立)
 [セッションの維持](#セッションの維持)
 [キーワード検索結果を収集する方法の模索]](#キーワード検索結果を収集する方法の模索)
 [artworkページでbookmark数を取得する方法の模索](#artworkページでbookmark数を取得する方法の模索)
@@ -112,125 +111,155 @@ username:
 - sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm
 - div.sc-l7cibp-3.gCRmsl nav.sc-xhhh7v-0.kYtoqc a:last-child
 
-## ページ遷移が成功したのかちゃんと調べる
+## ページ遷移が成功したのか調べる
 
-https://medium.com/superluminar/how-to-wait-for-and-intercept-a-particular-http-request-in-puppeteer-66863a8403fe
-
-https://github.com/puppeteer/puppeteer/issues/5066
-
-以下の方法なら
-
-responseを調べてstatus: 200なのかどうかで判断できる
-urlも遷移後のURLなのかわかる
-
-NOTE:この方法で取得できるresponse.url()はページ遷移後のURLである
+`page.waitForNavigation()`の戻り値のHTTPResponseのステータスをチェックすればいい。
 
 ```TypeScript
-// Before
-await Promise.all([
-    page.waitForNavigation({ waitUntil: ["networkidle2"] }),
-    page.click(selectors.loginButton),
-    console.log('Form sending...')
+const [navigationRes] = await Promise.all([
+    page.waitForNavigation(options),
+    page.click(selector)
 ]);
-
-// After
-const [response] = await Promise.all([
-    page.waitForNavigation({ waitUntil: ["networkidle2"] }),
-    page.click(selectors.loginButton)
-]);
-if(!response || response.url() !== urlLoggedIn && response.status() !== 200 || !response.ok())
-throw new Error('Failed to login');
-
-console.log("Logged in successfully");
+if(!navigationRes) throw new Error('Navigation due to History API');
+if(navigationRes.status() !== 200) throw new Error('Server response status code was not 200');
 ```
 
-よくみたら`page.waitForNavigation()`は戻り値`Promise<HTTPResponse>`だったのでそのまま戻り値取得すればよかった。
+## 検索結果ページ複数になる時の次のページへ行くトリガー
 
-使えなかったけどどこかで役に立ちそうな方法：
+検索結果ページのページ数のとこの
 
-https://github.com/puppeteer/puppeteer/issues/5066
-
-を参考にして
-
-```TypeScript
-// URLはこれでいいみたい
-const responsePromise = page.waitForResponse("https://www.pixiv.net/");
-await page.click(selectors.loginButton);
-const response = await responsePromise;
-if(response.status() === 200 && response.ok()) return true; // true as succeeded to login.
+```
+< 1 2 3 4 5 6 7 >
 ```
 
-サーバレスポンスからステータスを確認できた。
+`>`だけクリックしていけば1ページずつ移動してくれる
 
-## ページ遷移とレスポンスの取得の両立
 
-https://github.com/puppeteer/puppeteer/issues/1205
+## オブジェクト validation
 
-`page.goto()`はその引数のURLに対する`HTTP.Response`を戻り値として返す。
-
-なのでそのURLのレスポンスを取得するために`page.waitForResponse()`と一緒に使う必要はない。
-
-だから、gotoのベストプラクティスはそのまま使える。
-
-```JavaScript
-const [response] = await Promise.all([
-	page.goto('https://www.example.com/'),
-	page.waitForNavigation({ waitUntil: ["load", "networkidle02"]})
-]);
-
-expect(response.status()).to.equal(200)
-```
-
-## ページ遷移と特定のレスポンスを取得する方法
-
-先の例と異なり、page.goto()以外のメソッドがページ遷移をトリガーしたときに、
-
-特定のレスポンスを取得したい。
+取得した`puppeteer.HTTPResponse`を`.json()`したときに欲しいデータを持っているか検査したい。
 
 そんなとき。
+
+
+
+## 決定版：ページ遷移とレスポンス取得の両立
+
+puppeteerにおいて`navigation`という単語が意味するところは詰まるところ「ページ遷移」である。
+
+puppetterのPageクラスには`Page.waitForNavigation()`というナビゲーションが発生したら指定のイベントが起こるまで「待つ（プロミスが待機される）」メソッドがある。
+
+なのでページ遷移がトリガーされたらこの`Page.waitForNavigation()`でページ遷移が完了するまで待機することで
+
+次のページが完全にロードされたことを確認でき、作業を再開できる。
+
+ということで、ページ遷移がトリガーされたら`Page.waitForNavigation()`が発動するようにしておけば
+
+安全に次のページにたどり着くまで待ってくれるということになる。
+
+一方、
+
+実はpuppeteerのPageクラスにおいてこのページ遷移を待つ機能を標準搭載するメソッドがあったりする。
+
+なので標準搭載メソッドを使うときと非搭載メソッドを使うときとで、
+
+それぞれ別々にページ遷移完了を定義しなくてはならない。
+
+で、
+
+puppeteerの主なページ遷移をトリガーするメソッドが以下の3つ（独断と偏見）。
+
+- `page.goto`: 標準でnavigation機能が備わっている。
+- `page.click`: navigation機能はない。
+- `page.keyboard.press`: navigation機能はない。
+
+navigation機能が搭載されているか否かでページ遷移定義方法が異なるので、二通りとなる。
+
+#### `page.goto()`とページ遷移
+
+これは簡単。
+
+```TypeScript
+const res: puppeteer.HTTPResponse | null = await page.goto(url, { waitUntil: ["load", "networkidle2"]});
+```
+
+戻り値はメインリソースの最後のリダイレクトのHTTPレスポンスによって解決されたプロミスを返す。
+
+これでwaintUntilオプションで指定したページ遷移イベントの発生を待つ。
+
+ということでpage.gotoはpage.waitForNavigationいらずである。
+
+`page.goto()`と任意のHTTPレスポンスの取得の両立となると、
+
+結局`page.click`のページ遷移の方法と同じになる。
+
+```TypeScript
+const [requiredRes, mainRes] = await Promise.all([
+    page.waitForResponse(filter),
+    page.goto(url, { waitUntil: ["load", "networkidle2"]})
+]);
+```
+
+要は`page.waitForNavigation()`がいらないだけである。
+
+注意：
+
+`page.goto`はレスポンスが400系や500系のステータスコードが返されても別にエラー出さないのでステータスコードのチェックを欠かしてはならない。
+
+#### `page.waitForNavigation()`ありでのページ遷移と任意のHTTPレスポンス取得
+
+`page.click()`のページで示されている通り、
+
+navigationをトリガーするメソッドと一緒にpage.waitFornavigation()を呼び出す場合、
+
+常に正しい方法はPromise.allでプロミスの非同期実行とすべての解決を待つことである。
+
+これはnavigationのトリガーが`page.click`でも`page.keyboard.press`でも同じである（検証した限りは）。
+
+でPromise.all()に渡すプロミスの順番が重要。
+
+トリガー関数は一番最後である。
+
+```TypeScript
+const [res] = await Promise.all([
+    page.waitForNavigation(options),
+    // トリガーメソッドは最後！
+    page.click(selector)
+]);
+```
+
+公式そのまんまだけど、page.keyboard.pressも同じ。
+
+
+```TypeScript
+const [res] = await Promise.all([
+    page.waitForNavigation(options),
+    // トリガーメソッドは最後！
+    page.keyboard.press('Enter');
+]);
+```
+
+で、このルールを守れば任意のpage.wait...()メソッドを追加できる。
+
+
+```TypeScript
+const [res, waitForNavRes] = await Promise.all([
+    page.waitForResponse(filter),
+    page.waitForNavigation(options),
+    page.click(selector)
+]);
+```
+
+これで任意のHTTPレスポンスの取得とページ遷移を両立できる。
+
+
+#### それ以外の方法
 
 参考：
 
 https://stackoverflow.com/a/71521550/13891684
 
 https://pixeljets.com/blog/puppeteer-click-get-xhr-response/
-
-`page.click`か`page.keyboard.press()`と、それに伴って発生するhttpResponseから任意のレスポンスを取得を両立する方法。
-
-例：
-
-```TypeScript
-const requiredResponseURL = "https://www.hogehoge.hoge/resource";
-
-export const search = async (page: puppeteer.Page, keyword: string): Promise<void> => {
-    try {
-        await page.type(selectors.searchBox, keyword, { delay: 100 });
-
-        page.on('response', _res => {
-            if(_res.url() === requireResponseURL) console.log(_res)
-        })
-        const [res] = await Promise.all([
-            page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] }),
-            page.keyboard.press("Enter"),
-        ]);
-        if(!res || res.url() !== `https://www.pixiv.net/tags/${keyword}/artworks?s_mode=s_tag` && res.status() !== 200 || !res.ok()){
-            throw new Error(/**/)
-        }
-        console.log('Result page');
-    }
-    catch(e) {
-        // ....
-    }
-}
-```
-
-これだと、なぜか`waitForNavigation()`のほうがエラーを起こす。
-
-あと、`page.on('response')`では本来取得するべきレスポンスのすべてを取得しない。
-
-3つくらいで終わる。
-
-うまくいく例：
 
 ```TypeScript
 const requiredResponseURL = "https://www.hogehoge.hoge/resource";
@@ -252,8 +281,6 @@ export const search = async (page: puppeteer.Page, keyword: string): Promise<voi
 }
 ```
 
-これだと欲しいレスポンスが取得できる。
-
 使っているテクニック：
 
 ```JavaScript
@@ -264,198 +291,96 @@ await waiter;
 
 なんかこのテクニックは多くのウェブサイトで確認できる。
 
-これでHTTPレスポンスが取得できるし、
+#### うまくいきそうでうまくいかない方法
 
-promise.all()で`page.click()`と`page.waitForNavigation()`を組み合わせる方法じゃないとページ遷移できない呪縛から解放される。
+`page.on('response')`で取得するとき。なぜかうまくいかない。
 
-取得したJSON
+#### クラスにしてみた
 
-```JavaScript
-{
-  data: [
-    {
-      id: '101116741',
-      title: 'ヨルハ二号B型',
-      illustType: 2,
-      xRestrict: 1,
-      restrict: 0,
-      sl: 6,
-      url: 'https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/10/02/42/45/101116741_square1200.jpg',
-      description: '',
-      tags: [Array],
-      userId: '51217862',
-      userName: 'ｍａｅｎｃｈｕ',
-      width: 1920,
-      height: 1080,
-      pageCount: 1,
-      isBookmarkable: true,
-      bookmarkData: null,
-      alt: '#ヨルハ二号B型 ヨルハ二号B型 - ｍａｅｎｃｈｕのうごイラ',
-      titleCaptionTranslation: [Object],
-      createDate: '2022-09-10T02:42:45+09:00',
-      updateDate: '2022-09-10T02:42:45+09:00',
-      isUnlisted: false,
-      isMasked: false,
-      profileImageUrl: 'https://i.pximg.net/user-profile/img/2021/06/02/06/20/17/20804853_03f8430c57fac290a28bbb6cfc46d494_50.png'
-    },
-    {
-      id: '101116378',
-      title: '2B切腹',
-      illustType: 0,
-      xRestrict: 2,
-      restrict: 0,
-      sl: 6,
-      url: 'https://i.pximg.net/c/250x250_80_a2/custom-thumb/img/2022/09/10/02/15/53/101116378_p0_custom1200.jpg',
-      description: '',
-      tags: [Array],
-      userId: '17499879',
-      userName: 'GZZ',
-      width: 2200,
-      height: 1800,
-      pageCount: 1,
-      isBookmarkable: true,
-      bookmarkData: null,
-      alt: '#ニーアオートマタ 2B切腹 - GZZのイラスト',
-      titleCaptionTranslation: [Object],
-      createDate: '2022-09-10T02:15:53+09:00',
-      updateDate: '2022-09-10T02:15:53+09:00',
-      isUnlisted: false,
-      isMasked: false,
-      profileImageUrl: 'https://i.pximg.net/user-profile/img/2021/03/08/14/58/29/20322662_4296802f6f008b2b7add96b2ac2db369_50.jpg'
-    },
-    // ...
-  ],
-  total: 41255,
-  bookmarkRanges: [
-    { min: null, max: null },
-    { min: 10000, max: null },
-    { min: 5000, max: null },
-    { min: 1000, max: null },
-    { min: 500, max: null },
-    { min: 300, max: null },
-    { min: 100, max: null },
-    { min: 50, max: null }
-  ]
-}
-```
-
-これで取得できた。
-
-
-## 検索結果ページ複数になる時の次のページへ行くトリガー
-
-検索結果ページのページ数のとこの
-
-```
-< 1 2 3 4 5 6 7 >
-```
-
-`>`だけクリックしていけば1ページずつ移動してくれる
-
-
-## オブジェクト validation
-
-NOTE: 後回しでもいい
-
-取得したオブジェクトが求めるプロパティを持っているのかの検査をしたい
+正常動作確認済。
 
 ```TypeScript
-```
+import type puppeteer from 'puppeteer';
 
-## ページ遷移とサムネイルIDの取得処理の分離と再利用可能化
+// Default settings for page.waitFor methods
+const defaultOptions: puppeteer.WaitForOptions = { waitUntil: ["load", "domcontentloaded"]};
+const defaultWaitForResponseCallback = function(res: puppeteer.HTTPResponse) { return res.status() === 200;};
 
-ページ遷移処理
+/****
+ * Navigation class
+ * 
+ * @constructor
+ * @param {puppeteer.Page} page - puppeteer page instance.
+ * @param {() => Promise<any>} trigger - Asychronous function taht triggers navigation.
+ * @param {puppeteer.WaitForOptions} [options] - Options for page.waitForNavigation.
+ * 
+ * 
+ * Usage:
+ * ```
+ * navigate.resetWaitForResponse(page.waitForResponse(...));
+ * navigate.resetWaitForNavigation(page.waitForNavigation(...));
+ * navigate.push([...taskPromises]);
+ * const [responses] = await navigate(function() {return page.click(".button");});
+ * const [responses] = await navigateBy(function() {return page.click(".button");});
+ * const [responses] = await navigateBy(function() {return page.keyboard.press("Enter");});
+ * // Page transition has been completed...
+ * ```
+ * 
+ * */ 
+export class Navigation {
+    private tasks: Promise<any>[];
+    private waitForNavigation: Promise<puppeteer.HTTPResponse | null>;
+    private waitForResponse: Promise<puppeteer.HTTPResponse>;
+    constructor(
+        page: puppeteer.Page
+        ) {
+            this.waitForNavigation = page.waitForNavigation(defaultOptions);
+            this.waitForResponse = page.waitForResponse(defaultWaitForResponseCallback);
+            this.tasks = [];
+            this.push = this.push.bind(this);
+            this.navigateBy = this.navigateBy.bind(this);
+            this.navigate = this.navigate.bind(this);
+    };
 
-```TypeScript
-const waitTransition = page.waitForNavigation({ waitUntil: ["load", "docontentloaded"]});
-await page.click();
-await waitTransition;
-```
+    push(task: Promise<any>): void {
+        this.tasks.push(task);
+    };
 
-サムネイル取得処理
+    resetWaitForResponseCallback(cb: Promise<puppeteer.HTTPResponse>): void {
+        this.waitForResponse = cb;
+    };
 
-```TypeScript
-const waitResponse: Promise<puppeteer.HTTPResponse | null> = page.waitForResponse(res =>
-    res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}`)
-    && res.status() === 200
-);
+    resetWaitForNavigation(p: Promise<puppeteer.HTTPResponse | null>): void {
+        this.waitForNavigation = p;
+    };
 
-await page.click();
-// MUST BE PLACE JUST UNDER PAGE TRANSITION TRIGGER
-const response: puppeteer.HTTPResponse | null = await waitResponse;
-const data = await response.json();
-// Validation process for the json object.
-// 今のところはif分だけ。バリデーション実装大変。
-if(data.body.illustManga.data) {
-    // id取得処理
-}
-if(data.body.illustManga.total) {
-    // 検索結果ページ数計算処理
-}
-```
+    /******
+     * Navigate by trigger and execute tasks.
+     * 
+     * 
+     * */ 
+    async navigate(trigger: () => Promise<void>): Promise<(puppeteer.HTTPResponse | any)[]> {
+        return await Promise.all([
+            ...this.tasks,
+            this.waitForResponse,
+            this.waitForNavigation,
+            trigger()
+        ]);
+    };
 
-ページ遷移のリクエストが受け入れられたのが確認できるのは、サムネイル取得処理の方のstatusコードの確認で行われている
-
-なのでページ遷移処理の方でも確認するようにした方がいいかも
-
-dataの...`data.body.illustManga.data`, `data.body.illustManga.total`が必要
-
-`data.body.illustManga.data`:
-
-```TypeScript
-// data.body.illustManga.data[]の各要素のidだけ必要
-const ids: string[] = data.body.illustManga.data.map(d => {
-    if(d.id) return d.id;
-})
-```
-
-`data.body.illustManga.total`:
-
-検索開始したときだけ必要な処理
-
-```TypeScript
-let numberOfResultPages: number;
-
-if(data.body.illustManga.total && numberOfResultPages === undefined) {
-    numberOfResultPages = total/data.body.illustManga.data.length;
-}
-```
-
-検索結果ページ数の取得>dataからid取得>ページ遷移>繰り返し...
-
-```TypeScript
-let numberOfResultPages: number;
-let ids: number[];
-let currentPage: number;
-
-const collectIdsFromResultPages = async (page: puppeteer.Page, res: puppeteer.HTTPResponse): Promise<void> => {
-    console.log(`Collecting ids. Page: ${currentPage + 1}`);
-    // Collect ids of thumbnails
-    if(res.body.illustManga.data) {
-        ids = [...ids, ...res.body.illustManga.data.map(d => {if(d.id) return d.id;})];
-    }
-    // Transition and recursive call
-    if(currentPage < numberOfResultPages){
-        currentPage++;
-        await page.click('#next-page-selector");
-        const res: puppeteer.HTTPResponse = await waitJson;
-        await loaded;
-        await collectIdsFromResultPages(page, res);
-    }
+    /***
+     * Bit faster than navigate()
+     * navigate()とほぼ変わらないし影響もしないからいらないかも。
+     * */ 
+    async navigateBy(trigger: () => Promise<void>): Promise<(puppeteer.HTTPResponse | any)[]> {
+        return await Promise.all([
+            this.waitForResponse,
+            this.waitForNavigation,
+            trigger()
+        ]);
+    };
 };
-
-
-// 検索開始
-const res: puppeteer.HTTPResponse = await search(/* omit */);
-// 検索結果ページ数の計算
-if(res.body.illustManga.total && numberOfResultPages === undefined) {
-    numberOfResultPages = total/data.body.illustManga.data.length;
-};
-// 検索結果ページからはこの関数
-await collectIdsFromResultPages(page, res);
-// TODO: waitJsonとloadedをsearch()から分離すること
 ```
-
 
 ## セッションの維持
 
@@ -905,20 +830,22 @@ search()で次のリクエストが成功したら、
 ```JSON
 {
     "error": false,
-    "illustManga": {
-        "data": [
-            {
-                // illust data
-            },
-        ],
-        "total": 49514
-    },
+    "body" : {
+        "illustManga": {
+            "data": [
+                {
+                    // illust data
+                },
+            ],
+            "total": 49514
+        },
     "popular": {
         "recent": [],
         "permanent": []
     },
     "relatedTags": [],
     // 省略
+    }
 }
 ```
 
@@ -927,11 +854,6 @@ search()で次のリクエストが成功したら、
 - `illustManga.data[]`は検索結果サムネイル情報。artworkページidを取得するため
 - `illustManga.total`は検索結果ヒット数。検索結果ページが何ページになるのか知るため
 - `illustManga.data.length`は検索結果サムネイル一覧が一ページに何枚になるのか知るため
-
-```TypeScript
-const res: puppeteer.HTTPResponse = await search(page, keyword);
-const ids: number[] = await collectIdsFromResultPages(page, keyword, res);
-```
 
 ## illustManga.dataに挟まれる広告要素
 

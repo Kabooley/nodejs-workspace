@@ -1,4 +1,5 @@
 /********************************************************************
+ * Collects value by specified key from array consist of data typed T
  * 
  * *******************************************************************/ 
 
@@ -36,7 +37,9 @@ export interface iIllustManga {
 
 export interface iBodyIncludesIllustManga {
     error: boolean;
-    body: iIllustManga;
+    body: {
+        illustManga: iIllustManga;
+    }
 };
 
 

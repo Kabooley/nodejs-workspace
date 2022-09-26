@@ -60,14 +60,14 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         // await login(page, { username: username, password: password});
         await page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]});
 
-        // TODO: search()で取得したHTTPResponseはそのまま返しても使い物にならない。
-        // なのでsearch()でjson()してから返すようにする
-        const res: iBodyIncludesIllustManga = await search(page, keyword);
-        const ids: string[] = await collectFromSearchResult(page, res, 'id', (r) => {return r.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
+        const searchResult: iBodyIncludesIllustManga = await search(page, keyword);
+        const ids: string[] = await collectFromSearchResult(page, searchResult, 'id', (r) => {return r.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
         && r.status() === 200});
 
         // DEBUG:
         console.log(ids);
+
+        // So far so good.
     }
     catch(e) {
         console.error(e);

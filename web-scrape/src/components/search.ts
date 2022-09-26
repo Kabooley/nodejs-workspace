@@ -18,6 +18,9 @@ export const search = async (page: puppeteer.Page, keyword: string): Promise<iBo
         navigation.resetWaitForResponseCallback(page.waitForResponse((res) => {return res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
         && res.status() === 200}));
 
+        // DEBUG:
+        console.log(`Searcing: ${keyword}...`);
+        
         await page.type(selectors.searchBox, keyword, { delay: 100 });
         const res: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(function() { return page.keyboard.press('Enter')});
 

@@ -10,10 +10,19 @@ import { Collect } from './Collect';
 import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } from './Collect';
 import { Navigation } from './Navigation';
 import { selectors } from '../constants/selectors';
+import { getFirstElementToJson } from '../helper/lessCommons';
+
+const getIllustManga = async (data: iBodyIncludesIllustManga): Promise<iIllustManga> => {
+    const illustManga: iIllustManga = data?.body?.illustManga;
+    if(!illustManga || !illustManga.data || !illustManga.total) throw new Error("Cannot capture illustManga data.");
+    return illustManga;
+};
 
 /***
- * @param {}
- * 
+ * @param {puppeteer.Page} page - puppeteerNode page instance.
+ * @param {iBodyIncludesIllustManga} res - HTTPResponse body object that express this interface.
+ * @param {string} key - One of the key of this interface
+ * @return {Promise<string[]>}
  * 
  * */ 
 export const collectFromSearchResult = async (
@@ -23,16 +32,14 @@ export const collectFromSearchResult = async (
     httpResponseFilter: (res: puppeteer.HTTPResponse) => boolean
     ): Promise<string[]> => {
         try {
-            // Check if res is not includes required property.
-            // TODO: 型不一致エラーの修正と`.?`のことを調べる
-            // TODO: このチェックはこの関数に含めるべきか否か検討する
-            let result: iIllustManga = res?.body?.illustManga;
-            
             // DEBUG:
-            // TODO: illustMangaが取得できているか確認
-            console.log(result);
+            console.log(`Collect by ${key}...`);
 
-            if(!result || !result.data || !result.total) throw new Error("Cannot capture illustManga data.");
+            // Check if res is not includes required property.
+            let result: iIllustManga = await getIllustManga(res);
+
+            // DEBUG:
+            console.log(result);
 
             const navigation = new Navigation(page);
             const collector = new Collect<iIllustMangaDataElement>();
@@ -42,28 +49,35 @@ export const collectFromSearchResult = async (
             let currentPage: number = 1;
             let lastPage: number = 0;
             let data: string[] = [];
-            lastPage = result.total / result.data.length;
+            lastPage = Math.floor(result.total / result.data.length);
     
+            // DEBUG: 
+            console.log("Begin to collect...");
+
             while(currentPage <= lastPage) {
+                // DEBUG:
+                console.log(`Page: ${currentPage} / ${lastPage}`);
+
                 if(!result || !result.data || !result.total) throw new Error("Cannot capture illustManga data.");
-                // 
-                // TODO: resetDataに渡す前に広告要素フィルタリング！！
-                // 
-                // ---------------------------------------------------------
+                // resetDataに渡す前に広告要素フィルタリング！！
                 let d: iIllustMangaDataElement[] = result.data.filter((e: iIllustMangaDataElement | {}) => {
                     return !e.hasOwnProperty('isAdContainer')
-                })
-                // ---------------------------------------------------------
+                });
                 collector.resetData(d);
                 data = [...data, ...collector.execute(key)];
-                const r = await navigation.navigateBy(function(){ return page.click(selectors.nextPage)});
-                if(!r[0] || !(await r[0].json())) throw new Error("Unexpected value has been returned after navigation");
-                result = (await r[0].json()).illustManga;
+                const r: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(function(){ return page.click(selectors.nextPage)});
+                // if(!r[0] || !(await r[0].json())) throw new Error("Unexpected value has been returned after navigation");
+                // result = (await r[0].json()).illustManga;
+                result = await getIllustManga(await getFirstElementToJson<iBodyIncludesIllustManga>(r));
                 currentPage++;
+
+                // DEBUG:
+                console.log(`Current collected data by ${key}: ${data.length}`);
             };
             return data;
         }
         catch(e) {
+            await page.screenshot({type: "png", path: "./dist/errorCollectFromResultPage.png"});
             throw e;
         }
 };
