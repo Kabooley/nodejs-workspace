@@ -85,6 +85,7 @@ export class Collect<T> {
      * */ 
     resetData(data: T[]): void {
         this.data = [];
+        this.data.length = 0;
         this.data = [...data];
     }
 }

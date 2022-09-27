@@ -10,7 +10,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 [キーワード検索結果を収集する方法の模索]](#キーワード検索結果を収集する方法の模索)
 [artworkページでbookmark数を取得する方法の模索](#artworkページでbookmark数を取得する方法の模索)
 [デザインパターンの導入](#デザインパターンの導入)
-[](#)
+[puppeteerマルチpageインスタンス](#puppeteerマルチpageインスタンス)
 [セレクタ調査](#セレクタ調査)
 [自習](#自習)
 [ログインすべきかしなくていいか区別する](#ログインすべきかしなくていいか区別する)
@@ -18,7 +18,8 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 
 ## TODOS
 
-- TODO: index.jsの挙動確認。ログインなしですむキーワードで。
+- TODO: マルチPageインスタンスで同時実行数制限並列処理の実装
+- TODO: (低優先)puppeteerマルチpageインスタンス
 
 ## chromium起動できない問題
 
@@ -71,6 +72,26 @@ sudo apt update && sudo apt install -y gconf-service libgbm-dev libasound2 libat
 $ node ./dist/index.js COMMAND --option1 STRING --option2 STRING
 ```
 
+## puppeteerマルチpageインスタンス
+
+> Page provides methods to interact with a single tab or extension background page in Chromium.
+
+ということで複数pageインスタンスはしてもいいのかな。
+
+問題はメモリリークと、メモリリーク監視ができれば安心してマルチできるのだが...
+
+https://github.com/puppeteer/puppeteer/issues/594
+
+- browser.newPage()するたびにbrowser.close()する(?)
+
+閉じちゃっていいの？
+
+https://www.toptal.com/nodejs/debugging-memory-leaks-node-js-applications
+
+- HEAPDUMP
+- NODE-INSPECTOR
+
+https://stackoverflow.com/a/31015360
 
 
 ## セレクタ調査
@@ -1293,109 +1314,41 @@ Cookie: 省略
 
 ## デザインパターンの導入
 
+#### 逐次処理と並列処理の導入検討
+
 どこで逐次処理と並列処理が導入できそうか？
 
-まずは機能を最小単位へ分解しよう。
+1. 検索結果ページからartwork情報を収集するとき
+2. artworkページから情報を収集するとき
+3. 画像ダウンロードするとき
 
-1. 検索結果からartworkのidを取得する処理
+検索結果ページからartwork情報を収集するとき
 
-- ページ遷移時のHTTP Responseを取得してそのbodyからid情報などを取得する
-- 次のページへナビゲートする
-- 次のページへ遷移する際のHTTP Responseをキャプチャして次の呼び出しへ渡す
+収集プロセス：
+
+- HTTPResponseから情報取得
+- ページ遷移トリガー
+- HTTPResponseの取得
+- ページ遷移完了
+
+例えば検索結果が膨大な数になった時に、pageインスタンスを複数作ると効率的になる場合があるかも。
+
+そうなったら各page毎に同時実行数を制限しつつ収集プロセスを並列処理してもいいかも。
+
+なので、
+
+収集プロセスは逐次処理で、
+
+page毎は同時実行数制限の並列処理で収集する。
+
+理解が及んでいないため、pageを複数作ることはタブが増える程度にしか考えていないけれど、
+
+もしも「タブが増えるだけ」ならこの方法をとれば膨大なデータを効率的に収集できるかも。
 
 
-```TypeScript
-// navigateToNextPage()が汎用的な「ページ遷移」関数にできそう
 
-interface iOptionNavigateToNextPage {
-    waitForResponseCallback?: ((res: puppeteer.HTTPResponse) => boolean | Promise<boolean>);
-    navigationOptions?: puppeteer.WaitForOptions;
-};
+#### ファクトリ・パターンの導入の検討
 
-const defaultWaitForResponseCallback = (res: puppeteer.HTTPResponse): boolean => {
-    return res.status() === 200;
-};
-
-const defaultNavigationOption: puppeteer.WaitForOptions = {
-    waitUntil: ["load", "domcontentloaded"]
-};
-
-/******
- * Navigate to next page and returns HTTP Response.
- * 
- * @param {() => Promise<void>} trigger - Function that triggers page transition.
- * @param {iOptionNavigateToNextPage} [options] - Optional parameters 
- * @return {Promise<puppeteer.HTTPResponse>} - HTTP Response waitForResponse() has been returned.
- * 
- * Trigger navigation by firing trigger(), get HTTP Response, wait for navigation has been done.
- * */ 
-const navigateToNextPage = async (
-        page: puppeteer.Page, 
-        trigger: () => Promise<void>,
-        options? : iOptionsNavigateToNextPage
-    ): Promise<puppeteer.HTTPResponse> => {
-    try {
-        let cb = defaultWaitForResponseCallback;
-        let navOption = defaultNavigationOption;
-        if(options){
-            const { waitForResponseCallback, navigationOptions } = options;
-            cb = waitForResponseCallback ? waitForResponseCallback : cb;
-            navOption = navigationOptions ? navigationOptions : navOption;
-        }
-		const waitForNextResultResponse = page.waitForResponse(cb);
-		const waitForNextPageLoad = page.waitForNavigation(navigationOption);
-
-        // Triggers navigation to next page.
-        await trigger();
-        // Capture response of next page request.
-        const r: puppeteer.HTTPResponse = await waitForNextResultResponse;
-        await waitForNextPageLoad;
-        return r;
-    }
-    catch(e) {
-        throw e;
-    }
-}
-
-// USAGE
-const nextResultPageTrigger = async (): Promise<void> => {
-    await page.click(selectors.nextPage);
-}
-
-const keywordSearchTrigger = async (): Promise<void> => {
-    await page.keyboard.press('Enter');
-};
-
-const cb = (res: puppeteer.HTTPResponse): boolean => {
-    console.log(res.url());
-    return res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
-    && res.status() === 200
-};
-
-// while()で必須の変数
-let currentPage: number = 0;    // 0にしておかないとwhile()が機能しない
-let lastPage: number = 1;       // 1にしておかないとwhile()が機能しない
-let data: string[] = [];        // stringを前提にしているよ
-
-// 検索キーワードの入力
-await page.type(selectors.searchBox, keyword, { delay: 100 });
-
-// 検索結果ページすべてからartworkのid取得
-while(currentPage < lastPage) {
-    const res: puppeteer.HTTPResponse = await navigateToNextPage(page, nextResultPageTrigger, { waitForResponseCallback: cb });
-    const { illustManga } = await res.json();
-    if(!illustManga || !illustManga.data || !illustManga.data.total)
-        throw new Error("Unexpected HTTP response has been received");
-    data = [...data, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
-    if(currentPage === 0) {
-        // Update lastPage.
-        lastPage = illustManga0.data.length ? illustManga0.data.total / illustManga0.data.length : 1;
-        // これはよくないやりかたですな...
-        currentPage++;
-    }
-    currentPage++;
-}
-```
 
 
 ## puppeteerでダウンロードするには？Github Issue
@@ -1428,375 +1381,6 @@ https://stackoverflow.com/questions/55408302/how-to-get-the-download-stream-buff
 
 > 問題は、何らかのナビゲーション要求が発生するとすぐにBufferがクリアされることです。あなたの場合、これはリダイレクトまたはページのリロードである可能性があります。 この問題を解決するには、リソースのダウンロードが完了していない限り、ページがナビゲーション リクエストを行わないようにする必要があります。これを行うには、page.setRequestInterception を使用できます。 この問題には、簡単な解決策がありますが、これは常に機能するとは限りません。また、この問題に対するより複雑な解決策もあります。
 
-じゃあBufferじゃなくてstreamでいいよね？
-
-## 処理の精査
-
-逐次処理はどこで？並列処理はどこで？同時実行制限数はいくつ？など考察する。
-
-1. 次のページへ遷移させるトリガーと、ページ遷移完了が噛み合わない。
-
-検索結果から収集するとき、
-
-```TypeScript
-await page.type(keyword);
-const waitJson = page.waitForRequest();		// 指定したURLに対するレスポンスを待つ
-const loaded = page.waitForNavigation();	// loadとdocumentloadedを待つ
-page.keyboard.press('Enter');				// 検索開始
-await waitJson;				// リクエストまち
-await loaded;				// ページ遷移完了
-```
-
-なんだけど...
-
-## ログインすべきかしなくていいか区別する
-
-プライベートモードで`https://www.pixiv.net/`へアクセスした：
-
-`GET https://www.pixiv.net/ HTTP/2`
-
-request
-
-```JSON
-{
-	"要求ヘッダー (974 バイト)": {
-		"headers": [
-			{
-				"name": "Accept",
-				"value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-			},
-			{
-				"name": "Accept-Encoding",
-				"value": "gzip, deflate, br"
-			},
-			{
-				"name": "Accept-Language",
-				"value": "ja,en-US;q=0.7,en;q=0.3"
-			},
-			{
-				"name": "Connection",
-				"value": "keep-alive"
-			},
-			{
-				"name": "Cookie",
-				"value": "first_visit_datetime_pc=2022-09-21+04%3A17%3A33; PHPSESSID=4kn6hup2mr8e0adnnvt5uabvfororsoo; 
-                p_ab_id=7; 
-                p_ab_id_2=6; 
-                p_ab_d_id=318830242; 
-                yuid_b=MnlkkRc; 
-                __cf_bm=ZgrOVC3YMyfnybA9msHDDvBw.h7K4f6JeF20JbxNmH8-1663701454-0-AWDJQy0LQKnptETc6nLjGptqeV/xnMnBGcmnu/y0tdbrd0tz73VpfN6hA2b2VJQhH9LXqhZXo9nSBVNIeh+c2fW1F437koVIStoWL7HaBYrkjjKe+i4Fp1pfIewioxm3PDejpXO/mUsAVche/BOkCYiOmRwNopPNi3e2laoaFqL73D1i0msbYPzZWEYPVBwLtQ==;
-                _ga_75BBYNYN9J=GS1.1.1663701455.1.0.1663701455.0.0.0; 
-                _ga=GA1.1.1530619587.1663701456"
-			},
-			{
-				"name": "DNT",
-				"value": "1"
-			},
-			{
-				"name": "Host",
-				"value": "www.pixiv.net"
-			},
-			{
-				"name": "Sec-Fetch-Dest",
-				"value": "document"
-			},
-			{
-				"name": "Sec-Fetch-Mode",
-				"value": "navigate"
-			},
-			{
-				"name": "Sec-Fetch-Site",
-				"value": "none"
-			},
-			{
-				"name": "Sec-Fetch-User",
-				"value": "?1"
-			},
-			{
-				"name": "TE",
-				"value": "trailers"
-			},
-			{
-				"name": "Upgrade-Insecure-Requests",
-				"value": "1"
-			},
-			{
-				"name": "User-Agent",
-				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
-			}
-		]
-	}
-}
-```
-
-response
-
-200 OK
-
-```JSON
-{
-	"応答ヘッダー (540 バイト)": {
-		"headers": [
-			{
-				"name": "alt-svc",
-				"value": "h3=\":443\"; ma=86400, h3-29=\":443\"; ma=86400"
-			},
-			{
-				"name": "cache-control",
-				"value": "no-store, no-cache, must-revalidate"
-			},
-			{
-				"name": "cf-cache-status",
-				"value": "DYNAMIC"
-			},
-			{
-				"name": "cf-ray",
-				"value": "74dce783a8e1e086-NRT"
-			},
-			{
-				"name": "content-encoding",
-				"value": "gzip"
-			},
-			{
-				"name": "content-length",
-				"value": "10026"
-			},
-			{
-				"name": "content-type",
-				"value": "text/html; charset=UTF-8"
-			},
-			{
-				"name": "date",
-				"value": "Tue, 20 Sep 2022 19:17:59 GMT"
-			},
-			{
-				"name": "expires",
-				"value": "Thu, 19 Nov 1981 08:52:00 GMT"
-			},
-			{
-				"name": "pragma",
-				"value": "no-cache"
-			},
-			{
-				"name": "server",
-				"value": "cloudflare"
-			},
-			{
-				"name": "strict-transport-security",
-				"value": "max-age=31536000"
-			},
-			{
-				"name": "vary",
-				"value": "User-Agent,Accept-Encoding"
-			},
-			{
-				"name": "x-frame-options",
-				"value": "SAMEORIGIN"
-			},
-			{
-				"name": "x-host-time",
-				"value": "112"
-			},
-			{
-				"name": "x-xss-protection",
-				"value": "1; mode=block"
-			}
-		]
-	}
-}
-```
-
-ログイン認証済ませてからログイン後の`https://www.pixiv.net/`へ移動するとき
-
-request
-
-```JSON
-{
-	"要求ヘッダー (1.081 KB)": {
-		"headers": [
-			{
-				"name": "Accept",
-				"value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-			},
-			{
-				"name": "Accept-Encoding",
-				"value": "gzip, deflate, br"
-			},
-			{
-				"name": "Accept-Language",
-				"value": "ja,en-US;q=0.7,en;q=0.3"
-			},
-			{
-				"name": "Connection",
-				"value": "keep-alive"
-			},
-			{
-				"name": "Cookie",
-				"value": "first_visit_datetime_pc=2022-09-21+04%3A17%3A33; PHPSESSID=8675089_VqrR1iK0q5Wuh9zt9Ib5PLhGy9hax6xf; 
-                p_ab_id=7; 
-                p_ab_id_2=6; 
-                p_ab_d_id=318830242; 
-                yuid_b=MnlkkRc; 
-                __cf_bm=ZgrOVC3YMyfnybA9msHDDvBw.h7K4f6JeF20JbxNmH8-1663701454-0-AWDJQy0LQKnptETc6nLjGptqeV/xnMnBGcmnu/y0tdbrd0tz73VpfN6hA2b2VJQhH9LXqhZXo9nSBVNIeh+c2fW1F437koVIStoWL7HaBYrkjjKe+i4Fp1pfIewioxm3PDejpXO/mUsAVche/BOkCYiOmRwNopPNi3e2laoaFqL73D1i0msbYPzZWEYPVBwLtQ==;
-                _ga_75BBYNYN9J=GS1.1.1663701455.1.1.1663701640.0.0.0; 
-                _ga=GA1.1.1530619587.1663701456; 
-                _gcl_au=1.1.2079482580.1663701480; 
-                device_token=526aca1e8bd83bac65072b3439d3e1e0"
-			},
-			{
-				"name": "DNT",
-				"value": "1"
-			},
-			{
-				"name": "Host",
-				"value": "www.pixiv.net"
-			},
-			{
-				"name": "Referer",
-				"value": "https://accounts.pixiv.net/"
-			},
-			{
-				"name": "Sec-Fetch-Dest",
-				"value": "document"
-			},
-			{
-				"name": "Sec-Fetch-Mode",
-				"value": "navigate"
-			},
-			{
-				"name": "Sec-Fetch-Site",
-				"value": "same-site"
-			},
-			{
-				"name": "Sec-Fetch-User",
-				"value": "?1"
-			},
-			{
-				"name": "TE",
-				"value": "trailers"
-			},
-			{
-				"name": "Upgrade-Insecure-Requests",
-				"value": "1"
-			},
-			{
-				"name": "User-Agent",
-				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
-			}
-		]
-	}
-}
-```
-
-response
-
-```JSON
-{
-	"応答ヘッダー (1.256 KB)": {
-		"headers": [
-			{
-				"name": "alt-svc",
-				"value": "h3=\":443\"; ma=86400, h3-29=\":443\"; ma=86400"
-			},
-			{
-				"name": "cache-control",
-				"value": "no-store, no-cache, must-revalidate"
-			},
-			{
-				"name": "cf-cache-status",
-				"value": "DYNAMIC"
-			},
-			{
-				"name": "cf-ray",
-				"value": "74dcebd24bcbaf9f-NRT"
-			},
-			{
-				"name": "content-encoding",
-				"value": "gzip"
-			},
-			{
-				"name": "content-length",
-				"value": "3943"
-			},
-			{
-				"name": "content-type",
-				"value": "text/html; charset=UTF-8"
-			},
-			{
-				"name": "date",
-				"value": "Tue, 20 Sep 2022 19:20:55 GMT"
-			},
-			{
-				"name": "expires",
-				"value": "Thu, 19 Nov 1981 08:52:00 GMT"
-			},
-			{
-				"name": "pragma",
-				"value": "no-cache"
-			},
-			{
-				"name": "server",
-				"value": "cloudflare"
-			},
-			{
-				"name": "set-cookie",
-				"value": "c_type=32; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure"
-			},
-			{
-				"name": "set-cookie",
-				"value": "PHPSESSID=8675089_VqrR1iK0q5Wuh9zt9Ib5PLhGy9hax6xf; expires=Thu, 20-Oct-2022 19:20:55 GMT; Max-Age=2592000; path=/; domain=.pixiv.net; secure; HttpOnly"
-			},
-			{
-				"name": "set-cookie",
-				"value": "privacy_policy_agreement=0; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure; HttpOnly"
-			},
-			{
-				"name": "set-cookie",
-				"value": "privacy_policy_notification=0; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure; HttpOnly"
-			},
-			{
-				"name": "set-cookie",
-				"value": "a_type=0; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure"
-			},
-			{
-				"name": "set-cookie",
-				"value": "b_type=1; expires=Thu, 19-Sep-2024 19:20:55 GMT; Max-Age=63072000; path=/; domain=.pixiv.net; secure"
-			},
-			{
-				"name": "strict-transport-security",
-				"value": "max-age=31536000"
-			},
-			{
-				"name": "vary",
-				"value": "X-UserId,Accept-Encoding"
-			},
-			{
-				"name": "x-frame-options",
-				"value": "SAMEORIGIN"
-			},
-			{
-				"name": "x-host-time",
-				"value": "111"
-			},
-			{
-				"name": "x-userid",
-				"value": "8675089"
-			},
-			{
-				"name": "x-xss-protection",
-				"value": "1; mode=block"
-			}
-		]
-	}
-}
-```
-
-requestヘッダのPHPSESSIDに、pixivユーザID番号から始まる新しいセッションIDが付与されているのが確認できる。
-
-
-TODO: page.goto()でピクシブのページへ移動したときのGET"https://www.pixiv.net/"リクエストのレスポンスを取得してログインパスできたのかどうかチェックするようにする
-
-ログイン：
 
 ## 自習
 

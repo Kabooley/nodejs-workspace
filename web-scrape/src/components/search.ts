@@ -21,8 +21,9 @@ export const search = async (page: puppeteer.Page, keyword: string): Promise<iBo
         // DEBUG:
         console.log(`Searcing: ${keyword}...`);
         
+        let res: (puppeteer.HTTPResponse | any)[];
         await page.type(selectors.searchBox, keyword, { delay: 100 });
-        const res: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(function() { return page.keyboard.press('Enter')});
+        res = await navigation.navigateBy(function() { return page.keyboard.press('Enter')});
 
         // NOTE: スコープアウトする前にresponseをjson()してから返すこと
         return await getFirstElementToJson<iBodyIncludesIllustManga>(res);

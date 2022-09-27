@@ -4,10 +4,65 @@ TODO: TypeScriptの書籍を買え！
 
 ## 目次
 
+[TypeScriptはprivate指定子でスコープを制御してくれるわけではない](#TypeScriptはprivate指定子でスコープを制御してくれるわけではない)
 [後から動的にプロパティを追加するつもりの空のオブジェクト](#後から動的にプロパティを追加するつもりの空のオブジェクト)
 [割り当てられる前に使用しています](#割り当てられる前に使用しています)
 [Typeだけインポートする](#Typeだけインポートする)
 [`document`とかが使えないときは](#`document`とかが使えないときは)
+
+## TypeScriptはprivate指定子でスコープを制御してくれるわけではない
+
+*インテリセンスとTypeScriptコンパイラがそれを許さないだけ。*
+
+```TypeScript
+class Person {
+    constructor(private name: string, private age: number) {}
+};
+
+var person = new Person("Dave", 28);
+
+console.log(person);
+console.log(person.name); // Error highlights.
+```
+コンパイル後：
+
+```JavaScript
+"use strict";
+var Person = /** @class */ (function () {
+    function Person(name, age) {
+        this.name = name;
+        this.age = age;
+    }
+    return Person;
+}());
+;
+var person = new Person("Dave", 28);
+person.name = "peet";
+
+
+console.log(person);
+// Person {name: "Dave", age: 28, constructor: Object}
+
+// ためしにコンパイル後のjsファイルにだけ次を追加しても
+console.log(person.name);
+// Dave
+// アクセスできることがわかる。
+```
+TypeScriptでは`private`を指定できるけれど、
+
+それにアクセスしてはいけないとエラーを起こすのはIntellisenseとTypeScriptコンパイラだけで、
+
+生成されるコードがアクセスできないように元のコードを工夫してくれるわけではない。
+
+参考：
+
+https://stackoverflow.com/a/12713869
+
+> 型チェックと同様に、メンバーのプライバシーはコンパイラ内でのみ適用されます。 
+> プライベート プロパティは通常のプロパティとして実装され、クラス外のコードはアクセスできません。 
+
+> クラス内で真にプライベートなものを作成するには、クラスのメンバーにすることはできません。オブジェクトを作成するコード内の関数スコープ内で作成されるローカル変数になります。これは、クラスのメンバーのように、つまり this キーワードを使用してアクセスできないことを意味します。
+
 
 ## 後から動的にプロパティを追加するつもりの空のオブジェクト
 
