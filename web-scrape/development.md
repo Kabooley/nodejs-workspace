@@ -11,6 +11,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 [artworkページでbookmark数を取得する方法の模索](#artworkページでbookmark数を取得する方法の模索)
 [デザインパターンの導入](#デザインパターンの導入)
 [puppeteerマルチpageインスタンス](#puppeteerマルチpageインスタンス)
+[メモリリーク対策](#メモリリーク対策)
 [セレクタ調査](#セレクタ調査)
 [自習](#自習)
 [ログインすべきかしなくていいか区別する](#ログインすべきかしなくていいか区別する)
@@ -18,7 +19,8 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 
 ## TODOS
 
-- TODO: マルチPageインスタンスで同時実行数制限並列処理の実装
+- TODO: artworkページからの収集ロジックの実装
+- TODO: メモリリーク対策項目の続きをしてchild processを理解する
 - TODO: (低優先)puppeteerマルチpageインスタンス
 
 ## chromium起動できない問題
@@ -93,6 +95,196 @@ https://www.toptal.com/nodejs/debugging-memory-leaks-node-js-applications
 
 https://stackoverflow.com/a/31015360
 
+## メモリリーク対策
+
+https://stackoverflow.com/a/73098157/13891684
+
+https://devforth.io/blog/how-to-simply-workaround-ram-leaking-libraries-like-puppeteer-universal-way-to-fix-ram-leaks-once-and-forever/
+
+> RAM リークは、大量の外部ライブラリで発生する非常に一般的な問題です。それらは完全に機能し、NPM で多くのダウンロードがあり、GitHub でスターを獲得している可能性があります。それにもかかわらず、これらすべてが長期的には RAM リークから実際に救われるわけではありません。
+
+> ライブラリは、独自のニッチでは置き換えられず、非常にシンプルな API を備えており、他のすべての面で満足できますが、長時間実行されるプロセスで使用すると RAM の消費量が増えます。 たとえば、ここで最も一般的なケースの 1 つは、ヘッドレス Chromium に基づくすべてのライブラリです。そのうちの 1 つは、puppeteer と呼ばれる非常に人気のある Nodejs パッケージです。
+
+> 中略
+
+> ただし、長時間実行されるプロセスで使用すると、サーバー監視ツールが「RAM がほぼいっぱいです」と報告し始めます。サーバーにRAMが不足していると、オペレーティングシステムのメモリ不足キラーがアクティブになり、ランダムにプロセスを強制終了し始め、サービスのダウンタイムが発生したり、完全に再起動するまでサーバー接続を破壊するシステムプロセスに触れたりするため、ひどいことになります.
+
+> この投稿では、子プロセスを使用してこのような問題を簡単に克服する方法を紹介します。 RAMリークを確認する簡単な実験を行い、それらを回避する方法を示します。ここで説明する修正は、子プロセスとの間でデータをやり取りする必要がある場合のケーシングを含め、インポートされた外部ライブラリの RAM リークが原因で発生するすべての問題に適用できます。
+
+
+...ということで、
+
+多くの、さらに悪いことにとても人気な外部ライブラリでもメモリリークを起こす。
+
+特に長時間使用するとRAMがいっぱいですエラーが発生するほどになる。
+
+child processを使えばRAMメモリリークを解決できる。
+
+とのこと。
+
+メモリリークを起こす例：
+
+```JavaScript
+import puppeteer from 'puppeteer'
+
+async function run() {
+  let i = 0;
+  const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+//   ループのたびにnewPageする
+  while(true) {
+    const page = await browser.newPage();
+    try {
+      await page.goto('https://www.airbnb.com/', {waitUntil: 'networkidle2'});
+      const buttonTitle = await page.evaluate(() => {
+        return document.querySelector('[href="/host/homes"]').innerText;
+      });
+      if (buttonTitle !== 'Become a Host') {
+        console.error('Was not able to load a page')
+      }
+      console.log('👌🏼 Page loaded', i++)
+    } catch {
+      console.log('🙅🏼‍♀️ Page did not load', i++)
+    } finally {
+      await page.close();
+    }
+  }
+  await browser.close(); // never executes
+}
+
+run();
+```
+
+#### メモリの監視方法
+
+> まず第一に、常に偽の引数 --tagprocess を使用してノード プロセスを開始します。この引数は NodeJS とスクリプトによって無視されますが、ps の出力でプロセスを確実に除外することができます。
+
+```bash
+$ node index.js --tagprocess
+$ ps aux | grep 'tagprocess\|USER' | grep -v grep
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+ivan      6852 44.8  0.3 11155244 105716 pts/10 Sl+ 11:33   5:53 node index.js --tagprocess
+```
+
+出力内容の意味：
+
+- VSZ: 仮想メモリサイズ
+- RSS: 常駐セットサイズ
+
+RSS、これこそがプロセスがすべてのページをロードするために現在使用しているメモリのサイズです。常に KiB で表されます。
+
+投稿記事作者のお手製自動計測スクリプト：
+
+https://gist.github.com/ivictbor/a0c35865a3e67708b6ff52ba8bc45043
+
+以下のコマンドで`--tagprocess`で起動したnodeプロセスを監視できる。
+
+```bash
+$ node drawRamOnChart.js 'tagprocess'
+```
+
+とにかく実験の結果、
+
+- 毎ループ`browser.newPage()`したら必ず`page.close()`してもメモリリークする。
+- 毎ループ`puppeteer.launch()`したら必ず`browser.close()`しても、さらにメモリリークスピードが上がった。
+
+ということがわかったので間違いなくpuppeteerのインスタンスの生成はメモリリークの原因になっていることがわかる。
+
+close()しているのに！
+
+#### RAMリーク問題に対する普遍的な修正方法
+
+> したがって、このようなすべての場合にうまく機能する非常に単純なアイデアを次に示します。
+
+> メイン プロセスでライブラリをインポートして使用する代わりに、Puppeteer 呼び出しを小さな子プロセスに完全に移動します。
+
+> タスクが完了すると、子プロセスは完全に終了し、消費されたすべての RAM を解放します。リークしているライブラリもインポートしないため、親プロセスにリークはありません。
+
+3つのことをしなくてはならない：
+
+1. 親プロセスから RAM を完全に切り離して子プロセスを実行する方法を知る必要があります。 
+2. 入力データを子プロセスに渡す必要があります 
+3. 出力データを取得する必要があります
+
+とにかくコードを見てみよう。
+
+```JavaScript
+import puppeteer from 'puppeteer'
+
+// WARNING: don't use console.log here for debug, use console.error instead. STDOUT is used to deliver output data
+
+// find value of input process argument with --input-data
+
+const inpDataB64 = process.argv.find((a) => a.startsWith('--input-data')).replace('--input-data', '')
+const inputData = JSON.parse(Buffer.from(inpDataB64, 'base64').toString())
+
+const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox',] });
+const page = await browser.newPage();
+
+await page.goto(inputData.url, {waitUntil: 'networkidle2'});
+
+const buttonTitle = await page.evaluate(({ inputData }) => {
+  return document.querySelector(inputData.selectorToGet).innerText;
+}, { inputData });
+
+const outputData = {
+  buttonTitle: buttonTitle,
+}
+
+await page.close();
+await browser.close();
+
+console.log(JSON.stringify(outputData))  // print out data to STDOUT
+```
+
+```JavaScript
+import { spawn } from 'child_process';
+import path from 'path';
+const __dirname = path.resolve();
+
+async function runPupeteer(data) {
+  const jsonData = JSON.stringify(data)
+  const b64Data = Buffer.from(jsonData).toString('base64');
+  let stdoutData = '';
+  return await new Promise((resolve) => {
+    const proc = spawn('node', [
+      path.resolve(__dirname, 'puWorker.js'),
+      `--input-data${b64Data}`,
+      '--tagprocess'
+    ], { shell: false });
+    proc.stdout.on('data', (data) => {
+      stdoutData += data;
+    });
+    proc.stderr.on('data', (data) => {
+      console.error(`NodeERR: ${data}`);
+    });
+    proc.on('close', async (code) => {
+    });
+    proc.on('exit', function () {
+      proc.kill();
+      resolve(JSON.parse(stdoutData));
+    });
+  });
+}
+
+async function run() {
+  let i = 0;
+  while(true) {
+    const resData = await runPupeteer({ 
+      url: 'https://www.airbnb.com/',
+      selectorToGet: '[href="/host/homes"]',
+      i,
+    });
+    if (resData.buttonTitle !== 'Become a Host') {
+      console.error('Was not able to load a page')
+    }
+    console.log('🎉 Request made', i++)
+  }
+}
+
+run();
+```
+
+TODO: 解読
 
 ## セレクタ調査
 

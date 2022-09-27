@@ -6,6 +6,12 @@ https://pptr.dev/api/
 
 https://developer.chrome.com/docs/puppeteer/debugging/
 
+## puppeteerはメモリリークを起こすものである
+
+https://devforth.io/blog/how-to-simply-workaround-ram-leaking-libraries-like-puppeteer-universal-way-to-fix-ram-leaks-once-and-forever/
+
+https://stackoverflow.com/a/73098157/13891684
+
 ## Puppeteer class
 
 https://pptr.dev/api/puppeteer.puppeteer/
