@@ -2,6 +2,26 @@
 
 開発中に経験したことをかたっぱしから走り書き。
 
+## 目次
+
+[for...in vs for...of](#for...in-vs-for...of)
+[`[].slice.call()`](#`[].slice.call()`)
+[](#)
+[](#)
+[](#)
+
+## for...in vs for...of
+
+for...of: 反復可能オブジェクトに対して反復的な処理を行うループを作成
+
+for...in: 列挙可能プロパティすべてに対して継承された列挙可能プロパティも含めて反復処理を行う
+
+ということで、
+
+for...inはオブジェクトの中のプロパティ一つ一つを順番に取り出すのに使う。
+
+for...ofは配列や反復可能オブジェクトに対して一つ一つを順番に取り出すのに使う。
+
 ## `[].slice.call()`
 
 https://stackoverflow.com/questions/2125714/explanation-of-slice-call-in-javascript

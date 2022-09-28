@@ -1,6 +1,7 @@
 /********************************************************************
  * Collects value by specified key from array consist of data typed T
  * 
+ * NOTE: 配列にしか使えない。
  * *******************************************************************/ 
 
 // Only requiring title and id.

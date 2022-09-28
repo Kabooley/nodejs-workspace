@@ -8,7 +8,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 [決定版：ページ遷移とレスポンス取得の両立](#決定版：ページ遷移とレスポンス取得の両立)
 [セッションの維持](#セッションの維持)
 [キーワード検索結果を収集する方法の模索]](#キーワード検索結果を収集する方法の模索)
-[artworkページでbookmark数を取得する方法の模索](#artworkページでbookmark数を取得する方法の模索)
+[artworkページでの収集](#artworkページでの収集)
 [デザインパターンの導入](#デザインパターンの導入)
 [puppeteerマルチpageインスタンス](#puppeteerマルチpageインスタンス)
 [メモリリーク対策](#メモリリーク対策)
@@ -1216,6 +1216,44 @@ pixivがartworkの画像リクエストを模倣できるところだけ模倣�
         // 省略
     }}
 ```
+まとめると、
+
+```JavaScript
+{
+    error: false,
+    message:"",
+    body:{
+        illustId: id,
+		illustTitle: title escaped,
+		illustComment:"Comment",
+			"id":"101105423",	// コメントした人
+        title:"",
+		description:"",
+        illustType: 0,		// 普通のイラストならたぶん０、gifとかだと0じゃない
+        createDate:"",
+        uploadDate:"",
+        restrict:0,
+        xRestrict:0,
+        sl:4,
+        urls:{
+            mini:"https:\/\/i.pximg.net\/c\/48x48\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_square1200.jpg",
+            thumb:"https:\/\/i.pximg.net\/c\/250x250_80_a2\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_square1200.jpg",
+            small:"https:\/\/i.pximg.net\/c\/540x540_70\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_master1200.jpg",
+            regular:"https:\/\/i.pximg.net\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_master1200.jpg",
+            // 必要な情報
+            original:"https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0.jpg"
+        },
+        tags:{"authorId":"14846","isLocked":false,"tags":[{"tag":"\u7af6\u6cf3\u6c34\u7740","locked":true,"deletable":false,
+        userId:"",
+        userName: "raikoh(\u5cf6\u6d25\u9244\u7532)"}]},
+        // ページ数はたぶんだけど、画像枚数
+        pageCount: 3,		// 多分一枚目以外の画像枚数
+        // 省略
+    }}
+```
+
+ブックマーク数は？？？？？？？
+
 
 - 画像を取得するリクエスト
 
@@ -1274,6 +1312,7 @@ pixivがartworkの画像リクエストを模倣できるところだけ模倣�
 ```
 
 レスポンスbody: その画像ファイル
+
 
 #### Multiple illust
 
@@ -1503,6 +1542,157 @@ Cookie: 省略
 	}
 }
 ```
+
+## artworkページでの収集
+
+どの処理がループ可能なの？
+
+`requirement`は、`iArtworkData`のプロパティが指定の値を持つかどうかのフィルタである
+
+このタグが含まれているとか、ブックマーク数とか。
+
+ほしい情報をinterfaceにすると...
+
+```TypeScript
+interface iArtworks{
+	url: string;	// そのページのURL
+	title: string;	// そのartworkページのタイトル
+	author: string;	// 作者
+	type: string;	// artworkのタイプ　画像なのかうごイラなのか
+	bookmarks: number;	// ブックマーク数
+	origin: string;		// オリジナルURL(拡張子含む)
+	amount: number;		// 画像枚数	
+}
+```
+
+ベース：
+
+```TypeScript
+
+const artworkUrl: string = `https://www.pixiv.net/artworks/`;
+
+const cb = (res: puppeteer.HTTPResponse): boolean => {
+	return res.status() === 200 && res.url().inlcudes(/* specify url */)
+}
+
+const removeFromResponse = async <T>(res: puppeteer.HTTPResponse): Promise<T> => {
+	// とにかく指定のHTTPResponseのbodyを返す。.json()までする。
+};
+
+const isFulfillRequirement = (body: iArtworkData, requirement): boolean => {
+	// とにかくrequirementを満たすかどうかチェックする
+	// 満たすならtrue、そうじゃないならfalse
+	return result;
+};
+
+function collectArtworksData = async(page, passedIds, requirement?) {
+
+	// Set up navigation.
+	const navigate = new Navigation(page);
+	navigate.resetWaitForResponseCallback(cb);
+
+	let res: (puppeteer.HTTPResponse | any)[] = [];
+	let collected: iArtworkData[] = [];
+	let pushBodyQueue: Promise<void> = Promise.resolve();
+
+	for(const id of passedIds) {
+		// -- ここの囲った部分は終わるまで ---------------------
+		// 次のナビゲーション(ループ)に行くことは許されない
+		res = await navigate.navigationBy(page.goto(artworkUrl + id));
+		// bodyとはHTTPResponse.body.bodyである
+		const body: iArtworkData = await removeFromResponse<iArtworkData>(res);
+		// --------------------------------
+
+		// -- ここの条件分岐は非同期にして次のページ遷移に行っちゃっていい --
+		// なのでプロミスで囲ってあとで終わればOKにすればいいかも。
+		// 
+		// !requirement.length --> bodyをそのまま納める
+		// requirement.length --> 次を検査する
+		// isFullfillRequirement() --> bodyを納める
+		// !isFullfillRequirement() --> bodyは納めない
+		promise = promise.then(() => {
+			if(requirement.length) {
+				if(!isFulfillRequirement(body)) collected.push(body);
+			}
+			else {
+				collected.push(body);
+			}
+		});
+		// ---------------------------------------------------
+	};
+
+	await promise;
+	return data;
+};
+
+```
+
+case１：アートワークページからそのままダウンロードを実行する場合
+
+`collected.push(body)`のところがダウンロードプロセスに代わる。
+
+ダウンロードプロセス中に他のartworkページへ移動すると困るので、
+
+`promise = promise.then()`のラップを解除してpeageがそのURLにいるときにhttp.request()を送る
+
+
+
+- HTTPS requestを送って、ストリーム処理させる。
+- 画像枚数をチェック
+- fsとの連携（名前の付け方、保存ディレクトリの確認）
+- 保存先がWSL上のUbuntu環境だと保存しても困るだけなので、ストレージサービスを利用する
+
+```TypeScript
+
+const artworkUrl: string = `https://www.pixiv.net/artworks/`;
+
+const cb = (res: puppeteer.HTTPResponse): boolean => {
+	return res.status() === 200 && res.url().inlcudes(/* specify url */)
+}
+
+const removeFromResponse = async <T>(res: puppeteer.HTTPResponse): Promise<T> => {
+	// とにかく指定のHTTPResponseのbodyを返す。.json()までする。
+};
+
+const isFulfillRequirement = (body: iArtworkData, requirement): boolean => {
+	// とにかくrequirementを満たすかどうかチェックする
+	// 満たすならtrue、そうじゃないならfalse
+	return result;
+};
+
+function collectArtworksData = async(page, passedIds, requirement?) {
+
+	// Set up navigation.
+	const navigate = new Navigation(page);
+	navigate.resetWaitForResponseCallback(cb);
+
+	let res: (puppeteer.HTTPResponse | any)[] = [];
+	let collected: iArtworkData[] = [];
+	let pushBodyQueue: Promise<void> = Promise.resolve();
+
+	for(const id of passedIds) {
+		res = await navigate.navigationBy(page.goto(artworkUrl + id));
+		const body: iArtworkData = await removeFromResponse<iArtworkData>(res);
+		promise = promise.then(() => {
+			if(requirement.length) {
+				if(!isFulfillRequirement(body)) collected.push(body);
+			}
+			else {
+				collected.push(body);
+			}
+		});
+	};
+
+	await promise;
+	return data;
+};
+```
+
+iArtworkdataにはbookmark数が載っていない可能性？
+
+並列処理は可能なの？
+
+Pageインスタンスを増やす方法。
 
 ## デザインパターンの導入
 
