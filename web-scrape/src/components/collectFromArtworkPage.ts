@@ -90,11 +90,27 @@ interface iArtworkData {
     if(!res[0]) throw new Error("Something went wrong but required HTTP Response could not captured.");
     return res[0];
  };
+
  
  const isFulfillRequirement = (body: iArtworkData, requirement): boolean => {
      // とにかくrequirementを満たすかどうかチェックする
      // 満たすならtrue、そうじゃないならfalse
      return result;
+ };
+
+ const dummy: iBodyOfArtworkPageResponse = {
+    error: false,
+    message: "",
+    body: {
+        illustId: "12345",
+        illustTitle: "title of this artwork",
+        illustType: 0,
+        sl:"",
+        urls:{
+            original:"",    // 実際はstringではなくて正規表現である。取得したい情報。
+        },
+        pageCount: 3	// 多分一枚目以外の画像枚数
+    }
  };
  
 
