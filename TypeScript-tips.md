@@ -5,11 +5,11 @@ TODO: TypeScriptの書籍を買え！
 ## 目次
 
 [TypeScriptはprivate指定子でスコープを制御してくれるわけではない](#TypeScriptはprivate指定子でスコープを制御してくれるわけではない)
-[後から動的にプロパティを追加するつもりの空のオブジェクト](#後から動的にプロパティを追加するつもりの空のオブジェクト)
 [割り当てられる前に使用しています](#割り当てられる前に使用しています)
 [Typeだけインポートする](#Typeだけインポートする)
 [`document`とかが使えないときは](#`document`とかが使えないときは)
-[動的にプロパティを追加するオブジェクトの型付け](#動的にプロパティを追加するオブジェクトの型付け)
+[後から動的にプロパティを追加するつもりの空のオブジェクト](#後から動的にプロパティを追加するつもりの空のオブジェクト)
+[動的にオブジェクトのプロパティを追加するようなメソッドの型付け](#動的にオブジェクトのプロパティを追加するようなメソッドの型付け)
 
 ## TypeScriptはprivate指定子でスコープを制御してくれるわけではない
 
@@ -341,7 +341,7 @@ const collectElementsAsArray = <T>(data: T[], key: keyof T): T[keyof T][] => {
 ```
 
 
-## 動的にプロパティを追加するオブジェクトの型付け
+## 動的にオブジェクトのプロパティを追加するようなメソッドの型付け
 
 
 https://stackoverflow.com/a/45339463
@@ -376,19 +376,44 @@ ooo["name"] = "Mike";
 アプローチ：
 
 ```TypeScript
-
-// NOTE: これだと戻り値の型がRecord<>になって扱いに困るかも
- const retrievePropertyBy = < T extends object>(obj: T, keys: (keyof T)[]) => {
-    let o: Record<keyof T, T[keyof T]> = {} as Record<keyof T, T[keyof T]>;
+export const hasProperties = < T extends object>(obj: T, keys: (keyof T)[]): boolean => {
+    let result: boolean = true;
+    keys.forEach((key: keyof T) => {
+        result = result && obj.hasOwnProperty(key);
+    });
+    return result;
+ };
+ 
+ 
+/***
+ * ジェネリック型のオブジェクト`obj`から、keysのプロパティだけを取り出したオブジェクトを生成する。
+ * 
+ * @type {T extends object} - オブジェクトだけを受け付けるのでジェネリックで指定できるT型はオブジェクトでなくてはならない
+ * @param {T} obj
+ * @param {(keyof T)[]} keys - key string of T type object that about to retrieve.
+ * 
+ * NOTE: そのプロパティが存在することを前提としている
+ * */  
+export const takeOutPropertiesFrom = < T extends object>(obj: T, keys: (keyof T)[]): T => {
+    let o: T = <T>{};
     keys.forEach((key: keyof T) => {
         o[key] = obj[key];
     });
     return o;
  };
+
+// これの場合、戻り値の型がRecord<keyof T, T[keyof T]>となるので扱いに非常に困るかも
+const takeOutPropertyFrom = < T extends object>(obj: T, keys: (keyof T)[]): Record<keyof T, T[keyof T]> => {
+    let o: Record<keyof T, T[keyof T]> = {} as Record<keyof T, T[keyof T]>;
+    keys.forEach((key: keyof T) => {
+        o[key] = obj[key];
+    });
+    return o;
+};
 ```
 
 - `Record<key, value>`を使って動的プロパティ追加可能オブジェクトの型を定義する
-- `{} as TYPE`で初期化時に空のオブジェクトを渡すことを許可させる 
+- `{} as TYPE`または`<TYPE>{}`で初期化時に空のオブジェクトを渡すことを許可させる 
 
 1. `Record<key, value>`を使って動的プロパティ追加可能オブジェクトの型を定義する
 
@@ -522,3 +547,6 @@ type I3 = Person[AliveOrName];
 
 ## for...inループで取り出せる列挙可能プロパティは型注釈がつけられずstringになる
 
+なので列挙可能プロパティがループで取り出されるたびに取り出されたプロパティに型注釈はつけられない。
+
+別のループを使おう。

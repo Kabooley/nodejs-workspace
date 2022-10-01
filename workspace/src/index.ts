@@ -51,8 +51,8 @@ const dummy: iBodyOfArtworkPageResponse = {
     }
  };
 
- const requiredForReposen: (keyof iBodyOfArtworkPageResponse)[] = ["body"];
- const requiredForBody: (keyof iArtworkData)[] = ["illustId", "illustTitle", "illustType", "sl", "urls", "pageCount"];
+ const requiredForReposen: (keyof iBodyOfArtworkPageResponse)[] = ["error", "message", "body"];
+ const requiredForBody: (keyof iArtworkData)[] = ["illustId", "illustTitle", "urls", "pageCount"];
 
 /****
  * objのなかにrequirementのすべてのプロパティがあるときに
@@ -60,9 +60,9 @@ const dummy: iBodyOfArtworkPageResponse = {
  * 
  * 
  * */  
- const hasOwnProperties = < T extends object>(obj: T, requirement: (keyof T)[]) => {
+ const hasProperties = < T extends object>(obj: T, keys: (keyof T)[]): boolean => {
     let result: boolean = true;
-    requirement.forEach((key: keyof T) => {
+    keys.forEach((key: keyof T) => {
         result = result && obj.hasOwnProperty(key);
     });
     return result;
@@ -74,7 +74,7 @@ const dummy: iBodyOfArtworkPageResponse = {
  * 
  * NOTE: 戻り値の型が`Record<keyof T, T[keyof T]>`になってその後戻り値の扱いに困るかも...
  * */  
- const retrievePropertyBy = < T extends object>(obj: T, keys: (keyof T)[]): Record<keyof T, T[keyof T]> => {
+ const takeOutPropertyFrom = < T extends object>(obj: T, keys: (keyof T)[]): Record<keyof T, T[keyof T]> => {
     let o: Record<keyof T, T[keyof T]> = {} as Record<keyof T, T[keyof T]>;
     keys.forEach((key: keyof T) => {
         o[key] = obj[key];
@@ -83,12 +83,23 @@ const dummy: iBodyOfArtworkPageResponse = {
  };
 
 /***
- * `obj`から`keys`で指定されたプロパティを取り出して、
- * その指定プロパティからなるオブジェクトを返す。
+ * `obj`からkeysのプロパティだけを取り出したオブジェクトTを生成する。
  * 
  * 
  * */  
- const retrievePropertyByVer2 = < T extends object>(obj: T, keys: (keyof T)[]): T => {
+ const takeOutPropertyFromVer2 = < T extends object>(obj: T, keys: (keyof T)[]): T => {
+    let o: T = <T>{};
+    keys.forEach((key: keyof T) => {
+        o[key] = obj[key];
+    });
+    return o;
+ };
+
+/***
+ * keyで指定したプロパティをobj取り出す
+ * 
+ * */  
+ const retrieveFrom = < T extends object>(obj: T, keys: (keyof T)[]): T => {
     let o: T = <T>{};
     keys.forEach((key: keyof T) => {
         o[key] = obj[key];
@@ -102,13 +113,27 @@ const dummy: iBodyOfArtworkPageResponse = {
  * 
  * */
 (function(dummy) {
-    if(hasOwnProperties<iBodyOfArtworkPageResponse>(dummy, requiredForReposen)){
-        const dum: iBodyOfArtworkPageResponse = retrievePropertyByVer2<iBodyOfArtworkPageResponse>(dummy, requiredForReposen);
+    // 指定のプロパティがdummyにあるのかチェックする
+    if(hasProperties<iBodyOfArtworkPageResponse>(dummy, requiredForReposen)){
+        // 指定のプロパティが存在するので各プロパティをそれぞれ取り出す
+        // retirieved: (string | boolean | iArtwork)[]
+        // 
+        // この方法だとどれがiArtwork型の要素なのか後で探すのが大変
+        const retrieved = requiredForReposen.map((key: keyof iBodyOfArtworkPageResponse) => {
+            return dummy[key];
+        });
 
-        console.log(dum);
+        // 一方、こっちの方法ならkeyを指定すればどの値が得られるかあとから容易にわかる
+        const retrieved2 = takeOutPropertyFromVer2<iBodyOfArtworkPageResponse>(dummy, requiredForReposen);
 
-        const body: iBodyOfArtworkPageResponse = retrievePropertyByVer2<iBodyOfArtworkPageResponse>(dummy, ["body"]);
+        console.log(retrieved);
+        console.log(retrieved2);
+        console.log(retrieved2.body);   // iArtworkData型であることをTypeScriptが理解している
 
-        console.log(body);
+        if(hasProperties<iArtworkData>(retrieved2.body, requiredForBody)){
+            const ordered = takeOutPropertyFromVer2<iArtworkData>(retrieved2.body, requiredForBody);
+            console.log(ordered);
+        }
+
     }
 })(dummy); 

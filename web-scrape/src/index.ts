@@ -5,6 +5,7 @@ import { initialize } from './helper/initialize';
 import { search } from './components/search';
 import { collectFromSearchResult } from './components/collectFromResultPage';
 import type { iBodyIncludesIllustManga } from './components/Collect';
+import { collectArtworksData } from './components/collectFromArtworkPage';
 // import { login } from './components/login';
 
 // 
@@ -68,6 +69,11 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         console.log(ids);
 
         // So far so good.
+
+        const artworksData = await collectArtworksData(page, ids);
+
+        // DEBUG:一旦JSONファイルで保存しよう
+        // console.log(artworksData);
     }
     catch(e) {
         console.error(e);

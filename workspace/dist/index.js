@@ -15,17 +15,17 @@ const dummy = {
         pageCount: 3 // 多分一枚目以外の画像枚数
     }
 };
-const requiredForReposen = ["body"];
-const requiredForBody = ["illustId", "illustTitle", "illustType", "sl", "urls", "pageCount"];
+const requiredForReposen = ["error", "message", "body"];
+const requiredForBody = ["illustId", "illustTitle", "urls", "pageCount"];
 /****
  * objのなかにrequirementのすべてのプロパティがあるときに
  * requirementのプロパティからなるオブジェクトを返す
  *
  *
  * */
-const hasOwnProperties = (obj, requirement) => {
+const hasProperties = (obj, keys) => {
     let result = true;
-    requirement.forEach((key) => {
+    keys.forEach((key) => {
         result = result && obj.hasOwnProperty(key);
     });
     return result;
@@ -36,7 +36,7 @@ const hasOwnProperties = (obj, requirement) => {
  *
  * NOTE: 戻り値の型が`Record<keyof T, T[keyof T]>`になってその後戻り値の扱いに困るかも...
  * */
-const retrievePropertyBy = (obj, keys) => {
+const takeOutPropertyFrom = (obj, keys) => {
     let o = {};
     keys.forEach((key) => {
         o[key] = obj[key];
@@ -44,12 +44,22 @@ const retrievePropertyBy = (obj, keys) => {
     return o;
 };
 /***
- * `obj`から`keys`で指定されたプロパティを取り出して、
- * その指定プロパティからなるオブジェクトを返す。
+ * `obj`からkeysのプロパティだけを取り出したオブジェクトTを生成する。
  *
  *
  * */
-const retrievePropertyByVer2 = (obj, keys) => {
+const takeOutPropertyFromVer2 = (obj, keys) => {
+    let o = {};
+    keys.forEach((key) => {
+        o[key] = obj[key];
+    });
+    return o;
+};
+/***
+ * keyで指定したプロパティをobj取り出す
+ *
+ * */
+const retrieveFrom = (obj, keys) => {
     let o = {};
     keys.forEach((key) => {
         o[key] = obj[key];
@@ -62,10 +72,23 @@ const retrievePropertyByVer2 = (obj, keys) => {
  *
  * */
 (function (dummy) {
-    if (hasOwnProperties(dummy, requiredForReposen)) {
-        const dum = retrievePropertyByVer2(dummy, requiredForReposen);
-        console.log(dum);
-        const body = retrievePropertyByVer2(dummy, ["body"]);
-        console.log(body);
+    // 指定のプロパティがdummyにあるのかチェックする
+    if (hasProperties(dummy, requiredForReposen)) {
+        // 指定のプロパティが存在するので各プロパティをそれぞれ取り出す
+        // retirieved: (string | boolean | iArtwork)[]
+        // 
+        // この方法だとどれがiArtwork型の要素なのか後で探すのが大変
+        const retrieved = requiredForReposen.map((key) => {
+            return dummy[key];
+        });
+        // 一方、こっちの方法ならkeyを指定すればどの値が得られるかあとから容易にわかる
+        const retrieved2 = takeOutPropertyFromVer2(dummy, requiredForReposen);
+        console.log(retrieved);
+        console.log(retrieved2);
+        console.log(retrieved2.body); // iArtworkData型であることをTypeScriptが理解している
+        if (hasProperties(retrieved2.body, requiredForBody)) {
+            const ordered = takeOutPropertyFromVer2(retrieved2.body, requiredForBody);
+            console.log(ordered);
+        }
     }
 })(dummy);

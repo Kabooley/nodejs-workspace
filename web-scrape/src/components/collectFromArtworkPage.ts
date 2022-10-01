@@ -1,20 +1,17 @@
 /****************************************************************
  * Artoworkページから任意の情報を取得する機能。
  * 
- * ひとまずで、この関数はartworkページid配列を取得して、idから各artworkページへアクセスして収集結果を返すまでを実行する。
+ * ArtworkページURLの末尾のid一覧からなる配列を取得し、
  * 
+ * 配列の各idを追加したURLへアクセスしてArtworkページの情報を、
  * 
- * */
+ * HTTPResponseから取得する。
+ * **************************************************************/
 
 import type puppeteer from "puppeteer";
 import { Navigation } from './Navigation';
-import { selectors } from '../constants/selectors';
+import { takeOutPropertiesFrom } from '../utilities/objectModifier';
 
-interface iRequirement {
-    /* NOTE: key of iArtworkData にすべきか、決め打ちしちゃうか... */ 
-};
-
-interface iCollectionFromArtwork {};
 
 interface iBodyOfArtworkPageResponse {
     error: boolean;
@@ -44,17 +41,7 @@ interface iArtworkData {
     },
     tags?: any;
     pageCount: number;		// 多分一枚目以外の画像枚数
-}
-
-
-/****
- * 
- * @param { puppeteer.Page } page - puppeteer page instance
- * @param { string[] } ids - Array consist of id that express artwork page id.
- * @param {string[]} requirement - Array consist of key of `iBodyOfArtworkPageResponse` to be collected.
- * 
- * @return {iArtworkData[]} - 
- * */ 
+};
 
  const artworkUrl: string = `https://www.pixiv.net/artworks/`;
 
@@ -66,104 +53,52 @@ interface iArtworkData {
     return cb;
  };
 
+
 /***
- * Navigation.navigateBy()で返されるHTTPResponseなどからなる配列から、
- * page.waitForResponse()から返された戻り値だけを抜き出して返す。
+ * 前提：配列`res`の第一引数は、page.waitForResponseからの戻り値のHTTPResponseである
  * 
- * NOTE: 引数であるresがNavigation.navigateBy()の戻り値で、
- * 且つそれの最初の要素がwaitForResponse()の戻り値であることを大前提にしている。
  * 
- * TODO: 次の実装
- * res : (puppeteer.HTTPResponse | any)[] からres[0]を抜き出して、
- * res[0]がiBodyOfArtworkPageResponse型であることのチェックして合格したら
- * res[0].bodyがiArtworkDataであることのチェック
- * これらに合格したらres[0].bodyを返す
- * 
- * res[0].object.hasOwnProperty(keyof iBodyOfArtworkPageResponse)は可能？
- * res[0].bodyが存在するのかのチェックの方がいいかな
- * それだとハードコーディングなんだけど、
- * それをいうとこの関数をすごく汎用的にしないといけないなぁ
- * 
- * ならば機能を分割した方がいいねぇ
- * */  
- const removeFromResponse = async <T>(res: (puppeteer.HTTPResponse | any)[]): Promise<T> => {
-    if(!res[0]) throw new Error("Something went wrong but required HTTP Response could not captured.");
-    return res[0];
- };
-
- 
- const isFulfillRequirement = (body: iArtworkData, requirement): boolean => {
-     // とにかくrequirementを満たすかどうかチェックする
-     // 満たすならtrue、そうじゃないならfalse
-     return result;
- };
-
- const dummy: iBodyOfArtworkPageResponse = {
-    error: false,
-    message: "",
-    body: {
-        illustId: "12345",
-        illustTitle: "title of this artwork",
-        illustType: 0,
-        sl:"",
-        urls:{
-            original:"",    // 実際はstringではなくて正規表現である。取得したい情報。
-        },
-        pageCount: 3	// 多分一枚目以外の画像枚数
-    }
- };
- 
-
-/****
- * @param {} - 
- * @param {} - 
- * @param {iRequirement} [requirement] -  
- * @param {} - 
- * 
- * */  
- const collectArtworksData = async (
+ * */ 
+export const collectArtworksData = async (
         page: puppeteer.Page, 
-        passedIds: string[], 
-        requirement?: iRequirement
+        ids: string[], 
+        requirement?: (keyof iArtworkData)[]
     ): Promise<iArtworkData[]> => {
- 
-     // Set up navigation.
+
      const navigate = new Navigation(page);
- 
-     let res: (puppeteer.HTTPResponse | any)[] = [];
      let collected: iArtworkData[] = [];
      let promise: Promise<void> = Promise.resolve();
-     let cb: (r: puppeteer.HTTPResponse) => boolean;
 
-     for(const id of passedIds) {
-         // -- ここの囲った部分は終わるまで ---------------------
-         // 次のナビゲーション(ループ)に行くことは許されない
+     for(const id of ids) {
+         // NOTE: res[0].json()が取得できるまで次のループへ行くことは許されない
          
         //  毎ループ、responseフィルタリングのためにwaitForResponseのコールバックを更新しなくてはならない
-         cb = getCallback(artworkUrl + id)
-         navigate.resetWaitForResponseCallback(page.waitForResponse(cb));
+         navigate.resetWaitForResponseCallback(page.waitForResponse(getCallback(artworkUrl + id)));
         //  TODO: Navigateクラスの修正
-         res = await navigate.navigateBy(page.goto(artworkUrl + id));
-         // bodyとはHTTPResponse.body.bodyである
-         const body: iArtworkData = await removeFromResponse<iArtworkData>(res);
-         // --------------------------------
- 
-         // -- ここの条件分岐は非同期にして次のページ遷移に行っちゃっていい --
-         // なのでプロミスで囲ってあとで終わればOKにすればいいかも。
-         // 
-         // !requirement.length --> bodyをそのまま納める
-         // requirement.length --> 次を検査する
-         // isFullfillRequirement() --> bodyを納める
-         // !isFullfillRequirement() --> bodyは納めない
-         promise = promise.then(() => {
-             if(requirement.length) {
-                 if(!isFulfillRequirement(body)) collected.push(body);
-             }
-             else {
-                 collected.push(body);
-             }
-         });
-         // ---------------------------------------------------
+        let res: (puppeteer.HTTPResponse | any)[] = await navigate.navigateBy(function(){ return page.goto(artworkUrl + id)});
+
+        //「res[0]はpuppeteer.HTTPResponseである && res[0].json().bodyが存在する」が真なら
+        // responseBodyにレスポンスのボディを代入する。
+        if(typeof res[0]["json"] !== "function" || !res[0].hasOwnProperty("json")){
+            throw new Error("Something went wrong but required properties did not exist.");
+        }
+        // .json()でレスポンスのbodyを取得する
+        // それはiBodyOfArtworkPageResponse型であるとする
+        let responseBody: iBodyOfArtworkPageResponse = await res[0].json();
+
+        promise = promise.then(() => {
+            // "body"というプロパティが存在するか確認する
+            if(!responseBody.hasOwnProperty('body')){
+                throw new Error("Something went wrong but required properties did not exist.");
+            };
+
+            // iArtworkDataの指定のプロパティからなるオブジェクトをcollectedへ格納する
+            const body: iArtworkData = takeOutPropertiesFrom<iArtworkData>(
+                responseBody.body, 
+                requirement ? requirement : ["illustId", "illustTitle", "sl", "urls", "pageCount"]
+            );
+            collected.push(body);
+        });
      };
  
      await promise;

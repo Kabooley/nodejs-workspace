@@ -78,8 +78,10 @@ export class Navigation {
     /***
      * Bit faster than navigate()
      * navigate()とほぼ変わらないし影響もしないからいらないかも。
+     * 
+     * 10/2: trigger: () => Promise<void>をtrigger: () => Promise<any>にした
      * */ 
-    async navigateBy(trigger: () => Promise<void>): Promise<(puppeteer.HTTPResponse | any)[]> {
+    async navigateBy(trigger: () => Promise<any>): Promise<(puppeteer.HTTPResponse | any)[]> {
         return await Promise.all([
             this.waitForResponse,
             this.waitForNavigation,
