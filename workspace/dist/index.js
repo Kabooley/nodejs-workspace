@@ -1,62 +1,71 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
+;
+;
+const dummy = {
+    error: false,
+    message: "",
+    body: {
+        illustId: "12345",
+        illustTitle: "title of this artwork",
+        illustType: 0,
+        sl: "",
+        urls: {
+            original: "", // 実際はstringではなくて正規表現である。取得したい情報。
+        },
+        pageCount: 3 // 多分一枚目以外の画像枚数
     }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
+};
+const requiredForReposen = ["body"];
+const requiredForBody = ["illustId", "illustTitle", "illustType", "sl", "urls", "pageCount"];
+/****
+ * objのなかにrequirementのすべてのプロパティがあるときに
+ * requirementのプロパティからなるオブジェクトを返す
+ *
+ *
+ * */
+const hasOwnProperties = (obj, requirement) => {
+    let result = true;
+    requirement.forEach((key) => {
+        result = result && obj.hasOwnProperty(key);
+    });
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
+/***
+ * `obj`から`keys`で指定されたプロパティを取り出して、
+ * その指定プロパティからなるオブジェクトを返す。
+ *
+ * NOTE: 戻り値の型が`Record<keyof T, T[keyof T]>`になってその後戻り値の扱いに困るかも...
+ * */
+const retrievePropertyBy = (obj, keys) => {
+    let o = {};
+    keys.forEach((key) => {
+        o[key] = obj[key];
     });
+    return o;
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-const fs = __importStar(require("fs"));
-const url = __importStar(require("url"));
-const downloader_1 = require("./downloader");
-const _url = new url.URL("https://raw.githubusercontent.com/wiki/Microsoft/DirectXTK/images/cat.png");
-const filepath = "./dist/cat.png";
-const options = {
-    method: "GET",
-    host: _url.host,
-    path: _url.pathname,
-    protocol: "https:",
-};
-(function (options) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const wfs = fs.createWriteStream(filepath, {
-                encoding: 'binary',
-                autoClose: true,
-                emitClose: true,
-                highWaterMark: 1024 /* default: 64 * 1024 */
-            });
-            const downloader = new downloader_1.Downloader(options, wfs);
-            yield downloader.download();
-        }
-        catch (e) {
-            console.error(e);
-        }
+/***
+ * `obj`から`keys`で指定されたプロパティを取り出して、
+ * その指定プロパティからなるオブジェクトを返す。
+ *
+ *
+ * */
+const retrievePropertyByVer2 = (obj, keys) => {
+    let o = {};
+    keys.forEach((key) => {
+        o[key] = obj[key];
     });
-})(options);
+    return o;
+};
+/***
+ * dummyからそのプロパティbody以下を取り出す
+ *
+ *
+ * */
+(function (dummy) {
+    if (hasOwnProperties(dummy, requiredForReposen)) {
+        const dum = retrievePropertyByVer2(dummy, requiredForReposen);
+        console.log(dum);
+        const body = retrievePropertyByVer2(dummy, ["body"]);
+        console.log(body);
+    }
+})(dummy);

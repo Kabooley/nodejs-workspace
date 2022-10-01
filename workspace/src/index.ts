@@ -1,6 +1,10 @@
 /***********************************************************
  * オブジェクトに指定のプロパティが含まれているのか調査する機能
  * 
+ * 
+ * TODO: iBodyOfArtworkPageResponseからなるオブジェクトからiArtworkDataからなるオブジェクトを取り出すはずが、指定のプロパティからなるiBodyOfArtworkPageResponseオブジェクトを生成していただけだった。
+ * 
+ * なので取り出すロジックを作り直すこと。
  * *********************************************************/ 
 interface iBodyOfArtworkPageResponse {
     error: boolean;
@@ -31,12 +35,6 @@ interface iArtworkData {
     tags?: any;
     pageCount: number;		// 多分一枚目以外の画像枚数
 };
-
-
-const hasOwnProperty = <T extends object>(obj: T, key: keyof T): boolean => {
-    return obj.hasOwnProperty(key);
-};
- 
  
 const dummy: iBodyOfArtworkPageResponse = {
     error: false,
@@ -52,41 +50,9 @@ const dummy: iBodyOfArtworkPageResponse = {
         pageCount: 3	// 多分一枚目以外の画像枚数
     }
  };
- 
- let result = true;
+
  const requiredForReposen: (keyof iBodyOfArtworkPageResponse)[] = ["body"];
  const requiredForBody: (keyof iArtworkData)[] = ["illustId", "illustTitle", "illustType", "sl", "urls", "pageCount"];
-
- if(dummy) {
-    // // for...inだとpropに型注釈をつけられない
-    // // なのでpropの型が重要な場面では使えない
-    // for(const prop in requiredForReposen) {
-    //     // この比較なら一つでもfalseが返されれば必ずresultはfalseになる
-    //     prop as keyof iBodyOfArtworkPageResponse;
-    //     result = result && hasOwnProperty<iBodyOfArtworkPageResponse>(dummy, prop);
-    // }
-
-    requiredForReposen.forEach((key: keyof iBodyOfArtworkPageResponse) => {
-        result = result && hasOwnProperty<iBodyOfArtworkPageResponse>(dummy, key);
-    });
-
-    // --- ここら辺が囲えそう-------------
-    if(result) {
-        const body = dummy!.body;
-        requiredForBody.forEach((key: keyof iArtworkData) => {
-            result = result && hasOwnProperty<iArtworkData>(body, key);
-        });
-    }
-
-    if(result) {
-        let contents = {};
-        requiredForBody.forEach((key) => {
-            contents[key] = dummy.body[key];
-        });
-        return contents;
-    }
-    // -----------------------------------
- };
 
 /****
  * objのなかにrequirementのすべてのプロパティがあるときに
@@ -94,14 +60,55 @@ const dummy: iBodyOfArtworkPageResponse = {
  * 
  * 
  * */  
- const _hasOwnProperty = < T extends object>(obj: T, requirement: (keyof T)[]) => {
-    // 1. Check whether obj satisfies properties that required by requirement.
+ const hasOwnProperties = < T extends object>(obj: T, requirement: (keyof T)[]) => {
     let result: boolean = true;
     requirement.forEach((key: keyof T) => {
         result = result && obj.hasOwnProperty(key);
     });
-    // 2. return object satisfies properties that requirement requires.
-    if(result) {
-        // TODO: {requirement key: obj[requirement]}を返すようにする
+    return result;
+ };
+
+/***
+ * `obj`から`keys`で指定されたプロパティを取り出して、
+ * その指定プロパティからなるオブジェクトを返す。
+ * 
+ * NOTE: 戻り値の型が`Record<keyof T, T[keyof T]>`になってその後戻り値の扱いに困るかも...
+ * */  
+ const retrievePropertyBy = < T extends object>(obj: T, keys: (keyof T)[]): Record<keyof T, T[keyof T]> => {
+    let o: Record<keyof T, T[keyof T]> = {} as Record<keyof T, T[keyof T]>;
+    keys.forEach((key: keyof T) => {
+        o[key] = obj[key];
+    });
+    return o;
+ };
+
+/***
+ * `obj`から`keys`で指定されたプロパティを取り出して、
+ * その指定プロパティからなるオブジェクトを返す。
+ * 
+ * 
+ * */  
+ const retrievePropertyByVer2 = < T extends object>(obj: T, keys: (keyof T)[]): T => {
+    let o: T = <T>{};
+    keys.forEach((key: keyof T) => {
+        o[key] = obj[key];
+    });
+    return o;
+ };
+
+/***
+ * dummyからそのプロパティbody以下を取り出す
+ * 
+ * 
+ * */
+(function(dummy) {
+    if(hasOwnProperties<iBodyOfArtworkPageResponse>(dummy, requiredForReposen)){
+        const dum: iBodyOfArtworkPageResponse = retrievePropertyByVer2<iBodyOfArtworkPageResponse>(dummy, requiredForReposen);
+
+        console.log(dum);
+
+        const body: iBodyOfArtworkPageResponse = retrievePropertyByVer2<iBodyOfArtworkPageResponse>(dummy, ["body"]);
+
+        console.log(body);
     }
- }  
+})(dummy); 

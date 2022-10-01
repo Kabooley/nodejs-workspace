@@ -9,6 +9,7 @@ TODO: TypeScriptの書籍を買え！
 [割り当てられる前に使用しています](#割り当てられる前に使用しています)
 [Typeだけインポートする](#Typeだけインポートする)
 [`document`とかが使えないときは](#`document`とかが使えないときは)
+[動的にプロパティを追加するオブジェクトの型付け](#動的にプロパティを追加するオブジェクトの型付け)
 
 ## TypeScriptはprivate指定子でスコープを制御してくれるわけではない
 
@@ -338,3 +339,186 @@ const collectElementsAsArray = <T>(data: T[], key: keyof T): T[keyof T][] => {
     return arr.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
 }
 ```
+
+
+## 動的にプロパティを追加するオブジェクトの型付け
+
+
+https://stackoverflow.com/a/45339463
+
+
+TypeScriptで以下を実現しようとすると、
+
+```JavaScript
+var obj = {};
+obj.name = "Mike";
+```
+
+必ずエラーになる。
+
+```TypeScript
+var obj = {};
+obj.name = "Mike";
+// Error: property name does not exist in {}
+
+// 同様にエラー
+ooo["name"] = "Mike";
+```
+
+ということで、
+
+- `var obj = {}`で初期化されるオブジェクト
+- 後から動的にとある型のプロパティを追加することになる
+
+
+そんなオブジェクトの型付けをどう実現すればいいか。
+
+アプローチ：
+
+```TypeScript
+
+// NOTE: これだと戻り値の型がRecord<>になって扱いに困るかも
+ const retrievePropertyBy = < T extends object>(obj: T, keys: (keyof T)[]) => {
+    let o: Record<keyof T, T[keyof T]> = {} as Record<keyof T, T[keyof T]>;
+    keys.forEach((key: keyof T) => {
+        o[key] = obj[key];
+    });
+    return o;
+ };
+```
+
+- `Record<key, value>`を使って動的プロパティ追加可能オブジェクトの型を定義する
+- `{} as TYPE`で初期化時に空のオブジェクトを渡すことを許可させる 
+
+1. `Record<key, value>`を使って動的プロパティ追加可能オブジェクトの型を定義する
+
+https://stackoverflow.com/a/44441178
+
+```TypeScript
+var obj: {[k: string]: any} = {};
+
+// becomes
+
+var obj: Record<string,any> = {};
+
+// MyType can now be defined by extending Record type
+
+interface MyType extends Record<string,any> {
+    typesafeProp1?: number,
+    requiredProp1: string,
+}
+```
+
+2. `{} as TYPE`で初期化時に空のオブジェクトを渡すことを許可させる
+
+https://stackoverflow.com/a/45339463
+
+```TypeScript
+type User = {
+    Username: string;
+    Email: string;
+}
+
+const user01 = {} as User;
+const user02 = <User>{};
+
+user01.Email = "foo@bar.com";
+```
+
+## (自習) オブジェクトとプロパティ動的型付け
+
+#### `typeof`
+
+typeofはJavaScriptオブジェクトをtypeに変換できる。
+
+```TypeScript
+
+// Prints "string"
+console.log(typeof "Hello world");
+
+let s = "hello";
+// let n: string
+let n: typeof s;
+   
+
+const dummy = {
+  error: false,
+  message: "",
+  body: {
+      illustId: "12345",
+      illustTitle: "title of this artwork",
+      illustType: 0,
+      sl:"",
+      urls:{
+          original:"",
+      },
+      pageCount: 3
+  }
+};
+
+// type iDummy = {
+//   error: boolean;
+//   message: string;
+//   body: {
+//       illustId: string;
+//       illustTitle: string;
+//       illustType: number;
+//       sl: string;
+//       urls: {
+//          original: string;
+//       };
+//      pageCount: number;
+//   }
+type iDummy = typeof dummy;
+```
+
+#### `keyof`
+
+`keyof`はオブジェクトのキーからなるタプル型を生成する。
+
+```TypeScript
+type Point = { x: number; y: number };
+// Same as `type P = "x" | "y"`
+type P = keyof Point;
+```
+
+オブジェクトのキーに注釈がつくときそれはstring | numberとなる。
+
+これはJavaScriptで`obj[0]`は常に`obj["0"]`と同義だからである。
+
+```TypeScript
+// これならkeyがnumberと注釈されているので
+// Same as `type A = number`
+type Arrayish = { [n: number]: unknown };
+type A = keyof Arrayish;
+```
+
+#### 添え字アクセス
+
+https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html
+
+TypeScriptではオブジェクトの添え字アクセスを可能としている。
+
+JavaScriptでの添え字アクセスじゃなくて型情報の添え字アクセスのこと。
+
+基本
+
+```TypeScript
+
+type Person = { age: number; name: string; alive: boolean };
+// Age: number
+type Age = Person["age"];
+
+// I1 = string | number
+type I1 = Person["age" | "name"];
+
+// type I2 = string | number | boolean
+type I2 = Person[keyof Person];
+ 
+// type I3 = string | number
+type AliveOrName = "alive" | "name";
+type I3 = Person[AliveOrName];
+```
+
+## for...inループで取り出せる列挙可能プロパティは型注釈がつけられずstringになる
+
