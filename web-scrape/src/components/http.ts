@@ -26,7 +26,7 @@ export class Downloader {
         const req: http.ClientRequest = https.request(options ? options : this.options, (res: http.IncomingMessage)  => {
             if(res.statusCode !== 200) throw new Error(`Error: Server reapond ${res.statusCode}. ${res.statusMessage}`);
             this.res = res;
-            this.setEventListener();
+            this._setEventListener();
         });
 
         req.on('error', (e: Error) => { console.error(e);});
@@ -35,7 +35,7 @@ export class Downloader {
         req.end(() => {console.log("Request stream is finished"); });
     };
 
-    setEventListener() {
+    _setEventListener() {
         if(!this.res || !this.writeStream) return;
 
         // Add listeners to response object.

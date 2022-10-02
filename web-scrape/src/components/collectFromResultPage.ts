@@ -38,8 +38,8 @@ export const collectFromSearchResult = async (
             // Check if res is not includes required property.
             let result: iIllustManga = await getIllustManga(res);
 
-            // DEBUG:
-            console.log(result);
+            // // DEBUG:
+            // console.log(result);
 
             const navigation = new Navigation(page);
             const collector = new Collect<iIllustMangaDataElement>();
