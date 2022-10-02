@@ -6,6 +6,7 @@ import { search } from './components/search';
 import { collectFromSearchResult } from './components/collectFromResultPage';
 import type { iBodyIncludesIllustManga } from './components/Collect';
 import { collectArtworksData } from './components/collectFromArtworkPage';
+import { setRequestInterceptor } from './components/interceptor';
 // import { login } from './components/login';
 
 // 
@@ -56,6 +57,8 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
 
         browser = await puppeteer.launch(options);
         page = await initialize(browser);
+
+        await setRequestInterceptor(page);
         
         // しばらくログイン状態...
         // await login(page, { username: username, password: password});
@@ -73,7 +76,7 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         const artworksData = await collectArtworksData(page, ids);
 
         // DEBUG:一旦JSONファイルで保存しよう
-        // console.log(artworksData);
+        console.log(artworksData);
     }
     catch(e) {
         console.error(e);

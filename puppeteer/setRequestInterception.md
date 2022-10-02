@@ -1,18 +1,30 @@
 # Note: puppeteer Request Interception
 
+https://pptr.dev/api/puppeteer.page.setrequestinterception
+
+https://pptr.dev/next/guides/request-interception/
+
+NOTE: 次の最新バージョンではリリースされない機能である。
+
 _Cooperative モードとレガシーモードがある。_
 
-リクエスト傍受が有効になると、すべてのリクエストは、継続、応答、中止されない限り、傍受を停止する。
+> リクエストのインターセプトが有効になると、続行、応答、または中止されない限り、すべてのリクエストが停止します。
 
-デフォルトでは、Puppeteer は、request.abort, request.continue, request.respond のいずれかが既に呼ばれた後に`request`イベントハンドラが呼ばれた場合、`Request is already handled！`例外を発生させます。
+> デフォルトでは、Puppeteer は、request.abort, request.continue, request.respond のいずれかが既に呼ばれた後に`request`イベントハンドラが呼ばれた場合、`Request is already handled！`例外を発生させます。
 
-常に、未知のハンドラがすでに abort/continue/respond を呼んでいる可能性があることを想定してください。たとえあなたが登録したハンドラだけであっても、サードパーティのパッケージは独自のハンドラを登録することがあります。そのため、abort/continue/respond を呼ぶ前に request.isInterceptResolutionHandled を使って解決状況を常に確認することが重要です。
+> 常に、未知のハンドラがすでに abort/continue/respond を呼んでいる可能性があることを想定してください。たとえあなたが登録したハンドラだけであっても、サードパーティのパッケージは独自のハンドラを登録することがあります。そのため、abort/continue/respond を呼ぶ前に request.isInterceptResolutionHandled を使って解決状況を常に確認することが重要です。
 
-重要なのは、自分のハンドラが非同期処理を待っている間に、 インターセプトの解決は別のリスナーによって処理される可能性があるということです。
+> 重要なのは、自分のハンドラが非同期処理を待っている間に、 インターセプトの解決は別のリスナーによって処理される可能性があるということです。
 
-そのため、request.isInterceptResolutionHandled の返り値は、同期コードブロックの中だけでしか安全ではありません。
+> そのため、request.isInterceptResolutionHandled の返り値は、同期コードブロックの中だけでしか安全ではありません。
 
-**request.isInterceptResolutionHandled と abort/continue/responding は常に同期的に実行するようにしましょう。**
+> **request.isInterceptResolutionHandled と abort/continue/responding は常に同期的に実行するようにしましょう。**
+
+ということで、
+
+- `await page.setRequestInterception(true);`でリクエストを傍受できるようになる
+- ただし傍受したリクエストは必ず`HTTPRequest.abort()`, `HTTPRequest.continue()`, `HTTPRequest.respond()`で「解決」しない限りすべてのリクエストが停止してしまう。
+- なので `await page.setRequestInterception(true);`し始めたら必ず`HTTPRequest.abort()`, `HTTPRequest.continue()`, `HTTPRequest.respond()`のいずれかで「解決」させること。
 
 この例では、2 つの同期ハンドラが一緒に動作している様子を示しています。
 
@@ -210,3 +222,34 @@ page.on('request', request => {
   console.log(request.interceptResolutionState());
 });
 ```
+
+
+## 実践
+
+```TypeScript
+// interceptor.ts
+import type puppeteer from 'puppeteer';
+
+export const setRequestInterceptor = async (page: puppeteer.Page): Promise<void> => {
+    await page.setRequestInterception(true);
+    page.on('request', (interceptedRequest: puppeteer.HTTPRequest) => {
+        if (interceptedRequest.isInterceptResolutionHandled()) return;
+        console.log("--- INTERCEPTED -----------");
+        console.log(interceptedRequest.method());
+        console.log(interceptedRequest.url());
+        console.log("----------------------------");
+        interceptedRequest.continue();
+    });
+};
+
+// index.ts
+await setRequestInterceptor(page);
+```
+
+実行してみたら嘘偽りなくすべてのリクエストを傍受できた。
+
+`interceptedRequest.url()`や`interceptedRequest.method()`でHTTPメソッドやURLが取得できるので、
+
+取得出来たらabort()、
+
+又傍受が必要になったらリクエストが発行される前にpage.on('request')すればいいのかも。
