@@ -66,45 +66,57 @@ export const collectArtworksData = async (
         ids: string[], 
         requirement?: (keyof iArtworkData)[]
     ): Promise<iArtworkData[]> => {
-
-     const navigate = new Navigation(page);
-     let collected: iArtworkData[] = [];
-     let promise: Promise<void> = Promise.resolve();
-
-     for(const id of ids) {
-         // NOTE: res[0].json()が取得できるまで次のループへ行くことは許されない
-         
-        //  毎ループ、responseフィルタリングのためにwaitForResponseのコールバックを更新しなくてはならない
-         navigate.resetWaitForResponseCallback(page.waitForResponse(getCallback(artworkUrl + id)));
-        //  TODO: Navigateクラスの修正
-        let res: (puppeteer.HTTPResponse | any)[] = await navigate.navigateBy(function(){ return page.goto(artworkUrl + id)});
-
-        //「res[0]はpuppeteer.HTTPResponseである && res[0].json().bodyが存在する」が真なら
-        // responseBodyにレスポンスのボディを代入する。
-        if(typeof res[0]["json"] !== "function" || !res[0].hasOwnProperty("json")){
-            throw new Error("Something went wrong but required properties did not exist.");
-        }
-        // .json()でレスポンスのbodyを取得する
-        // それはiBodyOfArtworkPageResponse型であるとする
-        let responseBody: iBodyOfArtworkPageResponse = await res[0].json();
-
-        promise = promise.then(() => {
-            // "body"というプロパティが存在するか確認する
-            if(!responseBody.hasOwnProperty('body')){
-                throw new Error("Something went wrong but required properties did not exist.");
+        try {
+            const navigate = new Navigation(page);
+            let collected: iArtworkData[] = [];
+            let promise: Promise<void> = Promise.resolve();
+       
+            for(const id of ids) {
+                // NOTE: res[0].json()が取得できるまで次のループへ行くことは許されない
+                
+               //  毎ループ、responseフィルタリングのためにwaitForResponseのコールバックを更新しなくてはならない
+                navigate.resetWaitForResponseCallback(page.waitForResponse(getCallback(artworkUrl + id)));
+               //  TODO: Navigateクラスの修正
+               let res: (puppeteer.HTTPResponse | any)[] = await navigate.navigateBy(function(){ return page.goto(artworkUrl + id)});
+               
+               // DEBUG:
+       
+               //「res[0]はpuppeteer.HTTPResponseである && res[0].json().bodyが存在する」が真なら
+               // responseBodyにレスポンスのボディを代入する。
+               // if(typeof res[0]["json"] !== "function" || !res[0].hasOwnProperty("json")){
+               if(typeof res[0]["json"] !== "function"){
+                   throw new Error("Something went wrong but required properties did not exist.");
+               }
+               console.log(res[0].url());
+               console.log(res[1].url());
+               console.log(res[2].url());
+               // .json()でレスポンスのbodyを取得する
+               // それはiBodyOfArtworkPageResponse型であるとする
+               let responseBody: iBodyOfArtworkPageResponse = await res[0].json();
+       
+               promise = promise.then(() => {
+                   // "body"というプロパティが存在するか確認する
+                   if(!responseBody.hasOwnProperty('body')){
+                       throw new Error("Something went wrong but required properties did not exist.");
+                   };
+       
+                   // iArtworkDataの指定のプロパティからなるオブジェクトをcollectedへ格納する
+                   const body: iArtworkData = takeOutPropertiesFrom<iArtworkData>(
+                       responseBody.body, 
+                       requirement ? requirement : ["illustId", "illustTitle", "sl", "urls", "pageCount"]
+                   );
+                   collected.push(body);
+               });
             };
+        
+            await promise;
+            return collected;
+        }
+        catch(e) {
+            await page.screenshot({type: "png", path: "./dist/errorCollectFromArtworkPage.png"});
+            throw e;
+        }
 
-            // iArtworkDataの指定のプロパティからなるオブジェクトをcollectedへ格納する
-            const body: iArtworkData = takeOutPropertiesFrom<iArtworkData>(
-                responseBody.body, 
-                requirement ? requirement : ["illustId", "illustTitle", "sl", "urls", "pageCount"]
-            );
-            collected.push(body);
-        });
-     };
- 
-     await promise;
-     return collected;
  };
  
  

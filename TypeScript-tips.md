@@ -10,6 +10,7 @@ TODO: TypeScriptの書籍を買え！
 [`document`とかが使えないときは](#`document`とかが使えないときは)
 [後から動的にプロパティを追加するつもりの空のオブジェクト](#後から動的にプロパティを追加するつもりの空のオブジェクト)
 [動的にオブジェクトのプロパティを追加するようなメソッドの型付け](#動的にオブジェクトのプロパティを追加するようなメソッドの型付け)
+[非公開classの型情報だけを公開したいとき](#非公開classの型情報だけを公開したいとき)
 
 ## TypeScriptはprivate指定子でスコープを制御してくれるわけではない
 
@@ -550,3 +551,88 @@ type I3 = Person[AliveOrName];
 なので列挙可能プロパティがループで取り出されるたびに取り出されたプロパティに型注釈はつけられない。
 
 別のループを使おう。
+
+## 非公開classの型情報だけを公開したいとき
+
+以下のクラス`RequestInterceptor`は非公開である。
+
+公開されているのは`createRequestInterceptor`だけである。
+
+```TypeScript
+// Interceptor.ts
+
+ import type puppeteer from 'puppeteer';
+
+//  true as instance is already exists.
+ let isInstantiated: boolean = false;
+
+ class RequestInterceptor implements iRequestInterceptor {
+    private cbList: ((event: puppeteer.HTTPRequest) => void)[];
+    constructor(public page: puppeteer.Page){
+        this.cbList = [];
+        this.run = this.run.bind(this);
+        this.add = this.add.bind(this);
+        this.remove = this.remove.bind(this);
+        this.removeAll = this.removeAll.bind(this);
+    };
+
+    async run(): Promise<void> {
+        // ...
+    };
+
+    add(cb: (event: puppeteer.HTTPRequest) => void): void {
+        // ...
+    };
+
+    remove(cb: (event: puppeteer.HTTPRequest) => void): void {
+        // ...
+    };
+
+    removeAll():void {
+        // ...
+    };
+};
+
+
+
+// Limited number of instance to only one.
+ export const createRequestInterceptor = (page: puppeteer.Page): RequestInterceptor => {
+    if(!isInstantiated) {
+        isInstantiated = true;
+        return new RequestInterceptor(page);
+    }
+    else throw new Error('RequestInterceptor is already exist.');
+ };
+```
+
+この場合、使う側は`createRequestInterceptor`の返すクラス`RequestInterceptor`の型情報を知るすべがない。
+
+なので`RequestInterceptor`の型情報だけを外部へ公開して、クラス自体は隠したままにしたい。
+
+そんなとき。
+
+参考：
+
+https://stackoverflow.com/a/54372558/13891684
+
+https://www.typescriptlang.org/docs/handbook/utility-types.html#instancetypetype
+
+`InstanceOf<TYPE>`
+
+> Type のコンストラクター関数のインスタンス型から構成される型を構築します。
+
+`InstanceOf<typeof CLASSNAME>`でクラスCLASSNAMEの型情報を生成することができる。
+
+```TypeScript
+// Interceptor.ts
+export type iRequestInterceptor = InstanceType<typeof RequestInterceptor>;
+// type iRequestInterceptor = RequestInterceptor
+
+// index.ts
+import { createRequestInterceptor } from "./Interceptor";
+import type { iRequestInterceptor } from "./Interceptor";
+
+const interceptor: iRequestInterceptor = createRequestInterceptor(page);
+```
+
+取得できた。

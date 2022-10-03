@@ -6,6 +6,9 @@
 
 [for...in vs for...of](#for...in-vs-for...of)
 [`[].slice.call()`](#`[].slice.call()`)
+[`!!`の意味](#`!!`の意味)
+[Promiseとasync/awaitの変換](#Promiseとasync/awaitの変換)
+[Singleton](#Singleton)
 [](#)
 [](#)
 [](#)
@@ -165,4 +168,132 @@ tasks.forEach(task => {
 });
 
 await promise.then(() => console.log('done'));
+```
+
+## Singleton
+
+モジュールを使うなら簡単に実装できる...のか？
+
+例：
+
+```JavaScript
+// Profiler.ts
+
+"use strict";
+
+class Profiler {
+  constructor(label) {
+    this.label = label;
+    this.lastTime = null;
+  }
+
+  start() {
+    this.lastTime = process.hrtime();
+  }
+
+  end() {
+    const diff = process.hrtime(this.lastTime);
+    console.log(
+			//       `タイマー "${this.label}": ${diff[0]}秒+${diff[1]}ナノ秒`
+      `Timer "${this.label}" took ${diff[0]} seconds and ${diff[1]} nanoseconds.`
+    );
+  }
+}
+
+
+module.exports = function(label) {
+  if(process.env.NODE_ENV === 'development') {
+    return new Profiler(label);        // ❶
+  } else if(process.env.NODE_ENV === 'production') {
+    return {             // ❷
+      start: function() {},
+      end: function() {}
+    }
+  } else {
+    throw new Error('Must set NODE_ENV'); // NODE_ENVの設定が必要
+  }
+};
+```
+
+例ではclass `Profiler`はグローバルではない。
+
+module.exportsに登録されているのはNODE_ENVの設定値によって返す値を変更する無名関数しか公開されていない。
+
+なのでimport/exportを使ってファイルを取り込むようなときは、
+
+exportするもの以外はプライベートである。
+
+```TypeScript
+ import type puppeteer from 'puppeteer';
+
+ let isInstantiated: boolean = false;
+
+ export class RequestInterceptor {
+     private cbList: ((event: puppeteer.HTTPRequest) => void)[];
+     constructor(private page: puppeteer.Page){
+         // Force number of instance to only one. 
+         if(isInstantiated)
+            throw new Error("RequestInterceptor instance is already exists.");
+         else isInstantiated = true;
+
+         this.cbList = [];
+         this.run = this.run.bind(this);
+         this.on = this.on.bind(this);
+         this.off = this.off.bind(this);
+         this.removeAll = this.removeAll.bind(this);
+     };
+
+     static createInstance(page: puppeteer.Page) {
+      return new RequestInterceptor(page);
+     }
+ 
+     /***
+      * Call setRequestInterception to set true.
+      * And add request event handler to not stall requests.
+      * 
+      * TODO: Encapsul this method.
+      * */ 
+     async run(): Promise<void> {
+         await this.page.setRequestInterception(true);
+         this.page.on("request", (r) => {
+             if(r.isInterceptResolutionHandled())return;
+             r.continue();
+         });
+     };
+ 
+     /***
+      * Add request event handler.
+      * 
+      * NOTE: DO NOT PASS ANONYMOUS FUNCTION
+      * 
+      * cb must include
+      * `if(event.isInterceptResolutionHandled())return;`
+      * */ 
+     on(cb: (event: puppeteer.HTTPRequest) => void): void {
+         this.page.on("request", cb);
+         this.cbList.push(cb);
+     };
+ 
+     /***
+      * Remove request event handler.
+      * 
+      * */   
+     off(cb: (event: puppeteer.HTTPRequest) => void): void {
+         this.page.off("request", cb);
+         // TODO: remove specified cb from listener
+         this.cbList = this.cbList.filter(registeredCb => registeredCb !== cb);
+     };
+ 
+     /***
+      * Remove all request event handler.
+      * 
+      * */
+     removeAll():void {
+      this.cbList.forEach(cb => {
+         this.page.off("request", cb);
+      });
+      this.cbList = [];
+     }
+ };
+
 ```
