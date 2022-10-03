@@ -6,6 +6,8 @@
  * 配列の各idを追加したURLへアクセスしてArtworkページの情報を、
  * 
  * HTTPResponseから取得する。
+ * 
+ * TODO: もしかしたらnavigate.navigationBy()からの戻り値が期待通りじゃないかもしれない。
  * **************************************************************/
 
 import type puppeteer from "puppeteer";
