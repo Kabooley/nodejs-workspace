@@ -1079,474 +1079,194 @@ search()で次のリクエストが成功したら、
 }
 ```
 
-## artworkページへ片っ端からアクセスする
-
-- artworkページへアクセスしたらオリジナルのURLを取得できてしまうのか？
-- 逐次処理と並列処理するものの区別
-
-artworkページの最終的なURL: `https://www.pixiv.net/artworks/87797602`
-
-https://www.pixiv.net/artworks/84583402
-
-```html
-<!-- artwork表示部分 -->
-<div class="sc-166cqri-1 IoIvg gtm-medium-work-expanded-view">
-    <div role="presentation" class="sc-1qpw8k9-0 gTFqQV">
-        <a href="https://i.pximg.net/img-original/img/2020/09/24/18/54/56/84583402_p0.jpg" class="sc-1qpw8k9-3 eFhoug gtm-expand-full-size-illust" target="_blank" rel="noopener">
-            <img alt="#カウボーイビバップ 無題 - 水性ペンギンのイラスト" src="https://i.pximg.net/img-master/img/2020/09/24/18/54/56/84583402_p0_master1200.jpg" width="2066" height="3103" class="sc-1qpw8k9-1 jOmqKq" style="height: 767px;">
-        </a>
-    </div>
-</div>
-```
-
-`a[href=""]`と`img[src=""]`は異なるURLである。
-
-もしかしたらimgの方が表示中の画像のURLでaの方がクリックしたら表示される原寸大の方なのかも...
-
-よくみたら、imgの方は`img-master`とあって、aの方は`img-original`とあるわ...
-
-pixivダウンロード拡張機能は、`https://i.pximg.net/img-original/img/2020/09/24/18/54/56/84583402_p0.jpg`のGETリクエストを送信してダウンロードしていた。
-
-artworkページにアクセスしたときのHTTPレスポンスのうち、GET `https://i.pximg.net/`かつ、Content-Type: image/jpeg, image/png, imageとかでやったら取得できるかも
-
-#### illust
-
-一番初めのリクエストからartworkページの情報を取得する: `puppeteer.waitForRequest()`要フィルタリング
-オリジナルのURLを取得する：`res.json().body.urls.original`
-pixivがartworkの画像リクエストを模倣できるところだけ模倣してリクエスト送信: `https.request()`
-そのコールバック関数でストリームを設置してダウンロードする
-
-- 一番初めのリクエスト
-
-リクエスト：
-
-```JSON
-// GET https://www.pixiv.net/ajax/illust/101105423?ref=https://www.pixiv.net/&lang=ja
-{
-	"要求ヘッダー (1.796 KB)": {
-		"headers": [
-			{
-				"name": "Accept",
-				"value": "application/json"
-			},
-			{
-				"name": "Accept-Encoding",
-				"value": "gzip, deflate, br"
-			},
-			{
-				"name": "Accept-Language",
-				"value": "ja,en-US;q=0.7,en;q=0.3"
-			},
-			{
-				"name": "Connection",
-				"value": "keep-alive"
-			},
-			{
-				"name": "Cookie",
-				"value": "" // 省略
-			},
-			{
-				"name": "DNT",
-				"value": "1"
-			},
-			{
-				"name": "Host",
-				"value": "www.pixiv.net"
-			},
-			{
-				"name": "Referer",
-				"value": "https://www.pixiv.net/artworks/101105423"
-			},
-			{
-				"name": "Sec-Fetch-Dest",
-				"value": "empty"
-			},
-			{
-				"name": "Sec-Fetch-Mode",
-				"value": "cors"
-			},
-			{
-				"name": "Sec-Fetch-Site",
-				"value": "same-origin"
-			},
-			{
-				"name": "TE",
-				"value": "trailers"
-			},
-			{
-				"name": "User-Agent",
-				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
-			},
-			{
-				"name": "x-user-id",
-				"value": "8675089"
-			}
-		]
-	}
-}
-```
-
-レスポンスbody:
-
-```JSON
-{
-    "error":false,
-    "message":"",
-    "body":{
-        "illustId":"101105423","illustTitle":"\u6c34\u7740\u306e\u98df\u3044\u8fbc\u307f\u3092\u76f4\u3059\u6c34\u6cf3\u90e8\u54e1","illustComment":"\u304f\u3044\u3063\u304f\u3044\u3063\u30fb\u30fb\u30fb\u30d1\u30c1\u30f3\u30c3!!!","id":"101105423",
-        "title":"\u6c34\u7740\u306e\u98df\u3044\u8fbc\u307f\u3092\u76f4\u3059\u6c34\u6cf3\u90e8\u54e1","description":"\u304f\u3044\u3063\u304f\u3044\u3063\u30fb\u30fb\u30fb\u30d1\u30c1\u30f3\u30c3!!!",
-        "illustType":0,
-        "createDate":"2022-09-09T10:00:02+00:00",
-        "uploadDate":"2022-09-09T10:00:02+00:00",
-        "restrict":0,
-        "xRestrict":0,
-        "sl":4,
-        "urls":{
-            "mini":"https:\/\/i.pximg.net\/c\/48x48\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_square1200.jpg",
-            "thumb":"https:\/\/i.pximg.net\/c\/250x250_80_a2\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_square1200.jpg",
-            "small":"https:\/\/i.pximg.net\/c\/540x540_70\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_master1200.jpg",
-            "regular":"https:\/\/i.pximg.net\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_master1200.jpg",
-            // 必要な情報
-            "original":"https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0.jpg"
-        },
-        "tags":{"authorId":"14846","isLocked":false,"tags":[{"tag":"\u7af6\u6cf3\u6c34\u7740","locked":true,"deletable":false,
-        "userId":"14846",
-        "userName":"raikoh(\u5cf6\u6d25\u9244\u7532)"}]},
-        // ページ数はたぶんだけど、画像枚数
-        "pageCount": 3
-        // 省略
-    }}
-```
-まとめると、
-
-```JavaScript
-{
-    error: false,
-    message:"",
-    body:{
-        illustId: id,
-		illustTitle: title escaped,
-		illustComment:"Comment",
-			"id":"101105423",	// コメントした人
-        title:"",
-		description:"",
-        illustType: 0,		// 普通のイラストならたぶん０、gifとかだと0じゃない
-        createDate:"",
-        uploadDate:"",
-        restrict:0,
-        xRestrict:0,
-        sl:4,
-        urls:{
-            mini:"https:\/\/i.pximg.net\/c\/48x48\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_square1200.jpg",
-            thumb:"https:\/\/i.pximg.net\/c\/250x250_80_a2\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_square1200.jpg",
-            small:"https:\/\/i.pximg.net\/c\/540x540_70\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_master1200.jpg",
-            regular:"https:\/\/i.pximg.net\/img-master\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0_master1200.jpg",
-            // 必要な情報
-            original:"https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0.jpg"
-        },
-        tags:{"authorId":"14846","isLocked":false,"tags":[{"tag":"\u7af6\u6cf3\u6c34\u7740","locked":true,"deletable":false,
-        userId:"",
-        userName: "raikoh(\u5cf6\u6d25\u9244\u7532)"}]},
-        // ページ数はたぶんだけど、画像枚数
-        pageCount: 3,		// 多分一枚目以外の画像枚数
-        // 省略
-    }}
-```
-
-ブックマーク数は？？？？？？？
-
-
-- 画像を取得するリクエスト
-
-```JSON
-// GET https://i.pximg.net/img-master/img/2022/09/09/19/00/02/101105423_p0_master1200.jpg HTTP/2
-{
-	"要求ヘッダー (447 バイト)": {
-		"headers": [
-			{
-				"name": "Accept",
-				"value": "image/avif,image/webp,*/*"
-			},
-			{
-				"name": "Accept-Encoding",
-				"value": "gzip, deflate, br"
-			},
-			{
-				"name": "Accept-Language",
-				"value": "ja,en-US;q=0.7,en;q=0.3"
-			},
-			{
-				"name": "Connection",
-				"value": "keep-alive"
-			},
-			{
-				"name": "DNT",
-				"value": "1"
-			},
-			{
-				"name": "Host",
-				"value": "i.pximg.net"
-			},
-			{
-				"name": "Referer",
-				"value": "https://www.pixiv.net/"
-			},
-			{
-				"name": "Sec-Fetch-Dest",
-				"value": "image"
-			},
-			{
-				"name": "Sec-Fetch-Mode",
-				"value": "no-cors"
-			},
-			{
-				"name": "Sec-Fetch-Site",
-				"value": "cross-site"
-			},
-			{
-				"name": "User-Agent",
-				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
-			}
-		]
-	}
-}
-```
-
-レスポンスbody: その画像ファイル
-
-
-#### Multiple illust
-
-画像枚数が何枚であるのかと、各画像のパスの名前をどうやって取得するのか...
-
-- 画像枚数：初めのリクエストに対するレスポンスボディの中に`body.pageCount`がある。その数値が画像枚数
-
-- 各画像パス名：`https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0.jpg`の拡張子直前の、`artwork-id_p0`の部分の`_p0`が異なる。
-
-画像枚数が3つなら
-
-`https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p0.jpg`
-`https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p1.jpg`
-`https:\/\/i.pximg.net\/img-original\/img\/2022\/09\/09\/19\/00\/02\/101105423_p2.jpg`
-
-となる。
-
-
-```JSON
-{
-	"GET": {
-		"scheme": "https",
-		"host": "www.pixiv.net",
-		"filename": "/ajax/illust/94411991",
-		"query": {
-			"ref": "https://www.pixiv.net/artworks/101105423",
-			"lang": "ja"
-		},
-		"remote": {
-			"アドレス": "104.18.36.166:443"
-		}
-	}
-}
-```
-```JSON
-{
-	"要求ヘッダー (1.910 KB)": {
-		"headers": [
-			{
-				"name": "Accept",
-				"value": "application/json"
-			},
-			{
-				"name": "Accept-Encoding",
-				"value": "gzip, deflate, br"
-			},
-			{
-				"name": "Accept-Language",
-				"value": "ja,en-US;q=0.7,en;q=0.3"
-			},
-			{
-				"name": "Connection",
-				"value": "keep-alive"
-			},
-			{
-				"name": "Cookie",
-				"value": ""     // 省略
-			},
-			{
-				"name": "DNT",
-				"value": "1"
-			},
-			{
-				"name": "Host",
-				"value": "www.pixiv.net"
-			},
-			{
-				"name": "Referer",
-				"value": "https://www.pixiv.net/artworks/94411991"
-			},
-			{
-				"name": "Sec-Fetch-Dest",
-				"value": "empty"
-			},
-			{
-				"name": "Sec-Fetch-Mode",
-				"value": "cors"
-			},
-			{
-				"name": "Sec-Fetch-Site",
-				"value": "same-origin"
-			},
-			{
-				"name": "User-Agent",
-				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
-			},
-			{
-				"name": "x-user-id",
-				"value": "8675089"
-			}
-		]
-	}
-}
-```
-
-レスポンスbody: 画像が一つの時と変わらない
-
-- 画像を取得するリクエスト
-
-```JSON
-{
-	"GET": {
-		"scheme": "https",
-		"host": "i.pximg.net",
-		"filename": "/img-master/img/2021/11/27/21/19/22/94411991_p1_master1200.jpg",
-		"remote": {
-			"アドレス": "210.140.92.149:443"
-		}
-	}
-}
-{
-	"要求ヘッダー (446 バイト)": {
-		"headers": [
-			{
-				"name": "Accept",
-				"value": "image/avif,image/webp,*/*"
-			},
-			{
-				"name": "Accept-Encoding",
-				"value": "gzip, deflate, br"
-			},
-			{
-				"name": "Accept-Language",
-				"value": "ja,en-US;q=0.7,en;q=0.3"
-			},
-			{
-				"name": "Connection",
-				"value": "keep-alive"
-			},
-			{
-				"name": "DNT",
-				"value": "1"
-			},
-			{
-				"name": "Host",
-				"value": "i.pximg.net"
-			},
-			{
-				"name": "Referer",
-				"value": "https://www.pixiv.net/"
-			},
-			{
-				"name": "Sec-Fetch-Dest",
-				"value": "image"
-			},
-			{
-				"name": "Sec-Fetch-Mode",
-				"value": "no-cors"
-			},
-			{
-				"name": "Sec-Fetch-Site",
-				"value": "cross-site"
-			},
-			{
-				"name": "User-Agent",
-				"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"
-			}
-		]
-	}
-}
-```
-
-これを画像ごとに実施している。
-
-#### ugoira
-
-TODO: またこんど
-
-どうやってうごイラだと認識する？あとから`ugoira_meta?`を含んだGETリクエストを送る模様。
-
-どうやってgifにするかは後で考えるとにかくzipファイルを取得する
-
-うごイラは表示上、artworkページ中のcanvas要素の、background-imageにてURLが指定されている
-
-中身はzipファイル。
-
-リクエスト：
-
-```
-GET ajax/illust/74904646/ugoira_meta?lang=ja HTTP/3
-Host www.pixiv.net
-Accept: application/json
-Accept-Encoding: gzip, deflate, br
-Referer: https://www.pixiv.net/artworks/74904646
-Connection: keep-alive
-Cookie: 省略
-```
-
-レスポンスbody
-
-```JSON
-{
-	"error": false,
-	"message": "",
-	"body": {
-		"illustId": "101158572",
-		"illustTitle": "Hilda",
-		"illustComment": "If you like my arts&#44; please consider support me on:<br /><a href=\"/jump.php?https%3A%2F%2Fwww.patreon.com%2Faztodio\" target=\"_blank\">https://www.patreon.com/aztodio</a><br /><a href=\"/jump.php?https%3A%2F%2Fgumroad.com%2Faztodio\" target=\"_blank\">https://gumroad.com/aztodio</a><br /><br /><a href=\"/jump.php?https%3A%2F%2Ftwitter.com%2FAztoDeus%2Fmedia\" target=\"_blank\">https://twitter.com/AztoDeus/media</a> (NSFW)<br /><a href=\"/jump.php?https%3A%2F%2Ftwitter.com%2FAztoDio%2Fmedia\" target=\"_blank\">https://twitter.com/AztoDio/media</a>",
-		"id": "101158572",
-		"title": "Hilda",
-		"description": "If you like my arts&#44; please consider support me on:<br /><a href=\"/jump.php?https%3A%2F%2Fwww.patreon.com%2Faztodio\" target=\"_blank\">https://www.patreon.com/aztodio</a><br /><a href=\"/jump.php?https%3A%2F%2Fgumroad.com%2Faztodio\" target=\"_blank\">https://gumroad.com/aztodio</a><br /><br /><a href=\"/jump.php?https%3A%2F%2Ftwitter.com%2FAztoDeus%2Fmedia\" target=\"_blank\">https://twitter.com/AztoDeus/media</a> (NSFW)<br /><a href=\"/jump.php?https%3A%2F%2Ftwitter.com%2FAztoDio%2Fmedia\" target=\"_blank\">https://twitter.com/AztoDio/media</a>",
-		"illustType": 2,
-		"createDate": "2022-09-11T11:37:14+00:00",
-		"uploadDate": "2022-09-11T11:37:14+00:00",
-		"restrict": 0,
-		"xRestrict": 1,
-		"sl": 6,
-		"urls": {
-			"mini": "https://i.pximg.net/c/48x48/img-master/img/2022/09/11/20/37/14/101158572_square1200.jpg",
-			"thumb": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/11/20/37/14/101158572_square1200.jpg",
-			"small": "https://i.pximg.net/c/540x540_70/img-master/img/2022/09/11/20/37/14/101158572_master1200.jpg",
-			"regular": "https://i.pximg.net/img-master/img/2022/09/11/20/37/14/101158572_master1200.jpg",
-			"original": "https://i.pximg.net/img-original/img/2022/09/11/20/37/14/101158572_ugoira0.jpg"
-		},
-		"tags": {
-			"authorId": "28638684",
-			"isLocked": false,
-			"tags": [/*タグ情報*/],
-			"writable": true
-		},
-		"alt": "#Ugoira Hilda - AztoDioのうごイラ",
-		"storableTags": [/*タグ情報*/],
-		"userId": "28638684",
-		"userName": "AztoDio",
-		"userAccount": "aztodio",
-        // 以下略
-	}
-}
-```
 
 ## artworkページでの収集
 
-どの処理がループ可能なの？
+#### artworkページへアクセスして取得できる情報整理
+
+次のURLは`page.waitForResponse()`とかで取得できない。あとこのURLでpage.gotoはできない。
+
+`https://www.pixiv.net/artworks/ajax/illust/39189162`
+
+404サーバエラーが返される。
+
+ということでHTTPResponseからJSON取得できない。
+
+なので次のURLでgotoしてレスポンスのHTMLから欲しい情報を取得するようにする。
+
+`https://www.pixiv.net/artworks/39189162`
+
+レスポンスヘッダ：
+
+```TypeScript
+// page.waitForResponse()のコールバック
+const httpResponseFilter = (r: puppeteer.HTTPResponse): boolean => {
+    const headers = r.headers();
+    let result: boolean = false;
+    if(headers.hasOwnProperty("content-type")){
+        const contentType = headers["content-type"];
+        result = contentType !== undefined ? contentType.includes("text/html") : false;
+    }
+    return r.status() === 200 && result;
+};
+```
+
+```JSON
+{
+  'alt-svc': 'h3=":443"; ma=86400, h3-29=":443"; ma=86400',
+  'cache-control': 'private, max-age=10\nprivate, max-age=10',
+  'cf-cache-status': 'DYNAMIC',
+  'cf-ray': '7557946049e98096-NRT',
+  'content-encoding': 'gzip',
+  'content-type': 'text/html; charset=UTF-8',
+  date: 'Wed, 05 Oct 2022 16:37:02 GMT',
+  server: 'cloudflare',
+  'strict-transport-security': 'max-age=31536000',
+  vary: 'x-user-id,Accept-Encoding',
+  'x-frame-options': 'SAMEORIGIN',
+  'x-host-time': '27',
+  'x-userid': '64922426',
+  'x-xss-protection': '1; mode=block'
+}
+```
+
+で、そのtext/htmlのbodyは...長いので簡潔に次のmetaタグが含まれる
+
+contentにほしい情報が載ったJSONオブジェクトが含まれている
+
+```HTML
+<!-- idは確かにHTMLのなかでユニークだった -->
+<meta name="preload-data" id="meta-preload-data" content='
+    <!-- 欲しい情報がJSON形式で載っている -->
+'>
+```
+
+で、そのJSON情報が次
+
+```JSON
+{
+    "timestamp":"2022-10-06T01:37:02+09:00",
+    "illust":{
+        "39189162":{
+            "illustId":"39189162",
+            "illustTitle":"Bebop Doo-wop",
+            "illustComment":":P",
+            "id":"39189162",
+            "title":"Bebop Doo-wop",
+            "description":":P",
+            "illustType":0,
+            "createDate":"2013-10-18T10:11:03+00:00",
+            "uploadDate":"2013-10-18T10:11:03+00:00",
+            "restrict":0,"xRestrict":0,"sl":2,
+            "urls":{
+                "mini":"https://i.pximg.net/c/48x48/img-master/img/2013/10/18/19/11/03/39189162_p0_square1200.jpg",
+                "thumb":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2013/10/18/19/11/03/39189162_p0_square1200.jpg",
+                "small":"https://i.pximg.net/c/540x540_70/img-master/img/2013/10/18/19/11/03/39189162_p0_master1200.jpg",
+                "regular":"https://i.pximg.net/img-master/img/2013/10/18/19/11/03/39189162_p0_master1200.jpg",
+                "original":"https://i.pximg.net/img-original/img/2013/10/18/19/11/03/39189162_p0.png"
+            },
+            "tags":{
+                "authorId":"7388304","isLocked":false,"tags":[{"tag":"カウボーイビバップ","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"アイン","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Original","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"スパイク・スピーゲル","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Sethard","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Cowboy","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Bebop","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Spike","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Ein","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"COWBOYBEBOP","locked":false,"deletable":true}],"writable":true
+            },
+            "alt":"#カウボーイビバップ Bebop Doo-wop - Sethardのイラスト","storableTags":["sJYipl1Q5l","AXxyHHAUSC","ClLaegOm3j","8BNdRI_2mN","_DqSjOhLv_","_TeM2_kbKl","92IQginaoK","AdAuZzdCc6","hu9qtav100","ZrUawOPQtj"],
+            "userId":"7388304",
+            "userName":"Sethard",
+            "userAccount":"sethard",
+            "userIllusts":{
+                // 省略
+            },
+            "likeData":false,"width":400,"height":634,"pageCount":1,
+            "bookmarkCount":209,
+            "likeCount":156,
+            "commentCount":0,
+            "responseCount":0,"viewCount":2200,"bookStyle":0,"isHowto":false,"isOriginal":false,"imageResponseOutData":[],"imageResponseData":[],"imageResponseCount":0,"pollData":null,"seriesNavData":null,"descriptionBoothId":null,"descriptionYoutubeId":null,"comicPromotion":null,"fanboxPromotion":null,"contestBanners":[],"isBookmarkable":true,"bookmarkData":null,"contestData":null,
+            "zoneConfig":{
+                // 省略
+            },
+            "extraData":{
+                // 省略
+            },
+            "titleCaptionTranslation":{"workTitle":null,"workCaption":null},"isUnlisted":false,"request":null,"commentOff":0}},"user":{"7388304":{"userId":"7388304","name":"Sethard","image":"https://i.pximg.net/user-profile/img/2013/10/18/06/03/29/6951029_7f2bf5e92a36a1a551c8bbac0170362b_50.png","imageBig":"https://i.pximg.net/user-profile/img/2013/10/18/06/03/29/6951029_7f2bf5e92a36a1a551c8bbac0170362b_170.png","premium":false,"isFollowed":false,"isMypixiv":false,"isBlocking":false,"background":null,"sketchLiveId":null,"partial":0,"acceptRequest":false,"sketchLives":[]}}
+}
+```
+
+こいつをinterfaceにすると...
+
+
+```TypeScript 
+interface iMetaPreloadData {
+    timestamp: string;
+    illust: iIllustData;
+};
+
+interface iIllustData {
+    [key: string]: {
+        illustId:string;
+        illustTitle: string;
+        illustComment: string;
+        id: string;
+        title: string;
+        description: string;
+        illustType: number;
+        createDate: string;
+        uploadDate: string;
+        sl: number;
+        urls: {
+            mini: string;
+            thumb: string;
+            small: string;
+            regular: string;
+            original: string;
+        },
+        tags: {};
+        pageCount: number;
+        bookmarkCount: number;
+        likeCount:number;
+    };
+};
+```
+
+ということで、
+
+あとはHTMLをパースする方法。
+
+#### HTML文字列をDOMとして扱う方法 in Node.js
+
+参考： 
+
+https://stackoverflow.com/questions/7977945/html-parser-on-node-js
+
+https://stackoverflow.com/a/10585079/13891684
+
+結論： Node.jsはDOM操作できない。
+
+じゃぁ文字列のまま特定の文字列を取得しよう！としても
+
+取得したい文字列が大きすぎる場合、正規表現を作るしかない。
+
+そうなると非常に困難になる。
+
+素直にサードパーティパッケージ使え。
+
+jsdomが人気みたい。
+
+
+
+
+```TypeScript
+const response: puppeteer.HTMLResponse
+const htmlString: string = await response.text();
+
+const html = document.createElement('html');
+html.innerHTML = body;
+const metaPreloadData: iMetaPrelaodData = JSON.parse(document.getElementById('meta-preload-data').getAttribute('content'));
+
+```
+
+
+
+
+#### どうやってダウンロードする？
 
 `requirement`は、`iArtworkData`のプロパティが指定の値を持つかどうかのフィルタである
 
@@ -1694,6 +1414,25 @@ iArtworkdataにはbookmark数が載っていない可能性？
 並列処理は可能なの？
 
 Pageインスタンスを増やす方法。
+
+#### 必要なHTTPResponse 
+
+```JSON
+{
+	"GET": {
+		"scheme": "https",
+		"host": "www.pixiv.net",
+		"filename": "/ajax/illust/101589247",
+		"query": {
+			"ref": "https://www.pixiv.net/",
+			"lang": "ja"
+		},
+		"remote": {
+			"アドレス": "172.64.151.90:443"
+		}
+	}
+}
+```
 
 ## ダウンロードロジックの実装
 

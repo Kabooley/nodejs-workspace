@@ -11,6 +11,7 @@ TODO: TypeScriptの書籍を買え！
 [後から動的にプロパティを追加するつもりの空のオブジェクト](#後から動的にプロパティを追加するつもりの空のオブジェクト)
 [動的にオブジェクトのプロパティを追加するようなメソッドの型付け](#動的にオブジェクトのプロパティを追加するようなメソッドの型付け)
 [非公開classの型情報だけを公開したいとき](#非公開classの型情報だけを公開したいとき)
+[DOM操作](#DOM操作)
 
 ## TypeScriptはprivate指定子でスコープを制御してくれるわけではない
 
@@ -636,3 +637,29 @@ const interceptor: iRequestInterceptor = createRequestInterceptor(page);
 ```
 
 取得できた。
+
+## DOM操作
+
+https://www.typescriptlang.org/docs/handbook/dom-manipulation.html
+
+#### HTML文字列から特定の要素を探したいとき
+
+https://www.typescriptlang.org/docs/handbook/dom-manipulation.html#documentcreateelement
+
+HTTPレスポンスのbodyからHTMLを取得して、
+
+そのHTMLから特定の要素を探したい。
+
+そんなとき。
+
+```TypeScript
+    const html: HTMLHtmlElement = document.createElement('html');
+    html.innerHTML = await response.text();
+
+
+    const template: HTMLTemplateElement = document.createElement('template');
+    template.innerHTML = await response.text();
+    const json = template.content.querySelector('#meta-preload-data')!.getAttribute("content");
+    metaPreloadData = json ? JSON.parse(json): undefined;
+```
+
