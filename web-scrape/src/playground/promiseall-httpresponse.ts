@@ -7,37 +7,40 @@ import * as puppeteer from 'puppeteer'
 import * as jsdom from 'jsdom';
 import { initialize } from '../helper/initialize';
 import { Navigation } from "../components/Navigation";
+import { takeOutPropertiesFrom } from '../utilities/objectModifier';
 
 interface iMetaPreloadData {
     timestamp: string;
-    illust: iIllustData;
+    illust: iIllust;
+};
+
+interface iIllust {
+    [key: string]: iIllustData;
 };
 
 interface iIllustData {
-    [key: string]: {
-        illustId:string;
-        illustTitle: string;
-        illustComment: string;
-        id: string;
-        title: string;
-        description: string;
-        illustType: number;
-        createDate: string;
-        uploadDate: string;
-        sl: number;
-        urls: {
-            mini: string;
-            thumb: string;
-            small: string;
-            regular: string;
-            original: string;
-        },
-        tags: {};
-        pageCount: number;
-        bookmarkCount: number;
-        likeCount:number;
-    };
-};
+    illustId:string;
+    illustTitle: string;
+    illustComment: string;
+    id: string;
+    title: string;
+    description: string;
+    illustType: number;
+    createDate: string;
+    uploadDate: string;
+    sl: number;
+    urls: {
+        mini: string;
+        thumb: string;
+        small: string;
+        regular: string;
+        original: string;
+    },
+    tags: {};
+    pageCount: number;
+    bookmarkCount: number;
+    likeCount:number;
+}
 
 
 let browser : puppeteer.Browser | undefined;
@@ -55,6 +58,9 @@ const options: puppeteer.PuppeteerLaunchOptions = {
 
 
 const url: string = "https://www.pixiv.net/artworks/39189162";
+const requirement: (keyof iIllustData)[] = [
+    "illustId", "illustTitle", "id", "title", "illustType", "urls", "pageCount", "bookmarkCount"
+];
 
 
 export const temporary = async function() {
@@ -74,6 +80,7 @@ export const temporary = async function() {
         // Promise.all()の戻り値の最後要素であることを前提
         const response: puppeteer.HTTPResponse = result.pop();
         let metaPreloadData: iMetaPreloadData | undefined;
+        let illustData: iIllustData | undefined;
         
         if(response.headers().hasOwnProperty("content-type") && response.headers()["content-type"]!.includes('text/html')){
             const { document } = new JSDOM(await response.text()).window;
@@ -81,17 +88,19 @@ export const temporary = async function() {
             metaPreloadData = json ? JSON.parse(json): undefined;
         };
 
-        // if(response.headers().hasOwnProperty("content-type")){
-        //     if(response.headers()["content-type"]!.includes('text/html')) {
-        //         const { document } = new JSDOM(await response.text()).window;
-        //         const json = document.querySelector('#meta-preload-data')!.getAttribute("content");
-        //         metaPreloadData = json ? JSON.parse(json): undefined;
-        //     };
-        // };
-
         // とれた！
         console.log(metaPreloadData);
 
+        if(
+            metaPreloadData !== undefined 
+            && metaPreloadData!.hasOwnProperty("illust")
+            && metaPreloadData.illust["39189162"] !== undefined
+        ) {
+            illustData = takeOutPropertiesFrom<iIllustData>(metaPreloadData.illust["39189162"], requirement);
+        };
+
+        // OK
+        console.log(illustData);
     }
     catch(e) {
         await page!.screenshot({type: "png", path: "./dist/error.png"});

@@ -11,49 +11,51 @@
  * **************************************************************/
 
 import type puppeteer from "puppeteer";
+import * as jsdom from 'jsdom';
 import { Navigation } from './Navigation';
 import { takeOutPropertiesFrom } from '../utilities/objectModifier';
 
 
-interface iBodyOfArtworkPageResponse {
-    error: boolean;
-    message:string;
-    body: iArtworkData;
+interface iMetaPreloadData {
+    timestamp: string;
+    illust: iIllust;
 };
 
-interface iArtworkData {
-    illustId: string;
+interface iIllust {
+    [key: string]: iIllustData;
+};
+
+interface iIllustData {
+    illustId:string;
     illustTitle: string;
-    illustComment?: string;
-    id?: string;	// コメントした人
-    title?: string;
-    description?: string;
-    illustType: number;		// 普通のイラストならたぶん０、gifとかだと0じゃない
-    createDate?:string;
-    uploadDate?:string;
-    restrict?:number;
-    xRestrict?:number;
-    sl:string;
-    urls:{
-        mini?:string;       // 実際はstringではなくて正規表現である
-        thumb?:string;      // 実際はstringではなくて正規表現である
-        small?:string;      // 実際はstringではなくて正規表現である
-        regular?:string;    // 実際はstringではなくて正規表現である
-        original:string;    // 実際はstringではなくて正規表現である。取得したい情報。
+    illustComment: string;
+    id: string;
+    title: string;
+    description: string;
+    illustType: number;
+    createDate: string;
+    uploadDate: string;
+    sl: number;
+    urls: {
+        mini: string;
+        thumb: string;
+        small: string;
+        regular: string;
+        original: string;
     },
-    tags?: any;
-    pageCount: number;		// 多分一枚目以外の画像枚数
-};
+    tags: {};
+    pageCount: number;
+    bookmarkCount: number;
+    likeCount:number;
+}
 
- const artworkUrl: string = `https://www.pixiv.net/artworks/`;
 
-//  Only returns callback function only for page.waitForResponse()
- const getCallback = function(requiredUrl: string): ((res: puppeteer.HTTPResponse) => boolean) {
-    const cb = (res: puppeteer.HTTPResponse): boolean => {
-        return res.status() === 200 && res.url().includes(requiredUrl);
-    };
-    return cb;
- };
+
+const { JSDOM } = jsdom;
+const artworkUrl: string = `https://www.pixiv.net/artworks/`;
+const defaulRequirement: (keyof iIllustData)[] = [
+    "illustId", "illustTitle", "id", "title", "illustType", "urls", "pageCount", "bookmarkCount"
+];
 
 
 /***
@@ -64,51 +66,43 @@ interface iArtworkData {
 export const collectArtworksData = async (
         page: puppeteer.Page, 
         ids: string[], 
-        requirement?: (keyof iArtworkData)[]
-    ): Promise<iArtworkData[]> => {
+        requirement?: (keyof iIllustData)[]
+    ): Promise<iIllustData[]> => {
         try {
             const navigate = new Navigation(page);
-            let collected: iArtworkData[] = [];
+            let collected: iIllustData[] = [];
             let promise: Promise<void> = Promise.resolve();
        
             for(const id of ids) {
-                // NOTE: res[0].json()が取得できるまで次のループへ行くことは許されない
+                // DEBUG:
+                console.log(`Collecting data from ${artworkUrl}${id}`);
+
+                // NOTE: response.text()取得できるまで次のループへ行かない
+               let resolved: (puppeteer.HTTPResponse | any)[] = await navigate.navigateBy(function(){ return page.goto(artworkUrl + id)});
                 
-               //  毎ループ、responseフィルタリングのためにwaitForResponseのコールバックを更新しなくてはならない
-                navigate.resetWaitForResponseCallback(page.waitForResponse(getCallback(artworkUrl + id)));
-               //  TODO: Navigateクラスの修正
-               let res: (puppeteer.HTTPResponse | any)[] = await navigate.navigateBy(function(){ return page.goto(artworkUrl + id)});
-               
-               // DEBUG:
-       
-               //「res[0]はpuppeteer.HTTPResponseである && res[0].json().bodyが存在する」が真なら
-               // responseBodyにレスポンスのボディを代入する。
-               // if(typeof res[0]["json"] !== "function" || !res[0].hasOwnProperty("json")){
-               if(typeof res[0]["json"] !== "function"){
-                   throw new Error("Something went wrong but required properties did not exist.");
-               }
-               console.log(res[0].url());
-               console.log(res[1].url());
-               console.log(res[2].url());
-               // .json()でレスポンスのbodyを取得する
-               // それはiBodyOfArtworkPageResponse型であるとする
-               let responseBody: iBodyOfArtworkPageResponse = await res[0].json();
-       
-               promise = promise.then(() => {
-                   // "body"というプロパティが存在するか確認する
-                   if(!responseBody.hasOwnProperty('body')){
-                       throw new Error("Something went wrong but required properties did not exist.");
-                   };
-       
-                   // iArtworkDataの指定のプロパティからなるオブジェクトをcollectedへ格納する
-                   const body: iArtworkData = takeOutPropertiesFrom<iArtworkData>(
-                       responseBody.body, 
-                       requirement ? requirement : ["illustId", "illustTitle", "sl", "urls", "pageCount"]
-                   );
-                   collected.push(body);
-               });
+                const response: puppeteer.HTTPResponse = resolved.pop();
+                let metaPreloadData: iMetaPreloadData | undefined;
+
+                if(response.headers().hasOwnProperty("content-type") && response.headers()["content-type"]!.includes('text/html')){
+                    const { document } = new JSDOM(await response.text()).window;
+                    const json = document.querySelector('#meta-preload-data')!.getAttribute("content");
+                    metaPreloadData = json ? JSON.parse(json): undefined;
+                };
+
+                // text()取得出来たら後回しでいい
+                promise = promise.then(() => {
+                    console.log("promise pushed");
+                    // So much undefined guard...
+                    if(
+                        metaPreloadData !== undefined 
+                        && metaPreloadData!.hasOwnProperty("illust")
+                        && metaPreloadData.illust[id] !== undefined
+                    ) {
+                        const fuck: iIllustData = metaPreloadData.illust[id] as iIllustData;
+                        collected.push(takeOutPropertiesFrom<iIllustData>(fuck, requirement === undefined ? defaulRequirement : requirement));
+                    };
+                });
             };
-        
             await promise;
             return collected;
         }
@@ -116,7 +110,4 @@ export const collectArtworksData = async (
             await page.screenshot({type: "png", path: "./dist/errorCollectFromArtworkPage.png"});
             throw e;
         }
-
  };
- 
- 
