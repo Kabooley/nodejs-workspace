@@ -74,6 +74,7 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         const artworksData = await collectArtworksData(page, ids);
 
         // DEBUG:一旦JSONファイルで保存
+        // DB導入検討
         console.log("Save reulst as JSON file");
         const artworksDataFile = JSON.stringify({
             date: new Date(),

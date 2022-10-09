@@ -5,6 +5,8 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 ## 目次
 
 [TODOS](#TODOS)
+[メモリリーク監視](#メモリリーク監視)
+[パフォーマンス](#パフォーマンス)
 [決定版：ページ遷移とレスポンス取得の両立](#決定版：ページ遷移とレスポンス取得の両立)
 [セッションの維持](#セッションの維持)
 [キーワード検索結果を収集する方法の模索]](#キーワード検索結果を収集する方法の模索)
@@ -12,7 +14,6 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 [ダウンロードロジックの実装](#ダウンロードロジックの実装)
 [デザインパターンの導入](#デザインパターンの導入)
 [puppeteerマルチpageインスタンス](#puppeteerマルチpageインスタンス)
-[メモリリーク対策](#メモリリーク対策)
 [セレクタ調査](#セレクタ調査)
 [自習](#自習)
 [ログインすべきかしなくていいか区別する](#ログインすべきかしなくていいか区別する)
@@ -75,9 +76,11 @@ sudo apt update && sudo apt install -y gconf-service libgbm-dev libasound2 libat
 $ node ./dist/index.js COMMAND --option1 STRING --option2 STRING
 ```
 
-## メモリリーク対策
+## メモリリーク監視
 
 puppeteerにおけるメモリリーク対策
+
+`./memory-leak.md`に詳しく。
 
 https://github.com/puppeteer/puppeteer/issues/594
 
@@ -87,9 +90,88 @@ https://stackoverflow.com/a/31015360
 
 #### 実践
 
-`./memory-leak.md`に詳しく。
+キーワード検索させてから検索結果ページから情報収集、各artworkページへはpage.goto()でアクセスする方法をとったとき。
 
-TODO: 実際に試してみよう。
+結果：`./performance/20221010_collect-artwork-datas_RAMChart_tagprocess`
+
+ほんのり上り調子な気がしないでもないけど130mbくらいで推移している。
+
+さらに繰り返しpuppeteerインスタンスを操作する処理をするときにもう一度調査してもよさそうだけど、
+
+今のところは問題なさそう。
+
+
+## パフォーマンス
+
+#### pageインスタンスを複数生成して並列処理させる
+
+もちろんRAMを監視してメモリがあほほど使われないか見張るよ。
+
+pageインスタンスを増やす場面：
+
+- 検索結果情報収集時
+- artworkページ情報収集時
+
+#### 検索結果情報集プロセスを並列化する
+
+```TypeScript
+// index.ts
+
+browser = await puppeteer.launch(options);
+page = await initialize(browser);
+
+await page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]});
+
+const searchResult: iBodyIncludesIllustManga = await search(page, keyword);
+
+// この呼出しを...
+// const ids: string[] = await collectFromSearchResult(page, searchResult, 'id', (r) => {return r.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
+// && r.status() === 200});
+
+// pageの複製 
+const tempraryPage = await browser.newPage();
+// 並列化
+// pageインスタンス2つを使って各々検索結果ページを順番に非同期にアクセスして検索結果情報を収集する
+```
+
+```TypeScript
+// search()は本当に検索フォームにキーワードを入力だけにして...
+await search(page, keyword);
+let searchedResult: iSearchResultBody;
+await navigation.navigateBy(page.keyboard.press('Enter'))
+.then((res: (puppeteer.HTTPResponse | any)[]) => {
+    // check returned value process...
+    // and contains res[0] into res
+});
+
+// 検索結果数から並列処理するか逐次処理にするか決定する
+const numberOfPages: number = /* searchedResultから導き出せたとして */
+if(numberOfPages > 10) {
+    // 並列処理
+}
+else {
+    // 逐次処理
+    // collectFromSearchResult()のwhile()文と同じ事すればOK
+}
+
+
+
+```
+やることはたったこれだけ
+navigation.navigateBy(セレクタクリック)
+http response bodyからデータ取得して配列へpush
+
+どのページへ飛ぶかは、今のところ制御できない。
+
+「>」をクリックしているだけだから奇数ページまたは偶数ページだけアクセスとかはできない
+
+
+#### artworkページ情報収集を並列化する
+
+こっちはid集め終わった後に配列要素一つずつに対してpage.goto()していくので
+
+配列のアクセス方法を奇数/偶数にすれば並列処理は難しくないかも
+
 
 
 ## セレクタ調査

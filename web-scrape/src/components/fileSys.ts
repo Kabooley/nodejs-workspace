@@ -83,70 +83,70 @@ export const getFsWritableStream = (path: string, options?: BufferEncoding | Str
  * typescriptではプロトタイプによる生成は無理？
  * */ 
 
-interface iFuckingCompositionWritable {
+// interface iFuckingCompositionWritable {
     
-}
-export const createCompositionedWritable = (writableOrigin: fs.WriteStream) => {
-    const proto = Object.getPrototypeOf(writableOrigin);
+// }
+// export const createCompositionedWritable = (writableOrigin: fs.WriteStream) => {
+//     const proto = Object.getPrototypeOf(writableOrigin);
 
-    // function CompositionWritable(writableOrigin: fs.WriteStream) {
-    //     // TODO: `this`の型付け
-    //     this.writableOrigin = writableOrigin;
-    // };
+//     // function CompositionWritable(writableOrigin: fs.WriteStream) {
+//     //     // TODO: `this`の型付け
+//     //     this.writableOrigin = writableOrigin;
+//     // };
 
-    class CompositionWritable {
-        constructor(public writableOrigin: fs.WriteStream) {}
-    }
+//     class CompositionWritable {
+//         constructor(public writableOrigin: fs.WriteStream) {}
+//     }
 
-    CompositionWritable.prototype = Object.create(proto);
-
-
-    CompositionWritable.prototype.write = function(chunk: any, encoding: BufferEncoding | undefined, callback: (error?: Error | null) => void): void {
-        if(!callback && typeof encoding === 'function') {
-            callback = encoding;
-            encoding = undefined;
-          }
-          // 呼出時と...
-          console.log(`Writing...: ${chunk}`);
-          return this.writableOrigin.write(chunk, encoding, function() {
-            // 書き込み完了時を拡張できる
-            console.log('Finished writing ', chunk);
-            callback && callback();
-          });
-    };
-
-    CompositionWritable.prototype.on = function() {
-    return this.writableOrigin.on
-        .apply(this.writableOrigin, arguments);
-    };
-
-    CompositionWritable.prototype.close = function() {
-        return this.writableOrigin.close.apply(this.writableOrigin, arguments);
-    };
-
-    CompositionWritable.prototype.setDefaultEncoding = function() {
-        return this.writableOrigin.setDefaultEncoding.apply(this.writableOrigin, arguments);
-    };
+//     CompositionWritable.prototype = Object.create(proto);
 
 
-    CompositionWritable.prototype.end = function() {
-        return this.writableOrigin.end.apply(this.writableOrigin, arguments);
-    };
+//     CompositionWritable.prototype.write = function(chunk: any, encoding: BufferEncoding | undefined, callback: (error?: Error | null) => void): void {
+//         if(!callback && typeof encoding === 'function') {
+//             callback = encoding;
+//             encoding = undefined;
+//           }
+//           // 呼出時と...
+//           console.log(`Writing...: ${chunk}`);
+//           return this.writableOrigin.write(chunk, encoding, function() {
+//             // 書き込み完了時を拡張できる
+//             console.log('Finished writing ', chunk);
+//             callback && callback();
+//           });
+//     };
 
-    CompositionWritable.prototype.cork = function() {
-        return this.writableOrigin.cork.apply(this.writableOrigin, arguments);
-    };
+//     CompositionWritable.prototype.on = function() {
+//     return this.writableOrigin.on
+//         .apply(this.writableOrigin, arguments);
+//     };
 
-    CompositionWritable.prototype.uncork = function() {
-        return this.writableOrigin.uncork.apply(this.writableOrigin, arguments);
-    };
+//     CompositionWritable.prototype.close = function() {
+//         return this.writableOrigin.close.apply(this.writableOrigin, arguments);
+//     };
 
-    CompositionWritable.prototype.destroy = function() {
-        return this.writableOrigin.destroy.apply(this.writableOrigin, arguments);
-    };
+//     CompositionWritable.prototype.setDefaultEncoding = function() {
+//         return this.writableOrigin.setDefaultEncoding.apply(this.writableOrigin, arguments);
+//     };
 
-    return new CompositionWritable(writableOrig);
-}
+
+//     CompositionWritable.prototype.end = function() {
+//         return this.writableOrigin.end.apply(this.writableOrigin, arguments);
+//     };
+
+//     CompositionWritable.prototype.cork = function() {
+//         return this.writableOrigin.cork.apply(this.writableOrigin, arguments);
+//     };
+
+//     CompositionWritable.prototype.uncork = function() {
+//         return this.writableOrigin.uncork.apply(this.writableOrigin, arguments);
+//     };
+
+//     CompositionWritable.prototype.destroy = function() {
+//         return this.writableOrigin.destroy.apply(this.writableOrigin, arguments);
+//     };
+
+//     return new CompositionWritable(writableOrig);
+// }
 
 /***
  * 
