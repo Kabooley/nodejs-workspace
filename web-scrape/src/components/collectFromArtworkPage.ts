@@ -98,8 +98,8 @@ export const collectArtworksData = async (
                         && metaPreloadData!.hasOwnProperty("illust")
                         && metaPreloadData.illust[id] !== undefined
                     ) {
-                        const fuck: iIllustData = metaPreloadData.illust[id] as iIllustData;
-                        collected.push(takeOutPropertiesFrom<iIllustData>(fuck, requirement === undefined ? defaulRequirement : requirement));
+                        const i: iIllustData = metaPreloadData.illust[id] as iIllustData;
+                        collected.push(takeOutPropertiesFrom<iIllustData>(i, requirement === undefined ? defaulRequirement : requirement));
                     };
                 });
             };

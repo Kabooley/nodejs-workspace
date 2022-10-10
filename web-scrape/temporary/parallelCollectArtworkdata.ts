@@ -19,15 +19,49 @@
  * 参考：https://stackoverflow.com/a/52985373
  * *************************************************************/ 
 import type puppeteer from 'puppeteer';
+import * as jsdom from 'jsdom';
 import { Navigation } from './components/Navigation';
+import { takeOutPropertiesFrom } from '../utilities/objectModifier';
+import type { iMetaPreloadData, iIllust, iIllustData } from './components/errorCollectFromArtworkPage';
 
-// up to two parallel process
+const { JSDOM } = jsdom;
 const navigation = new Navigation();
+const artworkUrl: string = `https://www.pixiv.net/artworks/`;
+const defaulRequirement: (keyof iIllustData)[] = [
+    "illustId", "illustTitle", "id", "title", "illustType", "urls", "pageCount", "bookmarkCount"
+];
 
-const executor = async (p: puppeteer.Page, id: string, container: iDataWhatIwant[]): Promise<void> => {
+
+const retrieveDataFromNavigationResponses = async (responses: (puppeteer.HTTPResponse | any)[]): Promise<iIllustData> => {
+    const response: puppeteer.HTTPResponse = responses.pop();
+    let metaPreloadData: iMetaPreloadData | undefined;
+
+    if(response.headers().hasOwnProperty("content-type") && response.headers()["content-type"]!.includes('text/html')){
+        const { document } = new JSDOM(await response.text()).window;
+        const json = document.querySelector('#meta-preload-data')!.getAttribute("content");
+        metaPreloadData = json ? JSON.parse(json): undefined;
+    };
+
+    return metaPreloadData;
+ };
+
+
+/***
+ * 
+ * 
+ * */  
+const executor = async (p: puppeteer.Page, id: string, container: iIllustData[], requirement?: (keyof iIllustData)[]): Promise<void> => {
     try {
-        const navigateResults = await navigation.navigateBy(p.goto(`url/${id}`, { waitUntil: ["load", "networkidle2"]}));
-        container = [...container, ...(await captureBodyData(navigationResults))];
+        const navigationResponses: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(p.goto(`url/${id}`, { waitUntil: ["load", "networkidle2"]}));
+        const metaPreloadData: iMetaPreloadData | undefined = await retrieveDataFromNavigationResponses(navigationResponses);
+        if(
+            metaPreloadData !== undefined 
+            && metaPreloadData!.hasOwnProperty("illust")
+            && metaPreloadData.illust[id] !== undefined
+        ) {
+            const i: iIllustData = metaPreloadData.illust[id] as iIllustData;
+            container.push(takeOutPropertiesFrom<iIllustData>(i, requirement === undefined ? defaulRequirement : requirement));
+        }
     }
     catch(e) {
         throw e;
@@ -35,9 +69,9 @@ const executor = async (p: puppeteer.Page, id: string, container: iDataWhatIwant
 };
 
 // TODO: pageインスタンスは一つだけでいいなら条件分岐で別の処理にするべきか検討
-const collectArtworkData = async (browser: puppeteer.Browser, page: puppeteer.Page, ids: string[]): Promise<iDataWhatIwant[]> => {
+export const collectArtworkData = async (browser: puppeteer.Browser, page: puppeteer.Page, ids: string[], requirement?: (keyof iIllustData)[]): Promise<iIllustData[]> => {
     try {
-        let collected: iDataWhatIwant[] = [];
+        let collected: iIllustData[] = [];
         let sequences: Promise<void>[] = [];
         let pageInstances: puppeteer.Page[] = [];
         let concurrency: number = 1;
@@ -52,15 +86,26 @@ const collectArtworkData = async (browser: puppeteer.Browser, page: puppeteer.Pa
         }
 
         pageInstances.push(page);
+        /***
+         * concurrency === 4で、indexが1からスタートすると...
+         * 
+         * index % concurrencyは
+         * 1, 2, 3, 4, 1, 2, 3, 4で１～４の範囲で循環する。
+         * 
+         * ただしこれだと添え字として範囲外になるので
+         * 
+         * index % (concurrency - 1)で循環させる
+         * 
+         * TODO: 循環がうまくいくのか確認
+         * */ 
         for(let i = 1; i < concurrency; i++) {
             pageInstances.push(await browser.newPage());
             sequences.push(Promise.resolve());
         };
         ids.forEach((id: string, index: number) => {
-            // 
-            // TODO: 限定された範囲の数を順番にループする方法はindex % concurrencyで正しいか確認
-            // 
-            sequences[index % concurrency] = sequences[index % concurrency].then(() => executor(pageInstances[index % concurrency], id));
+            // const circulator: number = (index % concurrency) - 1;
+            const circulator: number = index % (concurrency - 1);
+            sequences[circulator] = sequences[circulator].then(() => executor(pageInstances[circulator], id, collected, requirement));
         });
 
         await Promise.all([...sequences]);
@@ -72,7 +117,7 @@ const collectArtworkData = async (browser: puppeteer.Browser, page: puppeteer.Pa
         throw e;
     }
     finally {
-        /* 新たに生成したpageインスタンスをどうにかcloseさせたい */ 
+        /* TODO: 新たに生成したpageインスタンスをどうにかcloseさせたい */ 
         while(pageInstances.length) {
             
         }
