@@ -1,7 +1,7 @@
 /**********************************************************************
  * Navigation class:
  * 
- * TODO: Navigationはpageインスタンスに因らないようにしたい
+ * TODO: Navigationはpageインスタンスに因らないようにしたい: 直したのでテスト
  * TODO: puppeteer.Pageをコンストラクタ引数に取るようにしなくていいようにする。
  * TODO: navigateBy()などのナビゲートメソッドはURLを受け取るようにする
  * TODO: navigateBy()などのナビゲートメソッドの引数triggerをプロミスにする
