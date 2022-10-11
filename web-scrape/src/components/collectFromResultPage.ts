@@ -11,6 +11,7 @@ import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } 
 import { Navigation } from './Navigation';
 import { selectors } from '../constants/selectors';
 import { getFirstElementToJson } from '../helper/lessCommons';
+import { takeOutPropertiesFrom } from '../utilities/objectModifier';
 
 const getIllustManga = async (data: iBodyIncludesIllustManga): Promise<iIllustManga> => {
     const illustManga: iIllustManga = data?.body?.illustManga;
@@ -36,15 +37,16 @@ export const collectFromSearchResult = async (
             console.log(`Collect by ${key}...`);
 
             // Check if res is not includes required property.
-            let result: iIllustManga = await getIllustManga(res);
+            // let result: iIllustManga = await getIllustManga(res);
+            let result: iIllustManga = takeOutPropertiesFrom<iIllustManga>(res.body, 'illustManga');
 
             // // DEBUG:
             // console.log(result);
 
-            const navigation = new Navigation(page);
             const collector = new Collect<iIllustMangaDataElement>();
-            navigation.resetWaitForNavigation(page.waitForNavigation({ waitUntil: ["load", "networkidle2"]}));
-            navigation.resetWaitForResponseCallback(page.waitForResponse(httpResponseFilter));
+            const navigation = new Navigation();
+            navigation.resetWaitForOptions({ waitUntil: ["load", "networkidle2"]});
+            navigation.resetFilter(httpResponseFilter);
 
             let currentPage: number = 1;
             let lastPage: number = 0;
@@ -65,7 +67,7 @@ export const collectFromSearchResult = async (
                 });
                 collector.resetData(d);
                 data = [...data, ...collector.execute(key)];
-                const r: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(function(){ return page.click(selectors.nextPage)});
+                const r: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(page, page.click(selectors.nextPage));
                 // if(!r[0] || !(await r[0].json())) throw new Error("Unexpected value has been returned after navigation");
                 // result = (await r[0].json()).illustManga;
                 result = await getIllustManga(await getFirstElementToJson<iBodyIncludesIllustManga>(r));

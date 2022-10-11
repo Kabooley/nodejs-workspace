@@ -16,7 +16,8 @@ export const hasProperties = < T extends object>(obj: T, keys: (keyof T)[]): boo
  
  
 /***
- * ジェネリック型のオブジェクト`obj`から、keysのプロパティだけを取り出したオブジェクトを生成する。
+ * ジェネリック型のオブジェクト`obj`から、keysのプロパティからなるオブジェクトを生成する。
+ * プロパティを取り出すわけではないことに注意。
  * 
  * @type {T extends object} - オブジェクトだけを受け付けるのでジェネリックで指定できるT型はオブジェクトでなくてはならない
  * @param {T} obj
