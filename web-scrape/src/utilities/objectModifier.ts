@@ -8,17 +8,10 @@ interface iReplacableKeyObject {
 };
 
 /****
- * NOTE: 戻り値の型がiReplacableKeyObjectになるので結局使えない。
- * 最終的な戻り値がiReplacableKeyObject型にならないようにする工夫が必要である
+ * T
+ * 
  * */ 
-// export const retrieveDeepProp = (keys: string[], o: object) => {
-//     return keys.reduce((previousValue: iReplacableKeyObject, currentValue: string) => {
-//       return (previousValue !== undefined && previousValue.hasOwnProperty(currentValue)) ? previousValue[currentValue] : undefined
-//     }, o)
-//   };
-
-
-export const retrieveDeepProp = <T>(keys: string[], o: object) => {
+export const retrieveDeepProp = <T>(keys: string[], o: object): T => {
     return keys.reduce((previousValue: iReplacableKeyObject, currentValue: string) => {
       return (previousValue !== undefined && previousValue.hasOwnProperty(currentValue)) ? previousValue[currentValue] : undefined
     }, o) as T;

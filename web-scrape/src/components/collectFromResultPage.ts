@@ -10,21 +10,14 @@ import { Collect } from './Collect';
 import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } from './Collect';
 import { Navigation } from './Navigation';
 import { selectors } from '../constants/selectors';
-import { getFirstElementToJson } from '../helper/lessCommons';
-import { retrieveDeepProp ,takeOutPropertiesFrom } from '../utilities/objectModifier';
-
-const getIllustManga = async (data: iBodyIncludesIllustManga): Promise<iIllustManga> => {
-    const illustManga: iIllustManga = data?.body?.illustManga;
-    if(!illustManga || !illustManga.data || !illustManga.total) throw new Error("Cannot capture illustManga data.");
-    return illustManga;
-};
+import { retrieveDeepProp } from '../utilities/objectModifier';
 
 
 /***
- * @param {puppeteer.Page} page - puppeteerNode page instance.
- * @param {iBodyIncludesIllustManga} res - HTTPResponse body object that express this interface.
- * @param {string} key - One of the key of this interface
- * @return {Promise<string[]>}
+ * @param   {puppeteer.Page} page - puppeteerNode page instance.
+ * @param   {iBodyIncludesIllustManga} res - HTTPResponse body object that express this interface.
+ * @param   {string} key - One of the key of this interface
+ * @return  {Promise<string[]>}
  * 
  * */ 
 export const collectFromSearchResult = async (
@@ -38,11 +31,9 @@ export const collectFromSearchResult = async (
             console.log(`Collect by ${key}...`);
 
             // Check if res is not includes required property.
-            let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"], res);
-            // TODO: const {data, total} = という形にした方がいいかも
-
-            // // DEBUG:
-            // console.log(result);
+            // let result: iIllustManga | undefined = retrieveDeepProp<iIllustManga>(["body", "illustManga"], res);
+            // let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"], res);
+            let {data, total} = retrieveDeepProp<iIllustManga>(["body", "illustManga"], res);
 
             const collector = new Collect<iIllustMangaDataElement>();
             const navigation = new Navigation();
@@ -51,8 +42,8 @@ export const collectFromSearchResult = async (
 
             let currentPage: number = 1;
             let lastPage: number = 0;
-            let data: string[] = [];
-            lastPage = Math.floor(result.total / result.data.length);
+            let collected: string[] = [];
+            lastPage = Math.floor(total / data.length);
     
             // DEBUG: 
             console.log("Begin to collect...");
@@ -61,23 +52,22 @@ export const collectFromSearchResult = async (
                 // DEBUG:
                 console.log(`Page: ${currentPage} / ${lastPage}`);
 
-                if(!result || !result.data || !result.total) throw new Error("Cannot capture illustManga data.");
+                if(!data || !total) throw new Error("Cannot capture illustManga data.");
                 // resetDataに渡す前に広告要素フィルタリング！！
-                let d: iIllustMangaDataElement[] = result.data.filter((e: iIllustMangaDataElement | {}) => {
+                let d: iIllustMangaDataElement[] = data.filter((e: iIllustMangaDataElement | {}) => {
                     return !e.hasOwnProperty('isAdContainer')
                 });
                 collector.resetData(d);
-                data = [...data, ...collector.execute(key)];
+                collected = [...collected, ...collector.execute(key)];
                 const r: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(page, page.click(selectors.nextPage));
-                // if(!r[0] || !(await r[0].json())) throw new Error("Unexpected value has been returned after navigation");
-                // result = (await r[0].json()).illustManga;
-                result = await getIllustManga(await getFirstElementToJson<iBodyIncludesIllustManga>(r));
+                let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"], r.shift());
+                data = result.data;
                 currentPage++;
 
                 // DEBUG:
-                console.log(`Current collected data by ${key}: ${data.length}`);
+                console.log(`Current amount of collected data by ${key}: ${collected.length}`);
             };
-            return data;
+            return collected;
         }
         catch(e) {
             await page.screenshot({type: "png", path: "./dist/errorCollectFromResultPage.png"});
