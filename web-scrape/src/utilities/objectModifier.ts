@@ -2,6 +2,30 @@
  * Utilities for modifying Objects.
  * 
  * **********************************************************/ 
+
+interface iReplacableKeyObject {
+    [key: string]: any
+};
+
+/****
+ * NOTE: 戻り値の型がiReplacableKeyObjectになるので結局使えない。
+ * 最終的な戻り値がiReplacableKeyObject型にならないようにする工夫が必要である
+ * */ 
+// export const retrieveDeepProp = (keys: string[], o: object) => {
+//     return keys.reduce((previousValue: iReplacableKeyObject, currentValue: string) => {
+//       return (previousValue !== undefined && previousValue.hasOwnProperty(currentValue)) ? previousValue[currentValue] : undefined
+//     }, o)
+//   };
+
+
+export const retrieveDeepProp = <T>(keys: string[], o: object) => {
+    return keys.reduce((previousValue: iReplacableKeyObject, currentValue: string) => {
+      return (previousValue !== undefined && previousValue.hasOwnProperty(currentValue)) ? previousValue[currentValue] : undefined
+    }, o) as T;
+  };
+
+
+  
 /****
  * 
  * 
@@ -33,101 +57,29 @@ export const takeOutPropertiesFrom = < T extends object>(obj: T, keys: (keyof T)
     return o;
  };
 
- 
- //  /***
- //  * `obj`から`keys`で指定されたプロパティを取り出して、
- //  * その指定プロパティからなるオブジェクトを返す。
- //  * 
- //  * NOTE: 戻り値の型が`Record<keyof T, T[keyof T]>`になってその後戻り値の扱いに困るかも...
- //  * */  
- // const takeOutPropertyFrom = < T extends object>(obj: T, keys: (keyof T)[]): Record<keyof T, T[keyof T]> => {
- //     let o: Record<keyof T, T[keyof T]> = {} as Record<keyof T, T[keyof T]>;
- //     keys.forEach((key: keyof T) => {
- //         o[key] = obj[key];
- //     });
- //     return o;
- //  };
 
-
-/* USAGE
-
-// dummyにそのプロパティが存在するのかのチェックを行いながら、
-// dummyから最終的にdummy.bodyのなかのプロパティを取り出す。
-
-interface iBodyOfArtworkPageResponse {
-    error: boolean;
-    message:string;
-    body: iArtworkData;
-};
-
-interface iArtworkData {
-    illustId: string;
-    illustTitle: string;
-    illustComment?: string;
-    id?: string;	// コメントした人
-    title?: string;
-    description?: string;
-    illustType: number;		// 普通のイラストならたぶん０、gifとかだと0じゃない
-    createDate?:string;
-    uploadDate?:string;
-    restrict?:number;
-    xRestrict?:number;
-    sl:string;
-    urls:{
-        mini?:string;   
-        thumb?:string;  
-        small?:string;  
-        regular?:string;
-        original:string;
-    },
-    tags?: any;
-    pageCount: number;
-};
- 
-const dummy: iBodyOfArtworkPageResponse = {
-    error: false,
-    message: "",
-    body: {
-        illustId: "12345",
-        illustTitle: "title of this artwork",
-        illustType: 0,
-        sl:"",
-        urls:{
-            original:"",
-        },
-        pageCount: 3
-    }
- };
-
- const requiredForReposen: (keyof iBodyOfArtworkPageResponse)[] = ["error", "message", "body"];
- const requiredForBody: (keyof iArtworkData)[] = ["illustId", "illustTitle", "urls", "pageCount"];
-
-
-(function(dummy) {
-    // 指定のプロパティがdummyにあるのかチェックする
-    if(hasProperties<iBodyOfArtworkPageResponse>(dummy, requiredForReposen)){
-        // 指定のプロパティが存在するので各プロパティをそれぞれ取り出す
-        // retirieved: (string | boolean | iArtwork)[]
-        // 
-        // この方法だとどれがiArtwork型の要素なのか後で探すのが大変
-        const retrieved = requiredForReposen.map((key: keyof iBodyOfArtworkPageResponse) => {
-            return dummy[key];
-        });
-
-        // 一方、こっちの方法ならkeyを指定すればどの値が得られるかあとから容易にわかる
-        const retrieved2 = takeOutPropertyFromVer2<iBodyOfArtworkPageResponse>(dummy, requiredForReposen);
-
-        console.log(retrieved);
-        console.log(retrieved2);
-        console.log(retrieved2.body);   // iArtworkData型であることをTypeScriptが理解している
-
-        if(hasProperties<iArtworkData>(retrieved2.body, requiredForBody)){
-            const ordered = takeOutPropertyFromVer2<iArtworkData>(retrieved2.body, requiredForBody);
-            console.log(ordered);
-        }
-
-    }
-})(dummy); 
-
-*/
+ // /***
+//  * DEPRICATED: retrieveDeepProp()に取って代わった。
+//  * 
+//  * 
+//  * Retrieves nested property.
+//  * Passed keys element in keys array must be ordered same as property nested in the object.
+//  * 
+//  * If specified key does not exist in object, then returns undefined.
+//  * 
+//  * objの中から、keys配列のプロパティに順番にアクセス可能で、
+//  * 一番最後の要素に一致するプロパティを返す。
+//  * アクセスできなかったらundefinedを返す。
+//  * keys配列はobjのプロパティのネスト
+//  * */ 
+//  const retrieveDeepProp = <T extends object>(obj: T, keys: string[]): any | undefined => {
+//     let o: iReplacableKeyObject | undefined = obj;
+//     keys.forEach(key => {
+//       if(o !== undefined && o.hasOwnProperty(key)){
+//         o = o[key];
+//       }
+//       else{ o = undefined;}
+//     });
+//     return o;
+// };
 

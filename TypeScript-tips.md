@@ -13,6 +13,7 @@ TODO: TypeScriptの書籍を買え！
 [動的にオブジェクトのプロパティを追加するようなメソッドの型付け](#動的にオブジェクトのプロパティを追加するようなメソッドの型付け)
 [非公開classの型情報だけを公開したいとき](#非公開classの型情報だけを公開したいとき)
 [DOM操作](#DOM操作)
+[ネストされたプロパティにアクセスする方法](#ネストされたプロパティにアクセスする方法)
 
 ## 最速でテスト環境用意する方法
 
@@ -677,4 +678,58 @@ HTTPレスポンスのbodyからHTMLを取得して、
     const json = template.content.querySelector('#meta-preload-data')!.getAttribute("content");
     metaPreloadData = json ? JSON.parse(json): undefined;
 ```
+
+
+## ネストされたプロパティにアクセスする方法
+
+想定するシナリオ：
+
+オブジェクトから特定の深度のプロパティを取り出す。
+プロパティとその方は使う側が知っているものとする。
+
+Array.prototype.reduce()が使える。
+
+```TypeScript
+
+interface iReplacableKeyObject {
+    [key: string]: any
+};
+
+export const retrieveDeepProp = (keys: string[], o: object) => {
+    return keys.reduce((previousValue: iReplacableKeyObject, currentValue: string) => {
+      return (previousValue !== undefined && previousValue.hasOwnProperty(currentValue)) ? previousValue[currentValue] : undefined
+    }, o)
+  };
+
+
+// 下記と全く同じことをしてくれる
+
+ const retrieveDeepProp = <T extends object>(obj: T, keys: string[]): any | undefined => {
+    let o: iReplacableKeyObject | undefined = obj;
+    keys.forEach(key => {
+      if(o !== undefined && o.hasOwnProperty(key)){
+        o = o[key];
+      }
+      else{ o = undefined;}
+    });
+    return o;
+};
+```
+
+しかしこのままだと戻り値が必ず`iReplacableKeyObject`になってしまって結局使えない
+
+こうするといいらしい
+
+```TypeScript
+export const retrieveDeepProp = <T>(keys: string[], o: object) => {
+    return keys.reduce((previousValue: iReplacableKeyObject, currentValue: string) => {
+      return (previousValue !== undefined && previousValue.hasOwnProperty(currentValue)) ? previousValue[currentValue] : undefined
+    }, o) as T;     // NOTE: 型推論をasで禁止した
+  };
+
+// USAGE
+let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"], res);
+```
+
+これで期待通りのものを取得できるようになった。
 

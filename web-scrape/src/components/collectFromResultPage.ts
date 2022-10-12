@@ -11,13 +11,14 @@ import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } 
 import { Navigation } from './Navigation';
 import { selectors } from '../constants/selectors';
 import { getFirstElementToJson } from '../helper/lessCommons';
-import { takeOutPropertiesFrom } from '../utilities/objectModifier';
+import { retrieveDeepProp ,takeOutPropertiesFrom } from '../utilities/objectModifier';
 
 const getIllustManga = async (data: iBodyIncludesIllustManga): Promise<iIllustManga> => {
     const illustManga: iIllustManga = data?.body?.illustManga;
     if(!illustManga || !illustManga.data || !illustManga.total) throw new Error("Cannot capture illustManga data.");
     return illustManga;
 };
+
 
 /***
  * @param {puppeteer.Page} page - puppeteerNode page instance.
@@ -37,8 +38,8 @@ export const collectFromSearchResult = async (
             console.log(`Collect by ${key}...`);
 
             // Check if res is not includes required property.
-            // let result: iIllustManga = await getIllustManga(res);
-            let result: iIllustManga = takeOutPropertiesFrom<iIllustManga>(res.body, 'illustManga');
+            let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"], res);
+            // TODO: const {data, total} = という形にした方がいいかも
 
             // // DEBUG:
             // console.log(result);
