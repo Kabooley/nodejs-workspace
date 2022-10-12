@@ -6,7 +6,7 @@ import { initialize } from './helper/initialize';
 import { search } from './components/search';
 import { collectFromSearchResult } from './components/collectFromResultPage';
 import type { iBodyIncludesIllustManga } from './components/Collect';
-import { collectArtworksData } from './components/collectFromArtworkPage';
+import { collectArtworkData } from './components/collectFromArtworkPage';
 // import { login } from './components/login';
 
 // 
@@ -64,6 +64,9 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         await page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]});
 
         const searchResult: iBodyIncludesIllustManga = await search(page, keyword);
+
+        // DEBUG:
+        console.log(searchResult);
         
         const ids: string[] = await collectFromSearchResult(page, searchResult, 'id', (r) => {return r.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
         && r.status() === 200});
@@ -71,7 +74,7 @@ yargs(process.argv.slice(2)).command(commandName, commandDesc,
         // DEBUG:
         console.log(ids);
 
-        const artworksData = await collectArtworksData(page, ids);
+        const artworksData = await collectArtworkData(browser, page, ids);
 
         // DEBUG:一旦JSONファイルで保存
         // DB導入検討

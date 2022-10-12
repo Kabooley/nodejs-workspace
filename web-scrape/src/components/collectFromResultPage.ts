@@ -35,6 +35,10 @@ export const collectFromSearchResult = async (
             // let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"], res);
             let {data, total} = retrieveDeepProp<iIllustManga>(["body", "illustManga"], res);
 
+            // DEBUG:
+            console.log(data);
+            console.log(total);
+
             const collector = new Collect<iIllustMangaDataElement>();
             const navigation = new Navigation();
             navigation.resetWaitForOptions({ waitUntil: ["load", "networkidle2"]});
@@ -52,7 +56,7 @@ export const collectFromSearchResult = async (
                 // DEBUG:
                 console.log(`Page: ${currentPage} / ${lastPage}`);
 
-                if(!data || !total) throw new Error("Cannot capture illustManga data.");
+                if(data === undefined || total === undefined) throw new Error("Cannot capture illustManga data.");
                 // resetDataに渡す前に広告要素フィルタリング！！
                 let d: iIllustMangaDataElement[] = data.filter((e: iIllustMangaDataElement | {}) => {
                     return !e.hasOwnProperty('isAdContainer')
@@ -60,7 +64,11 @@ export const collectFromSearchResult = async (
                 collector.resetData(d);
                 collected = [...collected, ...collector.execute(key)];
                 const r: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(page, page.click(selectors.nextPage));
-                let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"], r.shift());
+                
+                // DEBUG:
+                console.log(r);
+
+                let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"], await r.shift().json());
                 data = result.data;
                 currentPage++;
 

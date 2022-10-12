@@ -65,11 +65,13 @@
   * 指定URL+idからなるartoworkページのURLへpage.goto()してrequirementが求めるデータを取得する
   * 取得したデータは引数containerへ格納する。
   * 
+  * HTTPResponse body: iMetaPreloadData
+  * ["illust", id]
   * */  
  const executor = async (p: puppeteer.Page, id: string, container: iIllustData[], requirement?: (keyof iIllustData)[]): Promise<void> => {
      try {
-p.waitForNavigation()
-
+        // DEBUG:
+        console.log("executor()...");
 
          const navigationResponses: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(p, p.goto(artworkUrl + id, { waitUntil: ["load", "networkidle2"]}));
          const metaPreloadData: iMetaPreloadData | undefined = await retrieveDataFromNavigationResponses(navigationResponses);
@@ -78,6 +80,10 @@ p.waitForNavigation()
              && metaPreloadData!.hasOwnProperty("illust")
              && metaPreloadData.illust[id] !== undefined
          ) {
+
+             // DEBUG:
+             console.log("collected illustData...");
+
              const illustData: iIllustData = metaPreloadData.illust[id] as iIllustData;
              container.push(takeOutPropertiesFrom<iIllustData>(illustData, requirement === undefined ? defaulRequirement : requirement));
          }
@@ -120,6 +126,9 @@ p.waitForNavigation()
          else if(ids.length > 50) {
              concurrency = 4;
          }
+
+         // DEBUG:
+         console.log(`concurrency: ${concurrency}`);
  
          pageInstances.push(page);
          for(let i = 1; i < concurrency; i++) {
@@ -131,12 +140,21 @@ p.waitForNavigation()
             // 0~(concurrency-1)の範囲でcirculatorは循環する
             // なので添え字アクセスは範囲内に収まる
              const circulator: number = index % concurrency;
-             sequences[circulator] = sequences[circulator].then(() => executor(pageInstances[circulator], id, collected, requirement));
+
+             // DEBUG:
+             console.log(`circulator: ${circulator}`);
+
+             if(sequences[circulator] !== undefined && pageInstances[circulator] !== undefined) {
+
+                // DEBUG:
+                console.log("sequence");
+                
+                sequences[circulator] = sequences[circulator]!.then(() => executor(pageInstances[circulator]!, id, collected, requirement));
+             }
          });
  
          await Promise.all([...sequences]);
          return collected;
- 
      }
      catch(e) {
          await page.screenshot({type: 'png', path: './dist/errorWhileCollectingArtworkData.png'});

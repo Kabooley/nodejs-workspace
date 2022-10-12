@@ -24,10 +24,12 @@ export const search = async (page: puppeteer.Page, keyword: string): Promise<iBo
         await page.type(selectors.searchBox, keyword, { delay: 100 });
         let res: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(page, page.keyboard.press('Enter'));
 
+        console.log(res);
         const response: puppeteer.HTTPResponse = res.shift();
-        if(response === undefined || !response.hasOwnProperty('json')) {
-            throw new Error('search(): Something went wrong but search() could not get expected HTTP Response.');
-        }
+        // TODO: response.hasOwnProperty('json')が効いていないかも
+        // if(response === undefined || !response.hasOwnProperty('json')) {
+        //     throw new Error('search(): Something went wrong but search() could not get expected HTTP Response.');
+        // }
         return await response.json();
     }
     catch(e) {
