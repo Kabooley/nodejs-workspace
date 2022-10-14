@@ -9,7 +9,7 @@
 [`!!`の意味](#`!!`の意味)
 [Promiseとasync/awaitの変換](#Promiseとasync/awaitの変換)
 [Singleton](#Singleton)
-[](#)
+[Promiseエラーハンドリング](#Promiseエラーハンドリング)
 [](#)
 [](#)
 
@@ -297,3 +297,18 @@ exportするもの以外はプライベートである。
  };
 
 ```
+
+## Promiseエラーハンドリング
+
+#### throw vs. reject
+
+TODO: 要検証
+
+https://qiita.com/legokichi/items/b14bf7dbb0cf041955d6
+
+というひともいれば
+
+https://stackoverflow.com/questions/33445415/javascript-promises-reject-vs-throw
+
+とも言われている
+
