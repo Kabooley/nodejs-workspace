@@ -5,11 +5,17 @@
 ## 目次
 
 [for...in vs for...of](#for...in-vs-for...of)
+
 [`[].slice.call()`](#`[].slice.call()`)
+
 [`!!`の意味](#`!!`の意味)
+
 [Promiseとasync/awaitの変換](#Promiseとasync/awaitの変換)
+
 [Singleton](#Singleton)
+
 [Promiseエラーハンドリング](#Promiseエラーハンドリング)
+
 [](#)
 [](#)
 
@@ -298,17 +304,41 @@ exportするもの以外はプライベートである。
 
 ```
 
-## Promiseエラーハンドリング
+## Deep dive into Promise chain
 
 #### throw vs. reject
 
-TODO: 要検証
-
 https://qiita.com/legokichi/items/b14bf7dbb0cf041955d6
-
-というひともいれば
 
 https://stackoverflow.com/questions/33445415/javascript-promises-reject-vs-throw
 
-とも言われている
 
+#### 非同期関数はPromiseのコールバックにするな
+
+```JavaScript
+let promise = Promise.resolve();
+
+// Promiseチェーンのコールバックには同期関数を呼び出そう
+promise = promise.then(() => {}); 
+// これはダメ
+// 予期しない結果をもたらす
+promise = promise.then(async () => {}); 
+
+// これはPromiseチェーンとしてはOKだけど、asyncFunction()は非同期に呼び出されることになるので、
+// 当然asyncFunction()の完了を待たない
+pormise = promise.then(() => asyncFunction());
+// 次は上記と同じ
+// pormise = promise.then(() => {return asyncFunction()});
+
+
+// 次はダメなことはわかっている
+promise = promise.then(asyncFunction);
+// 次もダメっぽい
+// TypeScriptだとproperty asyncFunctionはPromise<void>に存在しませんと出る
+promise = promise.asyncFunction;
+
+```
+
+async関数はPromiseチェーンに含めることができない?
+
+promise.then(() => return asyncFunction())は有効？

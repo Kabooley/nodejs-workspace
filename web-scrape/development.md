@@ -112,67 +112,83 @@ pageインスタンスを増やす場面：
 - 検索結果情報収集時
 - artworkページ情報収集時
 
-#### 検索結果情報集プロセスを並列化する
+導入してみた:
+
+`components/collectArtworkFromPage.ts`
+
+受け取ったデータ量に応じてsequencesという逐次処理の数を増やして、
+
+sequencesをPromise.all()させることで並列処理させる。
+
+TODO: 要動作確認。
 
 ```TypeScript
-// index.ts
+ export const collectArtworkData = async (
+    browser: puppeteer.Browser, 
+    page: puppeteer.Page, 
+    ids: string[], 
+    requirement?: (keyof iIllustData)[])
+    : Promise<iIllustData[]> => {
 
-browser = await puppeteer.launch(options);
-page = await initialize(browser);
+    let pageInstances: puppeteer.Page[] = [];
+    let collected: iIllustData[] = [];
+    let sequences: Promise<void>[] = [];
+    let concurrency: number = 1;
+        
+    try {
+         // データ量が50以下なら処理プロセス２つを並列処理
+         if(ids.length > 10 && ids.length <= 50) {
+             concurrency = 2;
+         }
+         // データ量が50を超えるなら処理プロセス４つを並列処理
+         else if(ids.length > 50) {
+             concurrency = 4;
+         }
 
-await page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]});
+         // DEBUG:
+         console.log(`concurrency: ${concurrency}`);
+ 
+         pageInstances.push(page);
+         for(let i = 1; i < concurrency; i++) {
+             pageInstances.push(await browser.newPage());
+             sequences.push(Promise.resolve());
+         };
+         ids.forEach((id: string, index: number) => {
+            // 順番にidsの添え字を生成する
+            // 0~(concurrency-1)の範囲でcirculatorは循環する
+            // なので添え字アクセスは範囲内に収まる
+             const circulator: number = index % concurrency;
 
-const searchResult: iBodyIncludesIllustManga = await search(page, keyword);
+             // DEBUG:
+             console.log(`circulator: ${circulator}`);
 
-// この呼出しを...
-// const ids: string[] = await collectFromSearchResult(page, searchResult, 'id', (r) => {return r.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
-// && r.status() === 200});
+             if(sequences[circulator] !== undefined && pageInstances[circulator] !== undefined) {
 
-// pageの複製 
-const tempraryPage = await browser.newPage();
-// 並列化
-// pageインスタンス2つを使って各々検索結果ページを順番に非同期にアクセスして検索結果情報を収集する
+                // DEBUG:
+                console.log("sequence");
+                
+                sequences[circulator] = sequences[circulator]!.then(() => executor(pageInstances[circulator]!, id, collected, requirement));
+             }
+         });
+ 
+         await Promise.all([...sequences]);
+         return collected;
+     }
+     catch(e) {
+         await page.screenshot({type: 'png', path: './dist/errorWhileCollectingArtworkData.png'});
+         throw e;
+     }
+     finally {
+         // Close all generated instances in this function except those passed as argument.
+         if(pageInstances.length > 1) {
+            pageInstances.forEach((p: puppeteer.Page, index: number) => {
+                if(index > 0) p.close();
+            });
+         };
+     }
+ };
+
 ```
-
-```TypeScript
-// search()は本当に検索フォームにキーワードを入力だけにして...
-await search(page, keyword);
-let searchedResult: iSearchResultBody;
-await navigation.navigateBy(page.keyboard.press('Enter'))
-.then((res: (puppeteer.HTTPResponse | any)[]) => {
-    // check returned value process...
-    // and contains res[0] into res
-});
-
-// 検索結果数から並列処理するか逐次処理にするか決定する
-const numberOfPages: number = /* searchedResultから導き出せたとして */
-if(numberOfPages > 10) {
-    // 並列処理
-}
-else {
-    // 逐次処理
-    // collectFromSearchResult()のwhile()文と同じ事すればOK
-}
-
-
-
-```
-やることはたったこれだけ
-navigation.navigateBy(セレクタクリック)
-http response bodyからデータ取得して配列へpush
-
-どのページへ飛ぶかは、今のところ制御できない。
-
-「>」をクリックしているだけだから奇数ページまたは偶数ページだけアクセスとかはできない
-
-
-#### artworkページ情報収集を並列化する
-
-こっちはid集め終わった後に配列要素一つずつに対してpage.goto()していくので
-
-配列のアクセス方法を奇数/偶数にすれば並列処理は難しくないかも
-
-
 
 ## セレクタ調査
 
