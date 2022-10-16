@@ -6,7 +6,13 @@
 [ファクトリ](#ファクトリ)
 [公開コンストラクタ](#公開コンストラクタ)
 [プロキシ](#プロキシ)
+[デコレータ](#デコレータ)
+[ミドルウェア](#ミドルウェア)
 [](#)
+[](#)
+[](#)
+[自習：ロギングの実装](#自習：ロギングの実装)
+
 
 ## ファクトリ
 
@@ -542,3 +548,199 @@ TypeScriptに直すのに大変な労力を使うので、
 .jsファイルを.tsファイルへインポートできるようにする。
 
 問題は型エラーがすごく出そうなことか...
+
+## デコレータ
+
+> デコレータは既存のオブジェクトの振舞を動的に拡張する構造パターンです。
+
+継承と異なり、振舞がすべてのクラスのオブジェクトに追加されるのではなく、
+
+明示的にデコレートされるインスタンスにのみ適用される。
+
+プロキシと異なるのは、
+
+プロキシは既存のオブジェクトのインタフェイスを拡張したり就職したりするのに対して、
+
+デコレータは新しい機能を追加する
+
+
+```JavaScript
+"use strict";
+
+function decorate(component) {
+  const proto = Object.getPrototypeOf(component);
+  
+  function Decorator(component) {
+    this.component = component;
+  }
+  
+  Decorator.prototype = Object.create(proto);
+  
+  //new method
+  Decorator.prototype.greetings = function() {
+    return 'Hi!';
+  };
+  
+  //delegated method
+  Decorator.prototype.hello = function() {
+    return this.component.hello.apply(this.component, arguments); 
+  };
+  
+  return new Decorator(component);
+}
+
+class Greeter {
+  hello(subject) {
+    return `Hello ${subject}`;
+  }
+}
+
+const decoratedGreeter = decorate(new Greeter());
+console.log(decoratedGreeter.hello('world')); // uses original method
+console.log(decoratedGreeter.greetings()); // uses new method
+
+```
+
+ポイントは、
+
+既存のオブジェクト(`Greeter`)のインタフェイスには`hello`しかないけど、
+
+デコレータを使えば`greeting`という新しい機能を追加できた。
+
+そこがプロキシと違うところ。
+
+## アダプタ
+
+> アダプタは本来のものと異なるインタフェイスを使ってオブジェクトへのアクセスを可能にするものである。
+
+例：fs.readFile()とfs.writeFile()をdb.get()とdb.put()へ確実に変換できるようにする
+
+fsのメソッドとIndexedDBのnpmパッケージLevelUPのデータベースメソッドとが変換可能にする。
+
+つまり普段fs.writeFile()を利用するのと同じようにfs.writeFile()を使うだけで、
+
+dbメソッドが自動的に実行されるようになる。
+
+下記の例は、実際にはfsのメソッドをラップしているのではなくて
+
+要は同じ名前のモジュールを作成している。
+
+- createFsAdapter()は最終的にローカル変数`fs`を返す
+- createFsAdaptor()内部で模倣したいfsのメソッドを定義する
+- 模倣メソッドは自身の中でfsと同様にふるまう（返すエラーとか）
+
+```JavaScript
+"use strict";
+
+const path = require('path');
+
+module.exports = function createFsAdapter(db) {
+  const fs = {};
+
+  fs.readFile = (filename, options, callback) => {
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    } else if(typeof options === 'string') {
+      options = {encoding: options};
+    }
+
+    db.get(path.resolve(filename), {         //[1]
+        valueEncoding: options.encoding
+      },
+      (err, value) => {
+        if(err) {
+          if(err.type === 'NotFoundError') {       //[2]
+            err = new Error(`ENOENT, open "${filename}"`);
+            err.code = 'ENOENT';
+            err.errno = 34;
+            err.path = filename;
+          }
+          return callback && callback(err);
+        }
+        callback && callback(null, value);       //[3]
+      }
+    );
+  };
+
+  fs.writeFile = (filename, contents, options, callback) => {
+    if(typeof options === 'function') {
+      callback = options;
+      options = {};
+    } else if(typeof options === 'string') {
+      options = {encoding: options};
+    }
+
+    db.put(path.resolve(filename), contents, {
+      valueEncoding: options.encoding
+    }, callback);
+  };
+
+  return fs;
+};
+
+//  USAGE
+
+const levelup = require('level');
+const fsAdapter = require('./fsAdapter');
+
+const db = levelup('./fsDB', {valueEncoding: 'binary'});
+const fs = fsAdapter(db);
+
+fs.writeFile('file.txt', 'Hello!', () => {
+  fs.readFile('file.txt', {encoding: 'utf8'}, (err, res) => {
+    console.log(res);
+  });
+});
+
+//try to read a missing file
+fs.readFile('missing.txt', {encoding: 'utf8'}, (err, res) => {
+  console.log(err);
+});
+```
+
+つまり結局は同じ名前のメソッドを勝手に定義して使っているだけ。
+
+とはいえ直感的にわかりやすいので
+
+アダプタする価値はある。
+
+#### アダプタを使いそうな場面
+
+ブラウザはfsがない。
+
+ブラウザなので。
+
+しかし
+
+アダプタを適切に定義できれば
+
+fsを使うアプリケーションをブラウザ内で実行することができるようになるのである。
+
+
+## ミドルウェア
+
+パターンとしてのミドルウェア
+
+主要なロジックにサポート機能を提供する
+
+0mqを理解する大前提でソケットがわからん。
+
+## まとめ
+
+プロキシは、オブジェクトの既存のインタフェイスを拡張または修飾したりする
+
+デコレータは、オブジェクトに新しい機能を追加する。
+
+プロキシやデコレータのメリットはいちいち既存のクラスを拡張する必要がないことである。
+
+アダプタは異なるオブジェクトのインタフェイス同士を変換可能にしてアクセスできるようにするものである。
+
+## 自習：ロギングの実装
+
+いろんな関数の実行内容を記録する方法をまとめたい
+
+#### プロキシのオブジェクト合成で
+
+テキスト6.3.3の内容
+
