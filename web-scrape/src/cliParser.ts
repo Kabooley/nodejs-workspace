@@ -21,6 +21,12 @@ export interface iCollectCommand {
         demandOption: boolean;
         type: "string";
       };
+      // 
+      // bookmark: {
+      //   describe: string,
+      //   demandOption: false,
+      //   type: string
+      // }
 };
 export const commandName = "collect-image";
 export const commandDesc = "Collects images which matches with specified keyword";
@@ -42,5 +48,10 @@ export const builder: iCollectCommand = {
     describe: "keyword",
     demandOption: false,
     type: "string",
-  },
+  }
+  // bookmark: {
+  //   describe: "Bookmark if it fulfills requirement",
+  //   demandOption: false,
+  //   type: "string"
+  // }
 }

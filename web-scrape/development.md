@@ -17,7 +17,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 [セレクタ調査](#セレクタ調査)
 [自習](#自習)
 [ログインすべきかしなくていいか区別する](#ログインすべきかしなくていいか区別する)
-
+[機能：ブックマーク機能の追加](#機能：ブックマーク機能の追加)
 
 ## TODOS
 
@@ -150,6 +150,9 @@ TODO: 要動作確認。
  
          pageInstances.push(page);
          for(let i = 1; i < concurrency; i++) {
+			// DEBUG:
+			console.log("Create Page instance and new sequence Promise.");
+
              pageInstances.push(await browser.newPage());
              sequences.push(Promise.resolve());
          };
@@ -1474,3 +1477,23 @@ https://stackoverflow.com/a/49385769
 puppeteerにはリクエストを送信する機能はなくて、リクエストを送信されたことをインターセプトすることならできる。
 
 
+## 機能実装
+
+#### ブックマーク機能の追加
+
+- yargsで新しいコマンドを追加する
+- yargsのコマンドの有無で動作を追加する
+- 機能をあとから追加可能にする
+
+1. yargsでコマンドを追加する
+
+どんな条件にすべきか。
+
+bookmarkOver: number;
+includesTag: string;
+author: string;
+ignoreAlreadyBookmarked: boolean;
+
+```TypeScript
+
+```

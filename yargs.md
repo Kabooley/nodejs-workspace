@@ -299,3 +299,12 @@ username: donald. password: donaldkillskernel. keyword: donaldnsfw
 .commandの引数のハンドラ関数だけ、index.tsのcommandsオブジェクトにアクセスする必要があるため
 
 index.ts内で関数を定義した。
+
+## フレキシブルにするには
+
+`yargs(process.argv.splice(2))`の後に、Promiseチェーンみたいに`.command`をつけていけばいい
+
+
+
+## 特定のオブジェクト引数を受け付けるようにする
+

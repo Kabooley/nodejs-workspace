@@ -14,7 +14,7 @@
 
 [Singleton](#Singleton)
 
-[Promiseエラーハンドリング](#Promiseエラーハンドリング)
+[Deep dive into Promise chain](#Deep dive into Promise chain)
 
 [](#)
 [](#)
@@ -305,6 +305,36 @@ exportするもの以外はプライベートである。
 ```
 
 ## Deep dive into Promise chain
+
+#### Async 関数はPromiseを返す
+
+https://stackoverflow.com/a/35302535
+
+https://developer.mozilla.org/ja/docs/Web/JavaScript/Reference/Statements/async_function
+
+> (async関数の戻り値は) Promise で、非同期関数から返される値で解決するか、または非同期関数内で捕捉されなかった例外で拒否されます。
+
+以下は完全に有効である
+
+```JavaScript
+async function increment(num) {
+  return num + 1;
+}
+// Logs: 4
+increment(3).then(num => console.log(num));
+```
+
+上記は以下のように書き直すことができる
+
+```JavaScript
+function increment(num) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {resolve(num + 1);});
+  })
+};
+```
+
+ということでasync関数はPromiseを返す。
 
 #### throw vs. reject
 
