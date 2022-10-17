@@ -16,6 +16,67 @@
  * *********************************************/ 
  import type yargs from 'yargs';
  import Yargs from 'yargs/yargs';
+
+ {
+    interface iBookmarkOptions {
+        bookmarkOver?: string;
+        tag?: string;
+        author?: string;
+    };
+    type iCommandBuild<T> = {
+        [Property in keyof T]: yargs.Options;
+    };
+    
+    const bookmarkCommandBuilder: iCommandBuild<iBookmarkOptions> = {
+        bookmarkOver: {
+            describe: "Specify artwork number of Bookmark",
+            demandOption: false,
+            type: "number"
+        },
+        tag: {
+            describe: "Specify tag name must be included",
+            demandOption: false,
+            type: "string"
+        },
+        author: {
+            describe: "Specify author name that msut be included",
+            demandOption: false,
+            type: "string"
+        }
+    };
+
+    let bookmarkCommandValues = {} as iBookmarkOptions;
+
+    /****
+     * args: {
+     *  bookmarkOver: 1000, 
+     *  tag: "awesome",
+     *  author: "Franz"
+     * }
+     * 
+     * 
+     * */ 
+    // const bookmarkCommandHandler = <O extends {[key: string]: yargs.Options}>(args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<O>>): void => {
+    //     // retrieves option value into another object.
+    //     Object.keys(args).forEach(key=> {
+    //         bookmarkCommandValues[key] = args[key]
+    //     })
+    // }
+    const bookmarkCommandHandler = (args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<iCommandBuild<iBookmarkOptions>>>): void => {
+        // retrieves option value into another object.
+        Object.keys(args).forEach(key=> {
+            bookmarkCommandValues[key] = args[key]
+        })
+    }
+
+    Yargs(process.argv.splice(2))
+    .command<iCommandBuild<iBookmarkOptions>>(
+        "bookmark",
+        "Specified, bookmark artwork if it fulfills specific requirement.",
+        bookmarkCommandBuilder,
+        bookmarkCommandHandler
+    );
+ }
  
  
  // これでもいいけど、
@@ -216,24 +277,79 @@
  }
 
  {
+    interface iBookmarkOptions {
+        bookmarkOver: string;
+        tag: string;
+        author: string;
+    }
+
+    type iCommandProp = {
+        describe: string;
+        demandOption: boolean;
+        type: string;
+    };
+
+    // これならコマンドの配列を受け取ればkeyを制限することができる
+    // Tは"string | symbol | number"型でないといけない
+    // 例: typeof 文字列配列[number]
+    type iCommandBuild<T> = {
+        [Property in keyof T]: iCommandProp;
+    };
+
+    const bookmarkCommandBuilder: iCommandBuild<iBookmarkOptions> = {
+        bookmarkOver: {
+            describe: "Specify artwork number of Bookmark",
+            demandOption: false,
+            type: "number"
+        },
+        tag: {
+            describe: "Specify tag name must be included",
+            demandOption: false,
+            type: "string"
+        },
+        author: {
+            describe: "Specify author name that msut be included",
+            demandOption: false,
+            type: "string"
+        },
+        // 誤ったキーはちゃんとエラーになる
+        // incorrectKey: {
+        //     describe: "Specify author name that msut be included",
+        //     demandOption: false,
+        //     type: "string"
+        // }
+    };
+
+    const bookmarkCommandHandler = () => {
+
+    }
+
     
-interface Person {
-    name: string;
-    age: number;
-};
-
-type iDynamicObject<T> = {
-    [key in keyof T]: T[keyof T];
-};
-
-const John: iDynamicObject<Person> = {} as iDynamicObject<Person>;
-const John_: iDynamicObject<Person> = {} as Person;
-
-John.name = "John";
-John.country = "John";
-John.name = 1234;
-John.age = 20;
-John.age = "Wick";
+    Yargs(process.argv.splice(2))
+    .command(
+        "bookmark",
+        "Specified, bookmark artwork if it fulfills specific requirement.",
+        {
+            bookmarkOver: {
+                describe: "Specify artwork number of Bookmark",
+                demandOption: false,
+                type: "number"
+            },
+            tag: {
+                describe: "Specify tag name must be included",
+                demandOption: false,
+                type: "string"
+            },
+            author: {
+                describe: "Specify author name that msut be included",
+                demandOption: false,
+                type: "string"
+            }
+        },
+        bookmarkCommandHandler
+    )
+    .argv;
 
 
  }
+

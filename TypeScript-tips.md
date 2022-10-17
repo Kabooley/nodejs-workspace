@@ -4,34 +4,30 @@ TODO: TypeScriptの書籍を買え！
 
 ## 目次
 
-[最速でテスト環境を用意する方法](#最速でテスト環境を用意する方法)
 [TypeScriptはprivate指定子でスコープを制御してくれるわけではない](#TypeScriptはprivate指定子でスコープを制御してくれるわけではない)
-[割り当てられる前に使用しています](#割り当てられる前に使用しています)
+
+[エラー：割り当てられる前に使用されています](#エラー：割り当てられる前に使用されています)
+
 [Typeだけインポートする](#Typeだけインポートする)
+
 [`document`とかが使えないときは](#`document`とかが使えないときは)
-[後から動的にプロパティを追加するつもりの空のオブジェクト](#後から動的にプロパティを追加するつもりの空のオブジェクト)
+
 [動的にオブジェクトのプロパティを追加するようなメソッドの型付け](#動的にオブジェクトのプロパティを追加するようなメソッドの型付け)
+
 [非公開classの型情報だけを公開したいとき](#非公開classの型情報だけを公開したいとき)
+
 [DOM操作](#DOM操作)
+
 [ネストされたプロパティにアクセスする方法](#ネストされたプロパティにアクセスする方法)
 
-## 最速でテスト環境用意する方法
+[keyを動的に変更可能なオブジェクトの型作成まとめ](#keyを動的に変更可能なオブジェクトの型作成まとめ)
 
-NOTE: TypeScript関係ない！
-
-テストがわからんからテストを知ろう。
-
-Mocha
-
-Expect
-
-Superset
-
-まだ情報収集足らん
 
 ## TypeScriptはprivate指定子でスコープを制御してくれるわけではない
 
 *インテリセンスとTypeScriptコンパイラがそれを許さないだけ。*
+
+`private`指定子に限った話ではなくてTypeScriptとはそういうものなだけ。
 
 ```TypeScript
 class Person {
@@ -83,77 +79,7 @@ https://stackoverflow.com/a/12713869
 > クラス内で真にプライベートなものを作成するには、クラスのメンバーにすることはできません。オブジェクトを作成するコード内の関数スコープ内で作成されるローカル変数になります。これは、クラスのメンバーのように、つまり this キーワードを使用してアクセスできないことを意味します。
 
 
-## 後から動的にプロパティを追加するつもりの空のオブジェクト
-
-https://bobbyhadz.com/blog/typescript-add-dynamic-property-to-object
-
-```TypeScript
-interface Person {
-  [key: string]: any;
-}
-
-const obj: Person = {};
-
-obj.name = 'Tom';
-obj.age = 30;
-```
-
-実践してみたところ：
-
-```TypeScript
-/************************
- * Command Line Parser
- * 
- * Using yargs
- * 
- * Enable 
- * - Search keyword
- * - Avoiding hard-coding username and password. 
- * */ 
-import yargs from 'yargs/yargs';
-
-interface iCommand {
-    [key: string]: string | number;
-}
-
-const argv = yargs(process.argv.slice(2));
-const command: iCommand = {};
-
-argv.command({
-    command: "get-image",
-    describe: "get image",
-    builder: {
-        // Login ID
-      username: {
-        describe: "username",
-        demandOption: true,
-        type: "string",
-      },
-    //   Login Password
-      password: {
-        describe: "password",
-        demandOption: true,
-        type: "string",
-      },
-    //   Search keyword
-      keyword: {
-        describe: "keyword",
-        demandOption: false,
-        type: "string",
-      },
-    },
-    handler: function (argv) {
-      command.username = argv.username;
-      command.password = argv.password;
-      command.keyword = argv.keyword
-        ? argv.keyword
-        : constants.searchKeyword.ExclusiveTwoB;
-    },
-  
-})
-```
-
-## 割り当てられる前に使用されています
+## エラー：割り当てられる前に使用されています
 
 Variable 'browser' is used before being assigned.
 
@@ -515,26 +441,6 @@ const dummy = {
 type iDummy = typeof dummy;
 ```
 
-#### `keyof`
-
-`keyof`はオブジェクトのキーからなるタプル型を生成する。
-
-```TypeScript
-type Point = { x: number; y: number };
-// Same as `type P = "x" | "y"`
-type P = keyof Point;
-```
-
-オブジェクトのキーに注釈がつくときそれはstring | numberとなる。
-
-これはJavaScriptで`obj[0]`は常に`obj["0"]`と同義だからである。
-
-```TypeScript
-// これならkeyがnumberと注釈されているので
-// Same as `type A = number`
-type Arrayish = { [n: number]: unknown };
-type A = keyof Arrayish;
-```
 
 #### 添え字アクセス
 
@@ -734,7 +640,7 @@ let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"
 これで期待通りのものを取得できるようになった。
 
 
-## keyを動的に変更可能なオブジェクトまとめ
+## keyを動的に変更可能なオブジェクトの型作成まとめ
 
 TypeScriptでは、{}で初期化されたオブジェクトは、
 
@@ -764,12 +670,77 @@ const obj: iDynamicKeyObject = {};
 obj.name = "John";
 ```
 
-このとき、`obj.name`は`any`型になる
+このとき、`obj.name`等はプロパティはすべて`any`型になる
 
-#### 必ず特定のkeyとvalueをとることを指定する
+#### 基本: `keyof`
+
+https://www.typescriptlang.org/docs/handbook/2/keyof-types.html
+
+`keyof`はオブジェクトのキーからなるタプル型を生成する。
 
 ```TypeScript
+type Point = { x: number; y: number };
+// Same as `type P = "x" | "y"`
+type P = keyof Point;
+```
 
+オブジェクトのキーを`string`とするとき、それはstring | numberとなる。
+
+これはJavaScriptで`obj[0]`は常に`obj["0"]`と同義だからである。
+
+```TypeScript
+// これならkeyがnumberと注釈されているので
+type Arrayish = { [n: number]: unknown };
+type A = keyof Arrayish;
+// Same as `type A = number`
+
+// しかしkeyをstringとすると...
+type Mapish = { [k: string]: boolean };
+type M = keyof Mapish;
+// type M = string | number
+```
+#### 基本: Mapped type with `key in keyof Type` 
+
+https://www.typescriptlang.org/docs/handbook/2/mapped-types.html
+
+`type XXX<Type> { [key in keyof Type]: any}`は何をしているのか？
+
+`Type`のkeyをXXXのプロパティ名として採用させている。
+
+```TypeScript
+type OptionsFlags<Type> = {
+  [Property in keyof Type]: boolean;
+};
+
+type FeatureFlags = {
+  darkMode: () => void;
+  newUserProfile: () => void;
+};
+ 
+type FeatureOptions = OptionsFlags<FeatureFlags>;
+           
+// type FeatureOptions = {
+//     darkMode: boolean;
+//     newUserProfile: boolean;
+// }
+```
+
+つまり、
+
+type`FeatureFlags`のプロパティ名だけを`FeatureOptions`に採用させて、
+
+その値は`OptionsFlags`で指定している通り`boolean`にさせている。
+
+#### 必ず特定のkeyとvalueの型組み合わせをとることを指定する
+
+実践編。
+
+`key in`を使うと、プロパティの型がkeyと対応しなくなる。
+
+なので`Property`とmapped-typeを使う。
+
+```TypeScript
+// 問題のある例
 interface Person {
     name: string;
     age: number;
@@ -779,18 +750,150 @@ type iDynamicObject<T> {
     [key in keyof T]: T[keyof T];
 };
 
-
-
 const John: iDynamicObject<Person> = {} as iDynamicObject<Person>;
 
 John.country = "John";  // Error。これは想定内。
+John.name = false;      // Error。これは想定内。
 // 以下は有効である
 John.name = 1234;       // stringだけにしたいのにnumberも有効になっている
 John.age = "Wick";      // numberだけにしたいのにstringも有効になっている
 ```
 
-nameはstringで、ageはnumberであるはずが、
-両者の型は`string | number`である。
+`John`のプロパティはすべて`string | number`の型を受け付けるようになってしまう。
+
+なので`John.name = 123`を受け付けてしまう。
+
+`name: string`を守りたいのだがこれだと困る。
+
+これは`key`の代わりに`Property`を使うと解決する
+
+```TypeScript
+// 解決した例
+    interface Person {
+        name: string;
+        age: number;
+    };
+
+    type iDynamicObject<T> = {
+        [Property in keyof T]: T[Property];
+    };
+
+    const John: iDynamicObject<Person> = {} as iDynamicObject<Person>;
+
+    // Valid
+    John.name = "John";
+    John.age = 20;
+    // Invalid
+    John.country = "John";
+    John.name = false;
+    John.name = 1234;
+    John.age = "Wick";
+```
+
+#### キー名を動的に配列で与えるようにしたいオブジェクトの型付け
+
+例えば文字列配列の各要素をプロパティ名とするオブジェクトの型を定義したい。
+
+そうすることでプロパティ名を自由に変更できる再利用性の高いオブジェクトに対応できる。
+
+```TypeScript
+    const bookmarkCommandKeys = ["bookmarkOver", "tag", "author"] as const;
+    // "bookmarkOver" | "tag" | "author"
+    type iL = typeof bookmarkCommandKeys[number];
+
+    type iCommandProp = {
+        describe: string;
+        demandOption: boolean;
+        type: string;
+    };
+
+    // これならコマンドの配列を受け取ればkeyを制限することができる
+    // Tは"string | symbol | number"型でないといけない
+    // 例: typeof 文字列配列[number]
+    type iCommandBuild<T extends string | symbol | number> = {
+        [key in T]: iCommandProp;
+    };
+
+    const bookmarkCommandBuilder: iCommandBuild<iL> = {
+        bookmarkOver: {
+            describe: "Specify artwork number of Bookmark",
+            demandOption: false,
+            type: "number"
+        },
+        tag: {
+            describe: "Specify tag name must be included",
+            demandOption: false,
+            type: "string"
+        },
+        author: {
+            describe: "Specify author name that msut be included",
+            demandOption: false,
+            type: "string"
+        },
+        // 誤ったキーはちゃんとエラーになる
+        // incorrectKey: {
+        //     describe: "Specify author name that msut be included",
+        //     demandOption: false,
+        //     type: "string"
+        // }
+    };
+
+```
+
+この場合なら、
+
+後から配列に新たな要素を追加または不要な要素を削除するだけで、
+
+`bookmarkCommandBuilder`のプロパティを追加・削除可能である。
+
+
+#### キー名を動的に別の型で与えるようにしたいオブジェクトの型付け
+
+先の配列の代わりに型を渡す場合。
+
+```TypeScript
+    interface iBookmarkOptions {
+        bookmarkOver: string;
+        tag: string;
+        author: string;
+    }
+
+    type iCommandProp = {
+        describe: string;
+        demandOption: boolean;
+        type: string;
+    };
+
+    type iCommandBuild<T> = {
+        [Property in keyof T]: iCommandProp;
+    };
+
+    const bookmarkCommandBuilder: iCommandBuild<iBookmarkOptions> = {
+        bookmarkOver: {
+            describe: "Specify artwork number of Bookmark",
+            demandOption: false,
+            type: "number"
+        },
+        tag: {
+            describe: "Specify tag name must be included",
+            demandOption: false,
+            type: "string"
+        },
+        author: {
+            describe: "Specify author name that msut be included",
+            demandOption: false,
+            type: "string"
+        },
+        // 誤ったキーはちゃんとエラーになる
+        // incorrectKey: {
+        //     describe: "Specify author name that msut be included",
+        //     demandOption: false,
+        //     type: "string"
+        // }
+    };
+```
+
+`iCommandBuild`に渡す型が他でも使われるときに便利。
 
 #### オブジェクト宣言時に空オブジェクトで初期化しておきたいとき
 
