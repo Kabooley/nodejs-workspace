@@ -169,7 +169,7 @@
     };
  }
 
-//  Record<>
+//  一番再利用性が高いかな....
  {
     const bookmarkCommandKeys = ["bookmarkOver", "tag", "author"] as const;
     // "bookmarkOver" | "tag" | "author"
@@ -181,13 +181,14 @@
         type: string;
     };
 
-    // つまり[key in ~]の~にタプルを渡せればいい
-    // そこを再利用可能にできればいいかも
-    type iCommandBuild = {
-        [key in iL]: iCommandProp;
+    // これならコマンドの配列を受け取ればkeyを制限することができる
+    // Tは"string | symbol | number"型でないといけない
+    // 例: typeof 文字列配列[number]
+    type iCommandBuild<T extends string | symbol | number> = {
+        [key in T]: iCommandProp;
     };
 
-    const bookmarkCommandBuilder: iCommandBuild = {
+    const bookmarkCommandBuilder: iCommandBuild<iL> = {
         bookmarkOver: {
             describe: "Specify artwork number of Bookmark",
             demandOption: false,
@@ -210,8 +211,29 @@
         //     type: "string"
         // }
     };
+
+
  }
 
-/*
+ {
+    
+interface Person {
+    name: string;
+    age: number;
+};
 
-*/  
+type iDynamicObject<T> = {
+    [key in keyof T]: T[keyof T];
+};
+
+const John: iDynamicObject<Person> = {} as iDynamicObject<Person>;
+const John_: iDynamicObject<Person> = {} as Person;
+
+John.name = "John";
+John.country = "John";
+John.name = 1234;
+John.age = 20;
+John.age = "Wick";
+
+
+ }

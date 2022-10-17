@@ -733,3 +733,79 @@ let result: iIllustManga = retrieveDeepProp<iIllustManga>(["body", "illustManga"
 
 これで期待通りのものを取得できるようになった。
 
+
+## keyを動的に変更可能なオブジェクトまとめ
+
+TypeScriptでは、{}で初期化されたオブジェクトは、
+
+空のオブジェクトという型を持つ変数とみなされるので、
+
+後からプロパティの変更ができなくなる。
+
+```TypeScript
+// obj: {}という型付けになる。
+const obj = {};
+
+obj.name = "Mike";
+// Error: property name does not exist in {}
+```
+
+ではobjにはどんな型を与えれば後からプロパティを追加できるようになるか？
+
+#### 基本
+
+```TypeScript
+interface iDynamicKeyObject {
+    [key: string]: any;
+};
+
+const obj: iDynamicKeyObject = {};
+
+obj.name = "John";
+```
+
+このとき、`obj.name`は`any`型になる
+
+#### 必ず特定のkeyとvalueをとることを指定する
+
+```TypeScript
+
+interface Person {
+    name: string;
+    age: number;
+};
+
+type iDynamicObject<T> {
+    [key in keyof T]: T[keyof T];
+};
+
+
+
+const John: iDynamicObject<Person> = {} as iDynamicObject<Person>;
+
+John.country = "John";  // Error。これは想定内。
+// 以下は有効である
+John.name = 1234;       // stringだけにしたいのにnumberも有効になっている
+John.age = "Wick";      // numberだけにしたいのにstringも有効になっている
+```
+
+nameはstringで、ageはnumberであるはずが、
+両者の型は`string | number`である。
+
+#### オブジェクト宣言時に空オブジェクトで初期化しておきたいとき
+
+*Variable 'obj' is used before being assigned.*のようなエラーが出る。
+
+```TypeScript
+
+interface Person {
+    name: string;
+    age: number;
+};
+
+// Error: 型{}には型Personから次のプロパティがありません。name, age...
+const obj: Person = {};
+// これなら空オブジェクトでも初期化してくれる。
+const obj: Person = <Person>{};
+const obj: Person = {} as Person;
+```
