@@ -1,94 +1,82 @@
 "use strict";
-;
-;
-const dummy = {
-    error: false,
-    message: "",
-    body: {
-        illustId: "12345",
-        illustTitle: "title of this artwork",
-        illustType: 0,
-        sl: "",
-        urls: {
-            original: "", // 実際はstringではなくて正規表現である。取得したい情報。
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const yargs_1 = __importDefault(require("yargs/yargs"));
+//  Yargs(process.argv.splice(2)).command(
+//     "makesure", "make sure what parameter handler will get",
+//     {
+//         awesome: {
+//             describe: "awesome option",
+//             type: "string",
+//             demand: true
+//         },
+//         hoge: {
+//             describe: "hoge", type: "number", demand: false
+//         }
+//     },
+//     /*
+//     型推論によると、
+//     args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<BUILDERのオブジェクト>>
+//     */ 
+//     (args) => {
+//         // { _: [ 'makesure' ], awesome: 'AWESOME', '$0': 'dist/index.js' }
+//         console.log(args);
+//     }
+//  ).argv;
+{
+    ;
+    const bookmarkCommandBuilder = {
+        bookmarkOver: {
+            describe: "Specify artwork number of Bookmark",
+            demandOption: false,
+            type: "number"
         },
-        pageCount: 3 // 多分一枚目以外の画像枚数
-    }
-};
-const requiredForReposen = ["error", "message", "body"];
-const requiredForBody = ["illustId", "illustTitle", "urls", "pageCount"];
-/****
- * objのなかにrequirementのすべてのプロパティがあるときに
- * requirementのプロパティからなるオブジェクトを返す
- *
- *
- * */
-const hasProperties = (obj, keys) => {
-    let result = true;
-    keys.forEach((key) => {
-        result = result && obj.hasOwnProperty(key);
-    });
-    return result;
-};
-/***
- * `obj`から`keys`で指定されたプロパティを取り出して、
- * その指定プロパティからなるオブジェクトを返す。
- *
- * NOTE: 戻り値の型が`Record<keyof T, T[keyof T]>`になってその後戻り値の扱いに困るかも...
- * */
-const takeOutPropertyFrom = (obj, keys) => {
-    let o = {};
-    keys.forEach((key) => {
-        o[key] = obj[key];
-    });
-    return o;
-};
-/***
- * `obj`からkeysのプロパティだけを取り出したオブジェクトTを生成する。
- *
- *
- * */
-const takeOutPropertyFromVer2 = (obj, keys) => {
-    let o = {};
-    keys.forEach((key) => {
-        o[key] = obj[key];
-    });
-    return o;
-};
-/***
- * keyで指定したプロパティをobj取り出す
- *
- * */
-const retrieveFrom = (obj, keys) => {
-    let o = {};
-    keys.forEach((key) => {
-        o[key] = obj[key];
-    });
-    return o;
-};
-/***
- * dummyからそのプロパティbody以下を取り出す
- *
- *
- * */
-(function (dummy) {
-    // 指定のプロパティがdummyにあるのかチェックする
-    if (hasProperties(dummy, requiredForReposen)) {
-        // 指定のプロパティが存在するので各プロパティをそれぞれ取り出す
-        // retirieved: (string | boolean | iArtwork)[]
-        // 
-        // この方法だとどれがiArtwork型の要素なのか後で探すのが大変
-        const retrieved = requiredForReposen.map((key) => {
-            return dummy[key];
-        });
-        // 一方、こっちの方法ならkeyを指定すればどの値が得られるかあとから容易にわかる
-        const retrieved2 = takeOutPropertyFromVer2(dummy, requiredForReposen);
-        console.log(retrieved);
-        console.log(retrieved2);
-        console.log(retrieved2.body); // iArtworkData型であることをTypeScriptが理解している
-        if (hasProperties(retrieved2.body, requiredForBody)) {
-            const ordered = takeOutPropertyFromVer2(retrieved2.body, requiredForBody);
-            console.log(ordered);
+        tag: {
+            describe: "Specify tag name must be included",
+            demandOption: false,
+            type: "string"
+        },
+        author: {
+            describe: "Specify author name that msut be included",
+            demandOption: false,
+            type: "string"
         }
-    }
-})(dummy);
+    };
+    // let bookmarkCommandValues = {} as iBookmarkOptions;
+    let bookmarkCommandValues = {};
+    // handlerの引数argsについて
+    // 型推論によると
+    // args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<BUILDERのオブジェクト>>
+    // Tは`extends {[key: string]: yargs.Options}`の制約を満たさなくてはならない
+    const bookmarkCommandHandler = (args) => {
+        console.log("handler");
+        console.log(args);
+        // retrieves option value into another object.
+        Object.keys(args).forEach(key => {
+            bookmarkCommandValues[key] = args[key];
+        });
+    };
+    (0, yargs_1.default)(process.argv.splice(2))
+        .command("bookmark", "Specified, bookmark artwork if it fulfills specific requirement.", bookmarkCommandBuilder, bookmarkCommandHandler).argv;
+    console.log(bookmarkCommandValues);
+}
+/*
+RESULT:
+
+$ node ./dist/index.js bookmark --bookmarkOver=1000 --tag="awesome" --author="Kshinov"
+{
+  _: [ 'bookmark' ],
+  bookmarkOver: 1000,
+  'bookmark-over': 1000,
+  tag: 'awesome',
+  author: 'Kshinov',
+  '$0': 'dist/index.js'
+}
+
+$
+
+誤ったコマンドなら、handlerは空のオブジェクトを取得する
+誤ったオプションを渡しても正常に動作する...
+*/ 

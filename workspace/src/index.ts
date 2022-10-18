@@ -1,25 +1,47 @@
-/***********************************************
- * NEW COMMAND: "bookmark"
- * 
- * LIKE THIS.
- * ```bash
- * $ node index.ts bookmark \
- *  --amountOfBookmarkOver=5000 \
- *  --tag=COWBOYBEBOP \
- *  --author=awesomeCreator \
- * ```
- * 
- * TODO:
- * .commandならオプションのコマンドなのか？
- * .demancCommandなら必須コマンドなのか？
- * 
- * *********************************************/ 
+// /***********************************************
+//  * NEW COMMAND: "bookmark"
+//  * 
+//  * LIKE THIS.
+//  * ```bash
+//  * $ node index.ts bookmark \
+//  *  --amountOfBookmarkOver=5000 \
+//  *  --tag=COWBOYBEBOP \
+//  *  --author=awesomeCreator \
+//  * ```
+//  * 
+//  * TODO:
+//  * .commandならオプションのコマンドなのか？
+//  * .demancCommandなら必須コマンドなのか？
+//  * 
+//  * *********************************************/ 
  import type yargs from 'yargs';
  import Yargs from 'yargs/yargs';
 
+//  Yargs(process.argv.splice(2)).command(
+//     "makesure", "make sure what parameter handler will get",
+//     {
+//         awesome: {
+//             describe: "awesome option",
+//             type: "string",
+//             demand: true
+//         },
+//         hoge: {
+//             describe: "hoge", type: "number", demand: false
+//         }
+//     },
+//     /*
+//     型推論によると、
+//     args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<BUILDERのオブジェクト>>
+//     */ 
+//     (args) => {
+//         // { _: [ 'makesure' ], awesome: 'AWESOME', '$0': 'dist/index.js' }
+//         console.log(args);
+//     }
+//  ).argv;
+
  {
     interface iBookmarkOptions {
-        bookmarkOver?: string;
+        bookmarkOver?: number;
         tag?: string;
         author?: string;
     };
@@ -45,24 +67,18 @@
         }
     };
 
-    let bookmarkCommandValues = {} as iBookmarkOptions;
+    // let bookmarkCommandValues = {} as iBookmarkOptions;
+    let bookmarkCommandValues = {} as {[key: string]: any};
 
-    /****
-     * args: {
-     *  bookmarkOver: 1000, 
-     *  tag: "awesome",
-     *  author: "Franz"
-     * }
-     * 
-     * 
-     * */ 
-    // const bookmarkCommandHandler = <O extends {[key: string]: yargs.Options}>(args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<O>>): void => {
-    //     // retrieves option value into another object.
-    //     Object.keys(args).forEach(key=> {
-    //         bookmarkCommandValues[key] = args[key]
-    //     })
-    // }
-    const bookmarkCommandHandler = (args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<iCommandBuild<iBookmarkOptions>>>): void => {
+    // handlerの引数argsについて
+    // 型推論によると
+    // args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<BUILDERのオブジェクト>>
+    // Tは`extends {[key: string]: yargs.Options}`の制約を満たさなくてはならない
+    const bookmarkCommandHandler = <T extends {[key: string]: yargs.Options}>(args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<T>>): void => {
+        
+        console.log("handler");
+        console.log(args);
+        
         // retrieves option value into another object.
         Object.keys(args).forEach(key=> {
             bookmarkCommandValues[key] = args[key]
@@ -75,281 +91,56 @@
         "Specified, bookmark artwork if it fulfills specific requirement.",
         bookmarkCommandBuilder,
         bookmarkCommandHandler
-    );
- }
- 
- 
- // これでもいいけど、
- // だったらiCommandBookmarkBuildをbookmarkCommandBuilderへ直接渡した方が早い
- {
- 
-     interface iCommandBookmarkBuild {
-         bookmarkOver?: {
-             describe:string;
-             demandOption: boolean;
-             type: string;
-         },
-         tag?: {
-             describe:string;
-             demandOption: boolean;
-             type: string;
-         },
-         author?: {
-             describe:string;
-             demandOption: boolean;
-             type: string;
-         }
-     };
-     type interrepted<T> = { [key in keyof T]: T[key]};
-     const bookmarkCommandBuilder: interrepted<iCommandBookmarkBuild> = {
-         bookmarkOver: {
-             describe: "Specify artwork number of Bookmark",
-             demandOption: false,
-             type: "number"
-         },
-         tag: {
-             describe: "Specify tag name must be included",
-             demandOption: false,
-             type: "string"
-         },
-         author: {
-             describe: "Specify author name that msut be included",
-             demandOption: false,
-             type: "string"
-         }
-     };
- 
-     const argv = Yargs(process.argv.splice(2));
- 
-     const bookmarkCommandHandler = (args: yargs.ArgumentsCamelCase<iCommandBookmarkBuild>) => {
-         return {
-             bookmarkOver: args.bookmarOver === undefined ? undefined : args.bookmarkOver,
-             tag: args.tag === undefined ? undefined : args.tag,
-             author: args.author === undefined ? undefined : args.author
-         }
-     }
-     
-     const bookmarkCommand = argv
-         .command(
-             "bookmark", 
-             "Specified, bookmark artwork if it fulfills specific requirement.",
-             {...bookmarkCommandBuilder},
-             bookmarkCommandHandler
-         ).argv;
-     
- }
- 
- 
-//  原始時代に戻った感...
-// 
-// この場合だとbookmarkCommandBuilderのプロパティ名を好き勝手につけることを許してしまう
- {
-    // const bookmarkKeyTemplate: string[] = ["bookmarkOver", "tag", "author"];
-    const bookmarkKeyTemplate = {
-        bookmarkOver: "bookmarkOver",
-        tag: "tag",
-        author: "author"
-    } as const;
+    ).argv;
 
-    type iCommandProp = {
-        describe: string;
-        demandOption: boolean;
-        type: string;
-    };
-
-    type iCommandBuild = {
-        [key: string]: iCommandProp;
-    };
-
-    const bookmarkCommandBuilder: iCommandBuild = {
-        bookmarkOver: {
-            describe: "Specify artwork number of Bookmark",
-            demandOption: false,
-            type: "number"
-        },
-        tag: {
-            describe: "Specify tag name must be included",
-            demandOption: false,
-            type: "string"
-        },
-        author: {
-            describe: "Specify author name that msut be included",
-            demandOption: false,
-            type: "string"
-        },
-        // 誤ったキー
-        incorrectKey: {
-            describe: "Specify author name that msut be included",
-            demandOption: false,
-            type: "string"
-        }
-    };
+    console.log(bookmarkCommandValues);
  }
 
-// この場合、毎度bookmarkKeyTemplateのような
-// めんどくさい意味のないオブジェクトを作らなくてはならなくなる
- {
-    const bookmarkKeyTemplate = {
-        bookmarkOver: "bookmarkOver",
-        tag: "tag",
-        author: "author"
-    } as const;
+/*
+RESULT:
 
-    type iCommandProp = {
-        describe: string;
-        demandOption: boolean;
-        type: string;
-    };
+$ node ./dist/index.js bookmark --bookmarkOver=1000 --tag="awesome" --author="Kshinov"
+{
+  _: [ 'bookmark' ],
+  bookmarkOver: 1000,
+  'bookmark-over': 1000,
+  tag: 'awesome',
+  author: 'Kshinov',
+  '$0': 'dist/index.js'
+}
 
-    type iCommandBuild<T> = {
-        [key in keyof T]: iCommandProp;
-    };
+今のところhandlerの引数argsと全く同じオブジェクトを生成しているだけ。
 
-    const bookmarkCommandBuilder: iCommandBuild<typeof bookmarkKeyTemplate> = {
-        bookmarkOver: {
-            describe: "Specify artwork number of Bookmark",
-            demandOption: false,
-            type: "number"
-        },
-        tag: {
-            describe: "Specify tag name must be included",
-            demandOption: false,
-            type: "string"
-        },
-        author: {
-            describe: "Specify author name that msut be included",
-            demandOption: false,
-            type: "string"
-        },
-        // 誤ったキーはちゃんとエラーになる
-        // incorrectKey: {
-        //     describe: "Specify author name that msut be included",
-        //     demandOption: false,
-        //     type: "string"
-        // }
-    };
- }
+つまりhandlerのargsはiCommandBuild<iBookmarkOptions>に_と$0が追加されたオブジェクトを受け取っている
 
-//  一番再利用性が高いかな....
- {
-    const bookmarkCommandKeys = ["bookmarkOver", "tag", "author"] as const;
-    // "bookmarkOver" | "tag" | "author"
-    type iL = typeof bookmarkCommandKeys[number];
+interface iBookmarkOptionsのプロパティだけを取り出すように変更すること。
 
-    type iCommandProp = {
-        describe: string;
-        demandOption: boolean;
-        type: string;
-    };
+2. builderのtypeは型判定をしてくれるのか？
 
-    // これならコマンドの配列を受け取ればkeyを制限することができる
-    // Tは"string | symbol | number"型でないといけない
-    // 例: typeof 文字列配列[number]
-    type iCommandBuild<T extends string | symbol | number> = {
-        [key in T]: iCommandProp;
-    };
+stringじゃなくてnumberを、stringを期待するオプションに渡してみる`--author=2222`
+$ node ./dist/index.js bookmark --bookmarkOver=1000 --tag="awesome" --author=2222
+{
+  _: [ 'bookmark' ],
+  bookmarkOver: 1000,
+  'bookmark-over': 1000,
+  tag: 'awesome',
+  author: '2222',       // 何を入力しても文字列として認識されるだけ
+  '$0': 'dist/index.js'
 
-    const bookmarkCommandBuilder: iCommandBuild<iL> = {
-        bookmarkOver: {
-            describe: "Specify artwork number of Bookmark",
-            demandOption: false,
-            type: "number"
-        },
-        tag: {
-            describe: "Specify tag name must be included",
-            demandOption: false,
-            type: "string"
-        },
-        author: {
-            describe: "Specify author name that msut be included",
-            demandOption: false,
-            type: "string"
-        },
-        // 誤ったキーはちゃんとエラーになる
-        // incorrectKey: {
-        //     describe: "Specify author name that msut be included",
-        //     demandOption: false,
-        //     type: "string"
-        // }
-    };
+// booleanを渡してみる
+$ node ./dist/index.js bookmark --bookmarkOver=1000 --tag="awesome" --author=false
+handler
+{
+  _: [ 'bookmark' ],
+  bookmarkOver: 1000,
+  'bookmark-over': 1000,
+  tag: 'awesome',
+  author: 'false',  // 何を入力しても文字列として認識されるだけ
+  '$0': 'dist/index.js'
+}
+誤ったコマンドなら、handlerというかたぶん.command()自体動作しない。
 
+しかし、誤ったオプションを渡しても正常に動作する...
 
- }
-
- {
-    interface iBookmarkOptions {
-        bookmarkOver: string;
-        tag: string;
-        author: string;
-    }
-
-    type iCommandProp = {
-        describe: string;
-        demandOption: boolean;
-        type: string;
-    };
-
-    // これならコマンドの配列を受け取ればkeyを制限することができる
-    // Tは"string | symbol | number"型でないといけない
-    // 例: typeof 文字列配列[number]
-    type iCommandBuild<T> = {
-        [Property in keyof T]: iCommandProp;
-    };
-
-    const bookmarkCommandBuilder: iCommandBuild<iBookmarkOptions> = {
-        bookmarkOver: {
-            describe: "Specify artwork number of Bookmark",
-            demandOption: false,
-            type: "number"
-        },
-        tag: {
-            describe: "Specify tag name must be included",
-            demandOption: false,
-            type: "string"
-        },
-        author: {
-            describe: "Specify author name that msut be included",
-            demandOption: false,
-            type: "string"
-        },
-        // 誤ったキーはちゃんとエラーになる
-        // incorrectKey: {
-        //     describe: "Specify author name that msut be included",
-        //     demandOption: false,
-        //     type: "string"
-        // }
-    };
-
-    const bookmarkCommandHandler = () => {
-
-    }
-
-    
-    Yargs(process.argv.splice(2))
-    .command(
-        "bookmark",
-        "Specified, bookmark artwork if it fulfills specific requirement.",
-        {
-            bookmarkOver: {
-                describe: "Specify artwork number of Bookmark",
-                demandOption: false,
-                type: "number"
-            },
-            tag: {
-                describe: "Specify tag name must be included",
-                demandOption: false,
-                type: "string"
-            },
-            author: {
-                describe: "Specify author name that msut be included",
-                demandOption: false,
-                type: "string"
-            }
-        },
-        bookmarkCommandHandler
-    )
-    .argv;
-
-
- }
-
+もうめんどくさいし今のところ必要ないからオプションが無効でも続行する
+*/  
