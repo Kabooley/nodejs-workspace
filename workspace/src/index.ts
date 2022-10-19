@@ -1,168 +1,55 @@
-/***********************************************
- * NEW COMMAND: "bookmark"
+/***
+ * TODO: 公式の説明を最初からちゃんと読もう。
  * 
- * LIKE THIS.
- * ```bash
- * $ node index.ts bookmark \
- *  --amountOfBookmarkOver=5000 \
- *  --tag=COWBOYBEBOP \
- *  --author=awesomeCreator \
- * ```
+ * - マルチコマンドを受け付けるようにする
+ * - そのコマンドに必須なオプションがなかったらエラーにする
+ * - コマンド必須のときにコマンドがなかったらエラーにする
+ * - helpとかは今はいらない
  * 
- * TODO: 
- * - モジュール化するにあたって
- * - wrapHandlerは機能するか確認
- * *********************************************/ 
-import type yargs from 'yargs';
-// import Yargs from 'yargs/yargs';
+ * */ 
+import { bookmarkCommand } from './bookmarkCommand';
+import type { iBookmarkOptions } from './bookmarkCommand';
+import { collectCommand } from './collectCommand';
+import type { iCollectOptions } from './collectCommand';
+import Yargs from 'yargs/yargs';
 
-const bookmarkOptionList = ["bookmarkOver", "tag", "author"];
+(function() {
+    const bookmarkOptions = {} as iBookmarkOptions; 
+    const collectOptions = {} as iCollectOptions; 
+    Yargs(process.argv.splice(2))
+    .command(
+        collectCommand.command,
+        collectCommand.description,
+        collectCommand.builder,
+        collectCommand.handlerWrapper(collectOptions),
+    )
+    .command(
+        bookmarkCommand.command,
+        bookmarkCommand.description,
+        bookmarkCommand.builder,
+        bookmarkCommand.handlerWrapper(bookmarkOptions)
+    )
+    .argv;
+    console.log(collectOptions);
+    console.log(bookmarkOptions);
+})();
 
-interface iBookmarkOptions {
-    bookmarkOver?: number;
-    tag?: string;
-    author?: string;
-};
-
-type iCommandBuild<T> = {
-    [Property in keyof T]: yargs.Options;
-};
-
-const command = "bookmark";
-
-const description = "Bookmark artwork if it satifies given command options.";
-
-const bookmarkCommandBuilder: iCommandBuild<iBookmarkOptions> = {
-    bookmarkOver: {
-        describe: "Specify artwork number of Bookmark",
-        demandOption: false,
-        type: "number"
-    },
-    tag: {
-        describe: "Specify tag name must be included",
-        demandOption: false,
-        type: "string"
-    },
-    author: {
-        describe: "Specify author name that msut be included",
-        demandOption: false,
-        type: "string"
-    }
-};
-
-// let bookmarkCommandValues = {} as iBookmarkOptions;
-let bookmarkCommandValues = {} as {[key: string]: any};
-
-
-const wrapHandler = (options: {[key: string]: any}) => {
-    return <T extends {[key: string]: yargs.Options}>(
-        args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<T>>
-        ): void => {
-        Object.keys(args).forEach(key=> {
-            if(bookmarkOptionList.includes(key)) options[key] = args[key];
-        })
-    };
-}
-
-console.log(bookmarkCommandValues);
-
-export const bookmarkCommand = {
-    command: command, 
-    description: description,
-    builder: bookmarkCommandBuilder,
-    handlerWrapper: wrapHandler
-};
-
-// - Usage -
-// 
-// Yargs(process.argv.splice(2)).command(
-//     command, description,
-//     bookmarkCommandBuilder,
-//     wrapHandler(bookmarkCommandValues)
-// ).argv;
-
-/*
-RESULT:
-
-$ node ./dist/index.js bookmark --bookmarkOver=1000 --tag="awesome" --author="Kshinov"
-{
- _: [ 'bookmark' ],
- bookmarkOver: 1000,
- 'bookmark-over': 1000,
- tag: 'awesome',
- author: 'Kshinov',
- '$0': 'dist/index.js'
-}
-
-今のところhandlerの引数argsと全く同じオブジェクトを生成しているだけ。
-
-つまりhandlerのargsはiCommandBuild<iBookmarkOptions>に_と$0が追加されたオブジェクトを受け取っている
-
-interface iBookmarkOptionsのプロパティだけを取り出すように変更すること。
-
-2. builderのtypeは型判定をしてくれるのか？
-
-stringじゃなくてnumberを、stringを期待するオプションに渡してみる`--author=2222`
-$ node ./dist/index.js bookmark --bookmarkOver=1000 --tag="awesome" --author=2222
-{
- _: [ 'bookmark' ],
- bookmarkOver: 1000,
- 'bookmark-over': 1000,
- tag: 'awesome',
- author: '2222',       // 何を入力しても文字列として認識されるだけ
- '$0': 'dist/index.js'
-
-// booleanを渡してみる
-$ node ./dist/index.js bookmark --bookmarkOver=1000 --tag="awesome" --author=false
-handler
-{
- _: [ 'bookmark' ],
- bookmarkOver: 1000,
- 'bookmark-over': 1000,
- tag: 'awesome',
- author: 'false',  // 何を入力しても文字列として認識されるだけ
- '$0': 'dist/index.js'
-}
-誤ったコマンドなら、handlerというかたぶん.command()自体動作しない。
-
-しかし、誤ったオプションを渡しても正常に動作する...
-
-もうめんどくさいし今のところ必要ないからオプションが無効でも続行する
-*/  
-
-
-// Tは`extends {[key: string]: yargs.Options}`の制約を満たさなくてはならない
-// const bookmarkCommandHandler = <T extends {[key: string]: yargs.Options}>(
-//     args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<T>>
-//     ): void => {
-    
-//     console.log("handler");
-//     console.log(args);
-    
-//     // retrieves option value into another object.
-//     Object.keys(args).forEach(key=> {
-//         bookmarkCommandValues[key] = args[key]
-//     })
-// };
-// 
-//  Yargs(process.argv.splice(2)).command(
-//     "makesure", "make sure what parameter handler will get",
-//     {
-//         awesome: {
-//             describe: "awesome option",
-//             type: "string",
-//             demand: true
-//         },
-//         hoge: {
-//             describe: "hoge", type: "number", demand: false
-//         }
-//     },
-//     /*
-//     型推論によると、
-//     args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<BUILDERのオブジェクト>>
-//     */ 
-//     (args) => {
-//         // { _: [ 'makesure' ], awesome: 'AWESOME', '$0': 'dist/index.js' }
-//         console.log(args);
-//     }
-//  ).argv;
+/****
+ * 次のコマンドは無効：
+ * $ node ./dist/index.js bookmark --bookmarkOver=1000 --tag="awesome" --author="TOTO" --toohot="toohotlady" collect --username="ichi" --password="password" --keyword="Rika"
+ * 
+ * bookmarkのコマンドは正常に読み取ってくれるけど、collectは無視される
+ * 
+ * どうやら、
+ * 
+ * yargs().command().command()とすると、
+ * 二番目以降のcommand()にはCLIのコマンド引数が渡されないみたい
+ * 
+ * あとコマンド長くなりすぎだから短く済むようにしたいなぁ
+ * 
+ * collect: キーワード検索、ブックマークから検索
+ * $ node index.js collect byKeyword [options]
+ * $ node index.js collect fromBookmark [options]
+ * 
+ * 
+ * */ 
