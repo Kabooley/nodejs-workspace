@@ -4,9 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 /***
- * そのコマンドに必須なオプションがなかったらエラーにする
- * コマンド必須のときにコマンドがなかったらエラーにする
+ * TODO: 公式の説明を最初からちゃんと読もう。
  *
+ * - マルチコマンドを受け付けるようにする
+ * - そのコマンドに必須なオプションがなかったらエラーにする
+ * - コマンド必須のときにコマンドがなかったらエラーにする
+ * - helpとかは今はいらない
  *
  * */
 const bookmarkCommand_1 = require("./bookmarkCommand");
@@ -15,7 +18,7 @@ const yargs_1 = __importDefault(require("yargs/yargs"));
 (function () {
     const bookmarkOptions = {};
     const collectOptions = {};
-    (0, yargs_1.default)(process.argv.splice(2))
+    (0, yargs_1.default)(process.argv.slice(2))
         .command(collectCommand_1.collectCommand.command, collectCommand_1.collectCommand.description, collectCommand_1.collectCommand.builder, collectCommand_1.collectCommand.handlerWrapper(collectOptions))
         .command(bookmarkCommand_1.bookmarkCommand.command, bookmarkCommand_1.bookmarkCommand.description, bookmarkCommand_1.bookmarkCommand.builder, bookmarkCommand_1.bookmarkCommand.handlerWrapper(bookmarkOptions))
         .argv;
@@ -28,6 +31,10 @@ const yargs_1 = __importDefault(require("yargs/yargs"));
  *
  * bookmarkのコマンドは正常に読み取ってくれるけど、collectは無視される
  *
+ * どうやら、
+ *
+ * yargs().command().command()とすると、
+ * 二番目以降のcommand()にはCLIのコマンド引数が渡されないみたい
  *
  * あとコマンド長くなりすぎだから短く済むようにしたいなぁ
  *

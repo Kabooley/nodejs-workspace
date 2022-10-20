@@ -8,6 +8,15 @@ yargsのTypeScript導入手引き：
 
 https://github.com/yargs/yargs/blob/HEAD/docs/typescript.md
 
+## 目次
+
+[必須コマンドの生成](#必須コマンドの生成)
+
+[Advanced Topics](#Advanced Topics)
+[](#)
+[](#)
+[](#)
+
 ## API REFERENCE
 
 yargsは、`yargs()`で実行される。
@@ -305,6 +314,123 @@ index.ts内で関数を定義した。
 `yargs(process.argv.splice(2))`の後に、Promiseチェーンみたいに`.command`をつけていけばいい
 
 
+## コマンドを必須にする
 
-## 特定のオブジェクト引数を受け付けるようにする
+#### .command()のbuilderで必須オプションを指定する
+
+`demandOption`で必須かどうかを指定できる
+
+```JavaScript
+yargs(process.argv.slice(2))
+.command(
+  "bookmark", "...",
+  {
+    bookmarkOver: {
+         describe: "Specify artwork number of Bookmark",
+         demandOption: true,
+         type: "number"
+     },
+     tag: {
+         describe: "Specify tag name must be included",
+         demandOption: false,
+         type: "string"
+     }
+  },
+  () => {/*...*/}
+).argv;
+```
+
+```bash
+$ node index.js bookmark --tag="awesome"
+index.js bookmark
+
+Bookmark artwork if it satifies given command options.
+
+Options:
+  --help          Show help                                            [boolean]
+  --version       Show version number                                  [boolean]
+  --bookmarkOver  Specify artwork number of Bookmark         [number] [required]
+  --tag           Specify tag name must be included                     [string]
+  --author        Specify author name that msut be included             [string]
+
+Missing required argument: bookmarkOver
+```
+ということで、
+
+`demandOption: true`としていあるオプションがコマンド引数になかった時
+
+ちゃんとエラーになる。
+
+
+## Advanced Topics
+
+https://github.com/yargs/yargs/blob/main/docs/advanced.md
+
+位置引数（node <FILENAME> <COMMAND>という順番で来るときにその順番にあるべき引数のこと)に引数がないと、デフォルト引数`$0`等が使用される
+
+```JavaScript
+// Default Command
+// 
+const argv = require('yargs/yargs')(process.argv.slice(2))
+  .command('$0', 'the default command', () => {}, (argv) => {
+    console.log('this command will be run by default')
+  })
+  .argv
+```
+
+#### Positional Arguments
+
+`.command()`はオプションまたは必須コマンド引数を指定できる。
+
+```JavaScript
+// オプションが自由
+yargs.command('get', 'make a get HTTP request')
+  .help()
+  .argv
+
+// オプション`source`が必須、`proxy`は非必須
+yargs.command('get <source> [proxy]', 'make a get HTTP request')
+  .help()
+  .argv
+
+// 説明とか詳しい情報の追加はbuilderで設定可能
+yargs.command('get <source> [proxy]', 'make a get HTTP request', (yargs) => {
+  yargs.positional('source', {
+    describe: 'URL to fetch content from',
+    type: 'string',
+    default: 'http://www.google.com'
+  }).positional('proxy', {
+    describe: 'optional proxy URL'
+  })
+})
+.help()
+.argv
+```
+
+つまり、`.command()`の第一引数で渡す文字列で必須オプションと非必須オプションを指定できるわけだ。
+
+しかしこの場合、コマンドの入力は順番通りでないといけない。
+
+これを使えばマルチこまんどぉ実現できるのかも。
+
+例えば、
+
+```JavaScript
+yargs(process.argv.slice(2))
+.command(
+  'collect [...options] <bookmark> [...bookmarkOptions]',
+  "...",
+)
+.help().argv;
+```
+これならcollectとbookmarkの2つをコマンド引数として取得できるのかなぁ
+
+#### `.command()`の実行順序
+
+1. コマンドを現在のコンテキストへ追加する
+2. グローバルじゃない構成をリセットする
+3. `builder`を通してコマンド構成を適用する
+4. 位置コマンド引数含めてコマンドラインをパース、検証する
+5. 検証で合格したら`handler`が実行される
+6. 現在のコンテキストからコマンドをポップする（追い出す）
 

@@ -16,7 +16,7 @@ import Yargs from 'yargs/yargs';
 (function() {
     const bookmarkOptions = {} as iBookmarkOptions; 
     const collectOptions = {} as iCollectOptions; 
-    Yargs(process.argv.splice(2))
+    Yargs(process.argv.slice(2))
     .command(
         collectCommand.command,
         collectCommand.description,

@@ -35,7 +35,7 @@ export interface iBookmarkOptions {
  const bookmarkCommandBuilder: iCommandBuild<iBookmarkOptions> = {
      bookmarkOver: {
          describe: "Specify artwork number of Bookmark",
-         demandOption: false,
+         demandOption: true,
          type: "number"
      },
      tag: {
