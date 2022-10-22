@@ -7,7 +7,7 @@
 [links](#links)
 [](#)
 [](#)
-[](#)
+[関係ないメモ](#関係ないメモ)
 
 ## links
 
@@ -22,35 +22,58 @@ https://github.com/dropbox/nodegallerytutorial?_tk=guides_lp&_ad=javascript_tuto
 
 今回のためにルートディレクトリにチュートリアル用のプロジェクトを作成した。
 
-#### 準備
+#### サーバ起動方法
 
 ```bash
+$ cd dbximgs
 $ npm start
 ```
 
 でサーバ起動
 
-#### Front end and back end
+#### Dropbox app
 
-https://github.com/dropbox/nodegallerytutorial?_tk=guides_lp&_ad=javascript_tutorial1&_camp=photo#2--front-end-and-back-end
+https://github.com/dropbox/nodegallerytutorial?_tk=guides_lp&_ad=javascript_tutorial1&_camp=photo#3--dropbox-app
 
-フロントエンドとバックエンドをきれいに分割して責任も明確にするために。
+dropboxの開発者サイトからappを作成するところから。
 
-backend:
+https://www.dropbox.com/developers/apps
 
-バックエンドを構成するあらゆるものは`public`フォルダに入れない。
+create app: `dbximgs-for-tutorial`
 
-バックエンドへ変更を加えるたびに、変更を確認するためサーバをリスタートしなくてはならない。
+#### OAuth with authorization code grant flow
 
-主に変更するのは以下のファイル。
+> このアプリケーションは、同意した Dropbox ユーザーの特定のアプリ フォルダーを読み取ることができる必要があります。このためには、ユーザーが Dropbox にリダイレクトされて資格情報を入力し、このアプリがユーザーの Dropbox を読み取ることを承認する認証フローを構築する必要があります。これが完了すると、Dropbox 内にこのアプリの名前でフォルダーが作成され、ミドルウェアはそのフォルダーの内容にのみアクセスできるようになります。
 
-- app.js:   middlewareかrequestの処理を担当する
-- routes/index.js:   サーバのすべてのエンドポイントを有する
+> これを行う最も安全な方法は、承認コード フローを使用することです。このフローでは、承認ステップの後に、Dropbox がトークンと交換されるコードをミドルウェアに発行します。ミドルウェアはトークンを保存し、Web ブラウザーには表示されません。トークンを要求しているユーザーを知るために、セッションを使用します。最初は、ハードコードされたセッション値を使用してキャッシュに保存しますが、後でそれを適切なライブラリに置き換えてセッションと Cookie を管理し、永続的なデータベースに保存します。
 
-加えて、プロジェクトのルートフォルダへ次の2つのファイルをバックエンドのために追加する
+> コードを記述する前に、Dropbox で重要な構成手順を実行する必要があります。 Dropbox 管理コンソールでリダイレクト URL を事前登録します。一時的に、許可されている唯一の http URL である localhost エンドポイントを使用します。ホーム以外の場合は、https を使用する必要があります。 /oauthredirect エンドポイントを使用します。 URL http://localhost:3000/oauthredirect を入力し、[追加] ボタンを押します。 また、暗黙的な付与は使用しないため、無効にすることができます。
 
-- config.js:
-- controller.js:
+認証の流れ：
+
+home `/` へユーザがアクセスしたらmiddlewareがセッションを取り出して特定のユーザなのかどうか調べる
+
+middlewareはOAuthtokenがこのセッションに対して発行済であるかどうか調べる。
+
+発行済みでない場合認証シーケンスが開始される
+
+ミドルウェアは、Dropbox 経由で認証を実行するための URL を構築する /login エンドポイントにリダイレクトします。
+
+URLの一部はstateで、ブラウザバーに表示されることになる、Dropboxへ渡される文字列である
+
+stateはセッションと一緒に保存される
+
+ユーザはDropboxの中の認証サーバへ、stateとmiddlewareによってリダイレクトされたときのURLと一緒にリダイレクトされる。今回のケースでは`/oauthredirect`エンドポイントへリダイレクトされる。
+
+ユーザはDropboxが認証を行いアプリケーションの特定のフォルダへアクセスすることを認証される
+
+...
+
+長いから割愛。
+
+認証のためのconfigを設定する
+
+
 
 ## 実装してる人から習う
 
@@ -58,4 +81,18 @@ https://louisz.medium.com/sample-code-to-upload-files-into-dropbox-using-nodejs-
 
 HTTP APIを使っている模様。
 
+とにかく、
 
+dropbox apiを使ってdropbox内のファイルのリクエスト、アップロード、streamを使った両方の実施、150mbを超えないアップロード方法を使った150mbサイズ越えのファイルのアップロードを実施する
+
+
+
+## 関係ないメモ
+
+Ubuntuでzipファイルをダウンロードして任意のフォルダに回答するまで
+
+```bash
+$ cd <movetodirectorythatfilewillbedownloaded>
+$ wget <URL>
+$ unzip <ZIPFILE>
+```
