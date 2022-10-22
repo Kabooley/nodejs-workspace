@@ -1,0 +1,41 @@
+Arguments: 
+  /home/teddy/.anyenv/envs/nodenv/versions/16.16.0/bin/node /home/teddy/.anyenv/envs/nodenv/versions/16.16.0/bin/yarn add typescript @type/node --dev
+
+PATH: 
+  /home/teddy/.anyenv/envs/nodenv/versions/16.16.0/bin:/home/teddy/.anyenv/envs/nodenv/libexec:/home/teddy/.anyenv/envs/nodenv/plugins/nodenv-vars/bin:/home/teddy/.anyenv/envs/nodenv/plugins/node-build/bin:/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/home/teddy/.yarn/bin:/home/teddy/.yarn/bin:/home/teddy/.anyenv/envs/pyenv/shims:/home/teddy/.anyenv/envs/pyenv/bin:/home/teddy/.anyenv/envs/nodenv/shims:/home/teddy/.anyenv/envs/nodenv/bin:/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/home/teddy/.yarn/bin:/home/teddy/.yarn/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/mnt/c/Program Files/WindowsApps/CanonicalGroupLimited.Ubuntu20.04onWindows_2004.2022.8.0_x64__79rhkp1fndgsc:/mnt/c/Program Files/Amazon Corretto/jdk11.0.7_10/bin:/mnt/c/Program Files (x86)/Common Files/Oracle/Java/javapath:/mnt/c/WINDOWS/system32:/mnt/c/WINDOWS:/mnt/c/WINDOWS/System32/Wbem:/mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0/:/mnt/c/WINDOWS/System32/OpenSSH/:/mnt/c/Program Files/Microsoft SQL Server/130/Tools/Binn/:/mnt/c/Program Files/Java/jdk-13.0.1/bin:/mnt/c/Program Files/Java/jdk1.8.0_172/bin:/mnt/c/Program Files/Git/cmd:/mnt/c/Program Files/SourceGear/Common/DiffMerge/:/mnt/c/Program Files/PowerShell/7/:/mnt/c/Program Files/dotnet/:/mnt/c/Program Files/nodejs/:/mnt/c/Program Files/MySQL/MySQL Shell 8.0/bin/:/mnt/c/Users/yashi/AppData/Local/Microsoft/WindowsApps:/mnt/c/Users/yashi/AppData/Local/Programs/Microsoft VS Code/bin:/mnt/c/Program Files/MongoDB/Server/4.4/bin:/mnt/c/MinGW/bin:/mnt/c/Program Files (x86)/GnuWin32/bin:/mnt/c/Users/yashi/AppData/Local/Microsoft/WindowsApps:/mnt/c/Users/yashi/AppData/Local/GitHubDesktop/bin:/mnt/c/Users/yashi/AppData/Local/FFmpeg/ffmpeg-4.4-full_build/bin:/mnt/c/Users/yashi/AppData/Roaming/npm:/snap/bin
+
+Yarn version: 
+  1.22.19
+
+Node version: 
+  16.16.0
+
+Platform: 
+  linux x64
+
+Trace: 
+  Error: https://registry.yarnpkg.com/@type%2fnode: Not found
+      at Request.params.callback [as _callback] (/home/teddy/.anyenv/envs/nodenv/versions/16.16.0/lib/node_modules/yarn/lib/cli.js:66145:18)
+      at Request.self.callback (/home/teddy/.anyenv/envs/nodenv/versions/16.16.0/lib/node_modules/yarn/lib/cli.js:140890:22)
+      at Request.emit (node:events:527:28)
+      at Request.<anonymous> (/home/teddy/.anyenv/envs/nodenv/versions/16.16.0/lib/node_modules/yarn/lib/cli.js:141862:10)
+      at Request.emit (node:events:527:28)
+      at IncomingMessage.<anonymous> (/home/teddy/.anyenv/envs/nodenv/versions/16.16.0/lib/node_modules/yarn/lib/cli.js:141784:12)
+      at Object.onceWrapper (node:events:641:28)
+      at IncomingMessage.emit (node:events:539:35)
+      at endReadableNT (node:internal/streams/readable:1345:12)
+      at processTicksAndRejections (node:internal/process/task_queues:83:21)
+
+npm manifest: 
+  {
+    "name": "dropbox-playground",
+    "version": "1.0.0",
+    "main": "index.js",
+    "license": "MIT"
+  }
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile
