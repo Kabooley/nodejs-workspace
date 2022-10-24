@@ -12,8 +12,10 @@ https://github.com/yargs/yargs/blob/HEAD/docs/typescript.md
 
 [必須コマンドの生成](#必須コマンドの生成)
 
-[Advanced Topics](#Advanced Topics)
-[](#)
+[Advanced Topics](#Advanced-Topics)
+
+[入力コマンドの見直し](#入力コマンドの見直し)
+
 [](#)
 [](#)
 
@@ -360,6 +362,42 @@ Missing required argument: bookmarkOver
 `demandOption: true`としていあるオプションがコマンド引数になかった時
 
 ちゃんとエラーになる。
+
+#### 必須コマンドを指定するには
+
+今度はコマンドを必須にする方法。
+
+ここでいうコマンドとはオプション特別するという意味。
+
+```JavaScript
+yargs.command('get <source> [proxy]', 'make a get HTTP request', (yargs) => {
+  yargs.positional('source', {
+    describe: 'URL to fetch content from',
+    type: 'string',
+    default: 'http://www.google.com'
+  }).positional('proxy', {
+    describe: 'optional proxy URL'
+  })
+})
+.help()
+.argv
+```
+
+上記の場合、
+
+コマンド`get`に続くコマンド`<source>`は必須となる。`[proxy]`はオプショナルである。
+
+さらに順番を守る必要がある。
+
+## 入力コマンドの見直し
+
+何を実装したいのか？
+
+- 指定キーワードまたは条件に一致したartworkのブックマーク
+- 指定キーワードまたは条件に一致したartworkの情報収集(いらないなぁ)
+- 指定キーワードまたは条件に一致したartworkのダウンロード（これはしない方がいい）
+- ブックマークartworkのダウンロード（同上）
+- ログイン情報(promptを使って後から入力でもいいかも...めんどくさいけど)
 
 
 ## Advanced Topics
