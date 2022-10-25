@@ -399,6 +399,35 @@ yargs.command('get <source> [proxy]', 'make a get HTTP request', (yargs) => {
 - ブックマークartworkのダウンロード（同上）
 - ログイン情報(promptを使って後から入力でもいいかも...めんどくさいけど)
 
+大きな区別：
+
+- 収集：情報の収集またはartworkのダウンロード
+- ブックマーク：条件に一致する対象のブックマークの実施
+
+両方したいときは？
+
+これなんだわ。
+
+。。。まぁしなくてもいいか。
+
+```bash
+$ node ./dist/index.js collect 
+$ node ./dist/index.js collect [...options]
+```
+
+```bash
+$ node ./dist/index.js collect <keyword>
+$ node ./dist/index.js bookmark <bookmarkOver> [...options]
+```
+#### アカウント情報が必要になったら...
+
+promptで入力させる or コマンドで常に必須オプションとする
+
+前者ならいつもコマンド情報が少なくて済むけど
+
+後者は実行のたびにアカウント情報を入力する手間が減る
+
+まぁprompt導入してみますか。
 
 ## Advanced Topics
 
@@ -471,4 +500,9 @@ yargs(process.argv.slice(2))
 4. 位置コマンド引数含めてコマンドラインをパース、検証する
 5. 検証で合格したら`handler`が実行される
 6. 現在のコンテキストからコマンドをポップする（追い出す）
+
+
+## github issue: multiiple commands
+
+https://github.com/yargs/yargs/issues/225
 
