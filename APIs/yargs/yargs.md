@@ -82,6 +82,8 @@ Node.jsの`process.argv`はNode.jsのプロセスが起動されたときに渡�
 
 実験してみる。
 
+#### yargsの返すオブジェクトについ確認
+
 ```TypeScript
 // index.ts
 const argv = require('yargs/yargs')(process.argv.slice(2)).argv;
@@ -505,4 +507,141 @@ yargs(process.argv.slice(2))
 ## github issue: multiiple commands
 
 https://github.com/yargs/yargs/issues/225
+
+
+## 実践：20221026
+
+```TypeScript
+// index.ts
+import yargs from 'yargs/yargs';
+
+
+const argument = yargs(process.argv.splice(2))
+.command("collect <keyword|bookmark> [...options]", "collect",
+  (yargs) => {
+    return yargs
+    .positional("keyword", {
+      describe: "Collect by keyword searching.",
+      type: "string"
+    })
+    .positional("bookmark", {
+      describe: "Collect from bookmark collection",
+      type: "string"
+    })
+    .option("keyword", {
+      describe: "Specify artwork number of Bookmark",
+      type: "string",
+      // keywordの時なら必須だけど、bookmarkの時は必須じゃない...
+      // この矛盾をどう解決したものか
+      demand: true
+    })
+    .option("bookmarkOver", {
+      describe: "Specify tag name must be included",
+      type: "number",
+      demand: false
+    })
+    .option("tag", {
+      describe: "",
+      type: "string",
+      demand: false
+    })
+    .option("author", {
+      describe: "Specify author name that msut be included",
+      type: "string",
+      demand: false
+    })
+  },
+  (argv) => {
+    console.log(argv);
+  }
+).help().argv;
+
+console.log(argument);
+
+```
+
+検証：
+
+- ポジションコマンド`<keyword|bookmark>`は上記定義で通用するか
+- ポジションコマンドとオプションコマンドが同じ名前だった時にどうなるか
+- `node ./dist/index.js collect keyword --keyword="" --author="sumiyao"`は期待通りに動作するか
+- `node ./dist/index.js collect bookmark --author="sumiyao"`は期待通りに動作するか
+
+
+1. 検証：ポジションコマンドとオプションコマンドが同じ名前だった時にどうなるか
+
+```bash
+$ node ./dist/index.js collect bookmark --keyword="aweosme-over1000users" --author="sumiyao"
+{
+  _: [ 'collect' ],
+  keyword: 'bookmark',
+  bookmark: 'bookmark',
+  author: 'sumiyao',
+  '$0': 'dist/index.js'
+}
+{
+  _: [ 'collect' ],
+  keyword: 'bookmark',
+  bookmark: 'bookmark',
+  author: 'sumiyao',
+  '$0': 'd
+}
+```
+
+先の実験、[yargsの返すオブジェクトについ確認](#yargsの返すオブジェクトについ確認)とり、
+
+yargsの返すオブジェクトの`_`の配列の中は入力されたコマンドが格納される。
+
+なので今回の場合、
+
+`collect keyword`とコマンドを2つ並べたので本来yargsのオブジェクトの`_`は...
+
+`_: [ 'collect', 'keyword' ],`となるべきところ、`collect`しか格納されていなかった。
+
+考えられる原因：
+
+- positionlaのkeywordとoptionのkeywordがかぶっているから後から定義した方を処理している
+
+検証：
+
+positionalのコマンド名を変更してみる
+
+```JavaScript
+// ...
+.command("collect <byKeyword|fromBookmark> [...options]", "collect",
+// ...
+```
+
+```bash
+$ node ./dist/index.js collect byKeyword --keyword="aweosme-over1000users" --author="sumiyao"
+{
+  _: [ 'collect' ],
+  keyword: 'aweosme-over1000users',
+  author: 'sumiyao',
+  '$0': 'dist/index.js',
+  byKeyword: 'byKeyword',
+  fromBookmark: 'byKeyword',
+  'from-bookmark': 'byKeyword',
+  'by-keyword': 'byKeyword'
+}
+```
+
+結果、変わらなかった...
+
+ポジショナルのコマンドは`_`に含まれないみたい。
+
+検証：何も処理しないで複数コマンドを打ち込んだらどうなるか
+
+```JavaScript
+const c = yargs(process.argv.splice(2)).help().argv;
+console.log(c);
+```
+
+```bash
+# 以下はどうなる？
+$ node ./dist/index.js collect keyword --keyword="aweosme-over1000users" --author="sumiyao"
+$ node ./dist/index.js collect bookmark --keyword="aweosme-over1000users" --author="sumiyao"
+```
+
+わかったこと：ポジショナルのコマンドは`_`に含まれず、オプションコマンドと同じ扱いになる
 

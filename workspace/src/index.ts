@@ -13,17 +13,48 @@
 // import type { iCollectOptions } from './collectCommand';
 import yargs from 'yargs/yargs';
 
-yargs(process.argv.slice(2)).command('get <source> [proxy]', 'make a get HTTP request', (yargs) => {
-    yargs.positional('source', {
-      describe: 'URL to fetch content from',
-      type: 'string',
-      default: 'http://www.google.com'
-    }).positional('proxy', {
-      describe: 'optional proxy URL'
+
+const argument = yargs(process.argv.splice(2))
+.command("collect <byKeyword|fromBookmark> [...options]", "collect",
+  (yargs) => {
+    return yargs
+    .positional("byKeyword", {
+      describe: "Collect by keyword searching.",
+      type: "string"
     })
-  })
-  .help()
-  .argv
+    .positional("fromBookmark", {
+      describe: "Collect from bookmark collection",
+      type: "string"
+    })
+    .option("keyword", {
+      describe: "Specify artwork number of Bookmark",
+      type: "string",
+      // keywordの時なら必須だけど、bookmarkの時は必須じゃない...
+      // この矛盾をどう解決したものか
+      demand: true
+    })
+    .option("bookmarkOver", {
+      describe: "Specify tag name must be included",
+      type: "number",
+      demand: false
+    })
+    .option("tag", {
+      describe: "",
+      type: "string",
+      demand: false
+    })
+    .option("author", {
+      describe: "Specify author name that msut be included",
+      type: "string",
+      demand: false
+    })
+  },
+  (argv) => {
+    console.log(argv);
+  }
+).help().argv;
+
+console.log(argument);
 
 /**
  * .help()がどんな役割をするのか確認する

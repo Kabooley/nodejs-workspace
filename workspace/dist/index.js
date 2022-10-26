@@ -17,17 +17,51 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // import { collectCommand } from './collectCommand';
 // import type { iCollectOptions } from './collectCommand';
 const yargs_1 = __importDefault(require("yargs/yargs"));
-(0, yargs_1.default)(process.argv.slice(2)).command('get <source> [proxy]', 'make a get HTTP request', (yargs) => {
-    yargs.positional('source', {
-        describe: 'URL to fetch content from',
-        type: 'string',
-        default: 'http://www.google.com'
-    }).positional('proxy', {
-        describe: 'optional proxy URL'
+const argument = (0, yargs_1.default)(process.argv.splice(2))
+    .command("collect <byKeyword|fromBookmark> [...options]", "collect", (yargs) => {
+    return yargs
+        .positional("byKeyword", {
+        describe: "Collect by keyword searching.",
+        type: "string"
+    })
+        .positional("fromBookmark", {
+        describe: "Collect from bookmark collection",
+        type: "string"
+    })
+        .option("keyword", {
+        describe: "Specify artwork number of Bookmark",
+        type: "string",
+        // keywordの時なら必須だけど、bookmarkの時は必須じゃない...
+        // この矛盾をどう解決したものか
+        demand: true
+    })
+        .option("bookmarkOver", {
+        describe: "Specify tag name must be included",
+        type: "number",
+        demand: false
+    })
+        .option("tag", {
+        describe: "",
+        type: "string",
+        demand: false
+    })
+        .option("author", {
+        describe: "Specify author name that msut be included",
+        type: "string",
+        demand: false
     });
-})
-    .help()
-    .argv;
+}, (argv) => {
+    console.log(argv);
+}).help().argv;
+console.log(argument);
+/**
+ * .help()がどんな役割をするのか確認する
+ *
+ * 必須コマンドとオプションはどうやったら実現できるのか
+ * Advanced Topicsのサンプルから確認する
+ *
+ *
+ * */
 // (function() {
 //     const bookmarkOptions = {} as iBookmarkOptions; 
 //     const collectOptions = {} as iCollectOptions; 
