@@ -13,48 +13,71 @@
 // import type { iCollectOptions } from './collectCommand';
 import yargs from 'yargs/yargs';
 
-
-const argument = yargs(process.argv.splice(2))
-.command("collect <byKeyword|fromBookmark> [...options]", "collect",
+// TODO: check this out.
+let a = yargs(process.argv.splice(2))
+.command(
+  "collect", "collect something",
   (yargs) => {
-    return yargs
-    .positional("byKeyword", {
-      describe: "Collect by keyword searching.",
-      type: "string"
-    })
-    .positional("fromBookmark", {
-      describe: "Collect from bookmark collection",
-      type: "string"
-    })
-    .option("keyword", {
-      describe: "Specify artwork number of Bookmark",
-      type: "string",
-      // keywordの時なら必須だけど、bookmarkの時は必須じゃない...
-      // この矛盾をどう解決したものか
-      demand: true
-    })
-    .option("bookmarkOver", {
-      describe: "Specify tag name must be included",
-      type: "number",
-      demand: false
-    })
-    .option("tag", {
-      describe: "",
-      type: "string",
-      demand: false
-    })
-    .option("author", {
-      describe: "Specify author name that msut be included",
-      type: "string",
-      demand: false
-    })
-  },
-  (argv) => {
-    console.log(argv);
+    a = yargs
+    .command(
+      "keyword", "collect something by keyword",
+      () => {}, () => {}
+    )
+    .command(
+      "bookmark", "collect something from bookmark",
+      () => {}, () => {}
+    )
+    .help('help')
+    // .wrap(null)
+    .argv;
   }
-).help().argv;
+)
+.command(
+  "bookmark", "bookmark something"
+)
+.help().argv;
 
-console.log(argument);
+// const argument = yargs(process.argv.splice(2))
+// .command("collect <byKeyword|fromBookmark> [...options]", "collect",
+//   (yargs) => {
+//     return yargs
+//     .positional("byKeyword", {
+//       describe: "Collect by keyword searching.",
+//       type: "string"
+//     })
+//     .positional("fromBookmark", {
+//       describe: "Collect from bookmark collection",
+//       type: "string"
+//     })
+//     .option("keyword", {
+//       describe: "Specify artwork number of Bookmark",
+//       type: "string",
+//       // keywordの時なら必須だけど、bookmarkの時は必須じゃない...
+//       // この矛盾をどう解決したものか
+//       demand: true
+//     })
+//     .option("bookmarkOver", {
+//       describe: "Specify tag name must be included",
+//       type: "number",
+//       demand: false
+//     })
+//     .option("tag", {
+//       describe: "",
+//       type: "string",
+//       demand: false
+//     })
+//     .option("author", {
+//       describe: "Specify author name that msut be included",
+//       type: "string",
+//       demand: false
+//     })
+//   },
+//   (argv) => {
+//     console.log(argv);
+//   }
+// ).help().argv;
+
+// console.log(argument);
 
 /**
  * .help()がどんな役割をするのか確認する

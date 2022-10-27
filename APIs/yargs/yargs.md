@@ -638,10 +638,275 @@ console.log(c);
 ```
 
 ```bash
-# 以下はどうなる？
-$ node ./dist/index.js collect keyword --keyword="aweosme-over1000users" --author="sumiyao"
-$ node ./dist/index.js collect bookmark --keyword="aweosme-over1000users" --author="sumiyao"
+# マルチコマンド
+$ node ./dist/index.js collect bookmark
+{ _: [ 'collect', 'bookmark' ], '$0': 'dist/index.js' }
+# マルチコマンドとオプション
+$ node ./dist/index.js collect bookmark --over=1000
+{ _: [ 'collect', 'bookmark' ], over: 1000, '$0': 'dist/index.js' }
+# マルチコマンドとオプション名が同じだった時
+$ node ./dist/index.js collect bookmark --bookmark="bkmk"
+{
+  _: [ 'collect', 'bookmark' ],
+  bookmark: 'bkmk',
+  '$0': 'dist/index.js'
+}
+$ node ./dist/index.js collect keyword --keyword="attention"
+{
+  _: [ 'collect', 'keyword' ],
+  keyword: 'attention',
+  '$0': 'dist/index.js'
+}
 ```
 
-わかったこと：ポジショナルのコマンドは`_`に含まれず、オプションコマンドと同じ扱いになる
+区別されとるやんけ！
+
+ちなみに、
+
+`_`: コマンドが格納される配列
+`$0`: nodeの次に来る対象
+他：オプション
+
+ここからyargsの各メソッドを追加していってどう変化するのか観察する
+
+.command()をシンプルに付ける:
+
+```JavaScript
+import yargs from 'yargs/yargs';
+
+const a = yargs(process.argv.splice(2))
+.command("collect", "collect something",
+() => {}, (argv) => {console.log(argv)})
+.help().argv;
+console.log(a);
+```
+```bash
+$ node ./dist/index.js collect bookmark
+{ _: [ 'collect', 'bookmark' ], '$0': 'dist/index.js' }
+{ _: [ 'collect', 'bookmark' ], '$0': 'dist/index.js' }
+$ node ./dist/index.js collect bookmark --over=1000
+{ _: [ 'collect', 'bookmark' ], over: 1000, '$0': 'dist/index.js' }
+{ _: [ 'collect', 'bookmark' ], over: 1000, '$0': 'dist/index.js' }
+$ node ./dist/index.js collect bookmark --bookmark="bkmk"
+{
+  _: [ 'collect', 'bookmark' ],
+  bookmark: 'bkmk',
+  '$0': 'dist/index.js'
+}
+{
+  _: [ 'collect', 'bookmark' ],
+  bookmark: 'bkmk',
+  '$0': 'dist/index.js'
+}
+$ node ./dist/index.js collect keyword --keyword="attention"
+{
+  _: [ 'collect', 'keyword' ],
+  keyword: 'attention',
+  '$0': 'dist/index.js'
+}
+{
+  _: [ 'collect', 'keyword' ],
+  keyword: 'attention',
+  '$0': 'dist/index.js'
+```
+
+今のところ同じ。
+
+.command()でビルダを追加する:
+
+
+```JavaScript
+import yargs from 'yargs/yargs';
+
+const a = yargs(process.argv.splice(2))
+.command("collect", "collect something",
+(yargs) => {
+  return yargs
+      .option("keyword", {
+        describe: "Specify artwork number of Bookmark",
+        type: "string",
+        demand: true
+      })
+      .option("bookmarkOver", {
+        describe: "Specify tag name must be included",
+        type: "number",
+        demand: false
+      })
+      .option("tag", {
+        describe: "",
+        type: "string",
+        demand: false
+      })
+      .option("author", {
+        describe: "Specify author name that msut be included",
+        type: "string",
+        demand: false
+      });
+}, (argv) => {console.log(argv)})
+.help().argv;
+console.log(a);
+```
+```bash
+# optional()を付けて、一部オプションをdemnad: trueにしたので、
+# 必須オプションなしだからエラーになった。
+$ node ./dist/index.js collect bookmark
+index.js collect
+
+collect something
+
+Options:
+  --version       Show version number                                  [boolean]
+  --help          Show help                                            [boolean]
+  --keyword       Specify artwork number of Bookmark         [string] [required]
+  --bookmarkOver  Specify tag name must be included                     [number]
+  --tag                                                                 [string]
+  --author        Specify author name that msut be included             [string]
+
+Missing required argument: keyword
+
+$ node ./dist/index.js collect keyword --keyword="attention"
+{
+  _: [ 'collect', 'keyword' ],
+  keyword: 'attention',
+  '$0': 'dist/index.js'
+}
+{
+  _: [ 'collect', 'keyword' ],
+  keyword: 'attention',
+  '$0': 'dist/index.js'
+}
+$ node ./dist/index.js collect keyword --keyword="attention" --bookmark="bkmk"
+{
+  _: [ 'collect', 'keyword' ],
+  keyword: 'attention',
+  bookmark: 'bkmk',
+  '$0': 'dist/index.js'
+}
+{
+  _: [ 'collect', 'keyword' ],
+  keyword: 'attention',
+  bookmark: 'bkmk',
+  '$0': 'dist/index.js'
+```
+
+やはり同じというか期待通りの結果に。
+
+.command()とポジションコマンド引数を指定する:
+
+```JavaScript
+import yargs from 'yargs/yargs';
+
+const a = yargs(process.argv.splice(2))
+.command("collect <bookmark>", "collect something",
+(yargs) => {
+  return yargs
+      .option("keyword", {
+        describe: "Specify artwork number of Bookmark",
+        type: "string",
+        demand: true
+      })
+      .option("bookmarkOver", {
+        describe: "Specify tag name must be included",
+        type: "number",
+        demand: false
+      })
+      .option("tag", {
+        describe: "",
+        type: "string",
+        demand: false
+      })
+      .option("author", {
+        describe: "Specify author name that msut be included",
+        type: "string",
+        demand: false
+      });
+}, (argv) => {console.log(argv)})
+.help().argv;
+console.log(a);
+```
+
+```bash
+$ node ./dist/index.js collect keyword --keyword="attention" --bookmark="bkmk"
+# bookmark: 'bkmk'ではなく、
+# bookmark: 'bookmark'と処理される。
+{
+  _: [ 'collect' ],
+  keyword: 'attention',
+  bookmark: 'keyword',
+  '$0': 'dist/index.js'
+}
+{
+  _: [ 'collect' ],
+  keyword: 'attention',
+  bookmark: 'keyword',
+  '$0': 'dist/index.js'
+}
+```
+
+どうやらポジショナルコマンド引数と、オプション引数が同名だった場合、オプション引数の方が無視され、`ポジショナルコマンド引数：ポジショナルコマンド引数`の組み合わせのオプション引数として処理される模様。
+
+builder関数の中の定義の有無に関係なく。
+
+ならばマルチコマンドを指定するにはポジショナルコマンドは使わない方がいいということになるなぁ
+
+ここで以下のURLに舞い戻る。
+
+https://github.com/yargs/yargs/issues/225
+
+マルチコマンドを定義するときに、
+
+```JavaScript
+const a = yargs().command(
+    "fist-command-1", "",
+    (yargs) => {
+      a = yargs   // ここでaに代入するのは必須なのか？
+      // second-commandをここで定義できる
+      .command(
+        "second-command-1", "", 
+        () => {
+          // first-command-1 second-command-1 の時のオプションをここで定義できる
+        }, () => {}
+      )
+      .command(
+        "second-command-2", "", 
+        () => {
+          // first-command-1 second-command-2 の時のオプションをここで定義できる
+        }, () => {}
+      )
+      .help()
+      // .updateString()は必須なのか？
+      .argv;
+    }
+  )
+  .command(
+    "fist-command-2", "",
+  )
+  .help()
+  // .wrap(null)は必須なのか？
+  .argv;
+```
+
+これなら、
+
+```bash
+$ node ./dist/index.js first-command-1 <second-commands>
+$ node ./dist/index.js first-command-2 
+```
+
+上記が実現できるはず、とのことで要検証。
+
+わからんところ：
+
+- .wrap()の役目
+- .updateString()の役目
+- builderのなかでセカンドコマンド引数とか処理した結果をaへ返す意味
+
+## yargsわかったこと
+
+- 通常マルチコマンドはコマンド引数オブジェクトの`_`に配列として取得される。
+- ポジショナルコマンド引数は、マルチコマンドとして処理されず、オプションコマンド引数として処理される。
+- 上記の場合において、同名のオプションを引き取ることになっていた場合、オプションの値は無視されてポジショナル引数を値として取得する。
+
+
+
 
