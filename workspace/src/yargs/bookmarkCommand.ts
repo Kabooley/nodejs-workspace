@@ -54,14 +54,14 @@ export interface iBookmarkOptions {
      return <T extends {[key: string]: yargs.Options}>(
          args: yargs.ArgumentsCamelCase<yargs.InferredOptionTypes<T>>
          ): void => {
-            // 
-            // DEBUG:
-            // 
-            console.log(args);
-
          Object.keys(args).forEach(key=> {
              if(bookmarkOptionList.includes(key)) options[key] = args[key];
-         })
+         });
+
+        //  DEBUG:
+        console.log("bookmark command handler");
+        console.log(args);
+        console.log(options);
      };
  }
  
