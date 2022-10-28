@@ -10,85 +10,41 @@ https://github.com/yargs/yargs/blob/HEAD/docs/typescript.md
 
 ## 目次
 
+[基本](#基本)
+
+[yargsできること](#yargsできること)
+
 [必須コマンドの生成](#必須コマンドの生成)
 
 [Advanced Topics](#Advanced-Topics)
 
-[入力コマンドの見直し](#入力コマンドの見直し)
+実践：
 
-[](#)
-[](#)
+[検証](#検証)
 
-## API REFERENCE
+[マルチコマンドと必須オプションの実現](#マルチコマンドと必須オプションの実現)
 
-yargsは、`yargs()`で実行される。
+参考：
 
-```JavaScript
-// 例：
-require('yargs/yargs')(process.argv.slice(2)).argv;
+https://github.com/yargs/yargs/issues/225
 
-require('yargs/yargs')([ '-x', '1', '-y', '2' ]).argv;
+TypeScript:
 
-require('yargs/yargs')().parse([ '-x', '1', '-y', '2' ]);
+[TypeScript](#TypeScript) TODO: 結局こいつと格闘することになる
 
-require('yargs/yargs')(process.argv.slice(2)).parse();
-```
 
-`require('yargs/yargs')`で取得しているのは下記：
+## 基本
 
-```TypeScript
-declare function Yargs(
-    processArgs?: ReadonlyArray<string> | string,
-    cwd?: string,
-    parentRequire?: NodeRequire,
-): Argv;
-```
+#### yargsってなに？
 
-つまり`Argv`なるものを返す関数である。
+さぁ？
 
-関数なので、
+#### cliから取得できるもの
+
+yargsを本格的に使う前に、CLIから取得できるものとは何か
 
 ```JavaScript
-require('yargs/yargs')(process.argv.slice(2));
-
-// 上記の呼び出しは下記と同義であり、Argvなるものを返す。
-Yargs(process.argv.slice(2));
-```
-
-`process.argv.slice(2)`している理由：
-
-Node.jsの`process.argv`はNode.jsのプロセスが起動されたときに渡されたコマンドライン引数を含む配列を返す。
-
-この配列の第一要素と第二要素はコマンドライン引数ではない。第3要素からコマンドライン引数が含まれる。
-
-なので`process.argv.slice(2)`で配列の第三要素から取得するのである。
-
-
-#### .argv
-
-先の`require('yargs/yargs')(process.argv.slice(2)).argv`の`.argv`とは？
-
-> 引数を単なる古いオブジェクトとして取得します。
-
-> 対応するフラグを持たない引数はargv._の配列に表示されます。argv._の要素はデフォルトで数値に変換される可能性があることに注意してください。
-
-> スクリプト名やノードコマンドは、bashやperlの$0と同じようにargv.0に格納することができます。
-
-> yargs が node を組み込んだ環境で実行され、スクリプト名がない場合 (例: Electron や nw.js) は、最初のパラメータをスクリプト名と見なし、無視します。この動作を上書きするには、.argvの代わりに.parse(process.argv.slice(1))を使用すると、最初のパラメータは無視されなくなります。
-
-> 注意：**.argvはトップレベルでのみ使用し、コマンドのビルダー関数の中では使用しないでください。**
-
-ワカラン
-
-実験してみる。
-
-#### yargsの返すオブジェクトについ確認
-
-```TypeScript
-// index.ts
-const argv = require('yargs/yargs')(process.argv.slice(2)).argv;
-
-console.log(argv);  // { _: [], '$0': 'dist/index.js' }
+require(yargs)(process.argv.splice(2)).argv;
 ```
 ```bash
 $ node ./dist/index.js
@@ -99,49 +55,80 @@ $ node ./dist/index.js params hogehoge
 { _: [ 'params', 'hogehoge' ], '$0': 'dist/index.js' }
 $ node ./dist/index.js params hogehoge --fuga
 { _: [ 'params', 'hogehoge' ], fuga: true, '$0': 'dist/index.js' }
-$ node ./dist/index.js params hogehoge --fuga=FUGA
-{ _: [ 'params', 'hogehoge' ], fuga: 'FUGA', '$0': 'dist/index.js' }
+$ node ./dist/index.js params hogehoge --fuga=FUGA --foo="FOO"
+{ _: [ 'params', 'hogehoge' ], fuga: 'FUGA', foo: 'FOO', '$0': 'dist/index.js' }
 ```
 
-ということで、`yargs`の戻り値に対して`.argv`を追加すると確かにオブジェクトが返されることが確認できる。
+つまり、
 
-`_: []`にはコマンドライン引数が配列で格納され、
+- `$0`: 対象ファイル
+- `_`: 入力されたコマンドを配列で格納している
+- 他のプロパティ：入力されたオプションはそれぞれプロパティで取得される
 
-`--OPTION=VALUE`をコマンドライン引数に追加すると、オブジェクトのkey-to-valueのペアとして追加される。
+`node ./dist/index.js command-1 command-2 --option="OPTION"`と入力されると
 
-そんなオブジェクトを返すようだ。
+`command-`は`_`へ格納される。
 
-.argvを付けるとコマンドライン引数に関するオブジェクトが返されるので、こいつを使ってJavaScriptで処理をするというわけだ。
 
-#### .command
+#### Node.js `process.argv`
+
+https://nodejs.org/dist/latest-v16.x/docs/api/process.html#processargv
+
+> process.argvプロパティは、Node.jsのプロセスが起動されたときに渡されたコマンドライン引数を含む配列を返します。最初の要素はprocess.execPathになります。argv[0]の元の値にアクセスする必要がある場合は、process.argv0を参照してください。2番目の要素は、実行されるJavaScriptファイルへのパスとなります。残りの要素は、任意の追加コマンドライン引数です。
+
+#### process.argv.slice(2)の意味
+
+Node.jsの`process.argv`はNode.jsのプロセスが起動されたときに渡されたコマンドライン引数を含む配列を返す。
+
+この配列の第一要素と第二要素はコマンドライン引数ではない。第3要素からコマンドライン引数が含まれる。
+
+なので`process.argv.slice(2)`で配列の第三要素から取得するのである。
+
+#### `.argv`
+
+yargsでコマンドラインを読み取ってJavaScriptオブジェクトとして返すものである。
+
+似たもので`yargs.parse()`がある。
+
+yargsではPromiseチェーンみたいにyargsのメソッドをつないでいくようにできている。
+
+このチェーンの一番最後にこの`.argv`をつける。
+
+これは関数名に`()`をつけるのとおんなじで、
+
+要は実行コマンドである。
+
+yargsは.argvをつけなければただの定義分で、argvをつけることで実行してくれる。
+
+
+> 注意：**.argvはトップレベルでのみ使用し、コマンドのビルダー関数の中では使用しないでください。**
+
+
+#### `.command()`
 
 http://yargs.js.org/docs/#api-reference-commandcmd-desc-builder-handler
 
-https://github.com/yargs/yargs/blob/main/docs/advanced.md#command-execution
+https://github.com/yargs/yargs/blob/main/docs/advanced.md
 
 > アプリケーションによって公開されるコマンドを定義します。
 
-```bash
-$ node ./dist/index.js get-image --keyword=DONALD
-```
-たとえば上記のようなコマンドを実行するとしたら、
+どういうコマンド名か、どんなコマンドなのかの説明、
 
-`get-image`がコマンド名として、そのコマンドに関するあらゆる定義を指定するのが`.command`である。
+そのコマンドの受け取ることができるオプションの定義、
 
-```TypeScript
-// yargs/index.d.ts
-// 
-// オーバーロードがほかにもたくさんあるけどね
-command<O extends { [key: string]: Options }>(
-    command: string | ReadonlyArray<string>,    // コマンド名
-    description: string,                        // コマンドの説明
-    builder?: O,                                // コマンドが受け付けるオプションについての定義
-    // コマンドの解析が終了したら実行される、argsオブジェクトを受け取る関数
-    handler?: (args: ArgumentsCamelCase<InferredOptionTypes<O>>) => void | Promise<void>,
-    middlewares?: MiddlewareFunction[],
-    deprecated?: boolean | string,
-): Argv<T>;
-```
+そのコマンドを受け取った時にすることのハンドラの定義
+
+等ができる。
+
+yargsで主に使うことになるメソッド。
+
+index.d.tsを見たらわかるけどオーバーロードがたくさん。
+
+とりあえず、
+
+builderには関数かオブジェクトを渡すことができる。
+
+これでオプションコマンドとかを定義できる。
 
 処理順序：
 
@@ -153,217 +140,75 @@ command<O extends { [key: string]: Options }>(
 6. 現在のコンテキストからコマンドをポップアップします。
 
 
+#### .updateStrings()
 
-#### TypeScript Usage
+https://yargs.js.org/docs/#api-reference-updatestringsobj
 
-https://github.com/yargs/yargs/blob/HEAD/docs/typescript.md
+コマンドのヘルプとかの表示をオーバーライドする。
 
-インポート方法は次の通りでいいらしい。
-
-```TypeScript
-import yargs from 'yargs/yargs';
-```
-
-#### Node.js `process.argv`
-
-https://nodejs.org/dist/latest-v16.x/docs/api/process.html#processargv
-
-> process.argvプロパティは、Node.jsのプロセスが起動されたときに渡されたコマンドライン引数を含む配列を返します。最初の要素はprocess.execPathになります。argv[0]の元の値にアクセスする必要がある場合は、process.argv0を参照してください。2番目の要素は、実行されるJavaScriptファイルへのパスとなります。残りの要素は、任意の追加コマンドライン引数です。
-
-## 作ってみた
-
-```TypeScript
-import yargs from 'yargs/yargs';
-
-interface iCommand {
-    [key: string]: string | undefined;
-}
-
-const argv = yargs(process.argv.slice(2));
-export const commands: iCommand = {};
-
-export const commandArgv = argv.command(
-    "collect-image", "Collects images which matches with specified keyword",
-    // Provide a builderobject but builder can be a function. 
-    // 
-    // ビルダーはオブジェクトでも関数でもどちらでもOK
-    {
-        // Login ID
-      username: {
-        describe: "username",
-        demandOption: true,
-        type: "string",
-      },
-    //   Login Password
-      password: {
-        describe: "password",
-        demandOption: true,
-        type: "string",
-      },
-    //   Search keyword
-      keyword: {
-        describe: "keyword",
-        demandOption: false,
-        type: "string",
-      },
-    },
-    // You can provide a handler function which will be executed with the parsed argv object:
-    (argv): void => {
-        console.log(`username: ${argv.username}. password: ${argv.password}. keyword: ${argv.keyword}`);
-        commands['username'] =argv.username;
-        commands['password'] =argv.password;
-        commands['keyword'] =argv.keyword;
-    }
-)
-```
-
-## yargsをモジュール化する
-
-上記の`commandArgv`ではハンドラ関数で使用しているオブジェクト`commands`がスコープされる環境でしか使えない。
-
-これだとindex.jsへyargsの定義を追加しないといけないし、再利用性が低いのでモジュール化させる。
-
-参考：
-
-https://github.com/yargs/yargs/blob/main/docs/advanced.md#providing-a-command-module
-
-```TypeScript
-// cliParser.ts
-export interface iCollectCommand {
-    username: {
-        describe: string;
-        demandOption: boolean;
-        type: "string";
-      };
-    //   Login Password
-      password: {
-        describe: string;
-        demandOption: boolean;
-        type: "string";
-      };
-    //   Search keyword
-      keyword: {
-        describe: string;
-        demandOption: boolean;
-        type: "string";
-      };
-};
-export const commandName = "collect-image";
-export const commandDesc = "Collects images which matches with specified keyword";
-export const builder: iCollectCommand = {
-    // Login ID
-  username: {
-    describe: "username",
-    demandOption: true,
-    type: "string",
-  },
-//   Login Password
-  password: {
-    describe: "password",
-    demandOption: true,
-    type: "string",
-  },
-//   Search keyword
-  keyword: {
-    describe: "keyword",
-    demandOption: false,
-    type: "string",
-  },
-}
-
-// index.ts
-import yargs from 'yargs/yargs';
-import { commandName, commandDesc, builder } from './cliParser';
-
-interface iCommand {
-    [key: string]: string | undefined;
-}
-export const commands: iCommand = {};
-
-yargs(process.argv.slice(2)).command(commandName, commandDesc, 
-    {...builder},   // NOTE
-    (args) => {
-        console.log(`username: ${args.username}. password: ${args.password}. keyword: ${args.keyword}`);
-        commands['username'] =args.username;
-        commands['password'] =args.password;
-        commands['keyword'] =args.keyword;
-}).argv;
-
-console.log(commands);
-```
-
-NOTE: builder引数へ渡す方法として{...builder}とするのと、buidlerに一致するinterfaceが必須となっている...
-
-```bash
-$ node ./dist/index.js collect-image --username=donald --password=don
-aldkillskernel --keyword=donaldnsfw
-username: donald. password: donaldkillskernel. keyword: donaldnsfw
-{
-  username: 'donald',
-  password: 'donaldkillskernel',
-  keyword: 'donaldnsfw'
-}
-```
-
-期待通りに動作しているのが確認できた。
-
-これなら先のコードよりもindex.tsがすっきりする。
-
-.commandの引数のハンドラ関数だけ、index.tsのcommandsオブジェクトにアクセスする必要があるため
-
-index.ts内で関数を定義した。
-
-## フレキシブルにするには
-
-`yargs(process.argv.splice(2))`の後に、Promiseチェーンみたいに`.command`をつけていけばいい
-
-
-## コマンドを必須にする
-
-#### .command()のbuilderで必須オプションを指定する
-
-`demandOption`で必須かどうかを指定できる
+以下の場合、変数`argv`に影響はない。
 
 ```JavaScript
-yargs(process.argv.slice(2))
-.command(
-  "bookmark", "...",
-  {
-    bookmarkOver: {
-         describe: "Specify artwork number of Bookmark",
-         demandOption: true,
-         type: "number"
-     },
-     tag: {
-         describe: "Specify tag name must be included",
-         demandOption: false,
-         type: "string"
-     }
-  },
-  () => {/*...*/}
-).argv;
+import yargs from 'yargs/yargs';
+
+var argv = yargs(process.argv.slice(2))
+  .command('run', 'the run command')
+  .help('help')
+  .updateStrings({
+    'Commands:': 'My Commands -->\n'
+  })
+  .wrap(null)
+  .argv;
 ```
-
 ```bash
-$ node index.js bookmark --tag="awesome"
-index.js bookmark
+# 通常のhelp()内容
+$ node ./dist/index.js run --help
+index.js run  # 使い方
 
-Bookmark artwork if it satifies given command options.
+the run command # description
 
 Options:
-  --help          Show help                                            [boolean]
-  --version       Show version number                                  [boolean]
-  --bookmarkOver  Specify artwork number of Bookmark         [number] [required]
-  --tag           Specify tag name must be included                     [string]
-  --author        Specify author name that msut be included             [string]
+  --version  Show version number  [boolean]
+  --help     Show help  [boolean]
 
-Missing required argument: bookmarkOver
+$ node ./dist/index.js --help
+index.js [command]
+
+My Commands -->
+
+  index.js run  the run command
+
+Options:
+  --version  Show version number  [boolean]
+  --help     Show help  [boolean]
 ```
-ということで、
 
-`demandOption: true`としていあるオプションがコマンド引数になかった時
+#### .wrap()
 
-ちゃんとエラーになる。
+https://yargs.js.org/docs/#api-reference-wrapcolumns
+
+usage(使い方)の出力内容をどうやって表示するかどうかみたいなものを制御する。
+
+1行表示にするのか、何文字までなら1行で表示するのかとか。
+
+wrap(null)で行の文字数に制限をかけない。
+
+
+## yargsできること
+
+- コマンドのヘルプとかをカスタムできる
+- オプションは必須か任意かを指定できる
+- コマンドは必須か任意かは(yargsでは)指定できない
+
+yargsわかったこと
+
+- 通常マルチコマンドはコマンド引数オブジェクトの`_`に配列として取得される。
+- ポジショナルコマンド引数は、マルチコマンドとして処理されず、オプションコマンド引数として処理される。
+- 上記の場合において、同名のオプションを引き取ることになっていた場合、オプションの値は無視されてポジショナル引数を値として取得する。
+- コマンドを「必須」にするのはyargsではできないけど工夫すればできる
+- オプションコマンドはyargsで必須にすることができる
+
+
 
 #### 必須コマンドを指定するには
 
@@ -421,15 +266,6 @@ $ node ./dist/index.js collect [...options]
 $ node ./dist/index.js collect <keyword>
 $ node ./dist/index.js bookmark <bookmarkOver> [...options]
 ```
-#### アカウント情報が必要になったら...
-
-promptで入力させる or コマンドで常に必須オプションとする
-
-前者ならいつもコマンド情報が少なくて済むけど
-
-後者は実行のたびにアカウント情報を入力する手間が減る
-
-まぁprompt導入してみますか。
 
 ## Advanced Topics
 
@@ -494,22 +330,10 @@ yargs(process.argv.slice(2))
 ```
 これならcollectとbookmarkの2つをコマンド引数として取得できるのかなぁ
 
-#### `.command()`の実行順序
-
-1. コマンドを現在のコンテキストへ追加する
-2. グローバルじゃない構成をリセットする
-3. `builder`を通してコマンド構成を適用する
-4. 位置コマンド引数含めてコマンドラインをパース、検証する
-5. 検証で合格したら`handler`が実行される
-6. 現在のコンテキストからコマンドをポップする（追い出す）
 
 
-## github issue: multiiple commands
 
-https://github.com/yargs/yargs/issues/225
-
-
-## 実践：20221026
+## 検証
 
 ```TypeScript
 // index.ts
@@ -901,12 +725,183 @@ $ node ./dist/index.js first-command-2
 - .updateString()の役目
 - builderのなかでセカンドコマンド引数とか処理した結果をaへ返す意味
 
-## yargsわかったこと
+検証1：command()のbuilderのなかでひとまずbuilderしてみる
 
-- 通常マルチコマンドはコマンド引数オブジェクトの`_`に配列として取得される。
-- ポジショナルコマンド引数は、マルチコマンドとして処理されず、オプションコマンド引数として処理される。
-- 上記の場合において、同名のオプションを引き取ることになっていた場合、オプションの値は無視されてポジショナル引数を値として取得する。
+```TypeScript
+import yargs from 'yargs/yargs';
 
+// TODO: check this out.
+let argu = yargs(process.argv.splice(2))
+.command(
+  "collect", "collect something",
+  (yargs) => {
+    return yargs
+    .command(
+      "keyword", "collect something by keyword",
+      () => {}, () => {}
+    )
+    .command(
+      "bookmark", "collect something from bookmark",
+      () => {}, () => {}
+    )
+    .help('help')
+    // .wrap(null)
+    .argv;
+  },
+  () => {}
+)
+.command(
+  "bookmarkIt", "bookmark something",
+  () => {}, () => {}
+)
+.help().argv;
 
+console.log(argu);
+```
 
+```bash
+$ node ./dist/index.js collect keyword bookmarkIt
+$ node ./dist/index.js bookmarkIt
+$ node ./dist/index.js keyword
+```
 
+結果、どの入力も`_`のコマンド配列に格納された。
+
+これは.command()の入れ子関係ない振る舞えである。
+
+## マルチコマンドと必須オプションの実現
+
+次のコマンドを受け付けるようにしたい。
+
+```bash
+# collectに続くコマンドbyKeywordとfromBookmarkは必須として、さらに必須オプションもつける
+$ node ./dist/index.js collect byKeyword --keyword="awesome"
+$ node ./dist/index.js collect fromBookmark --keyword="awesome" --author="sumiyao"
+$ node ./dist/index.js bookmark --keyword="COWBOYBEBOP"
+```
+
+つまり、
+
+一番目のコマンド：`collect`, `bookmark`の2種類。
+マルチコマンドの時: `collect byKeyword`, `collect fromBookmark`
+
+問題：
+
+オプションはcommand()のbuilderにて`demand`プロパティをtrueにすることによって必須オプションかどうかを制御することができる
+
+しかし、
+
+コマンド（上記でいえば`collect`, `bookmark`, `byKeyword`, `fromBookmark`はyargsのAPIで必須にできない。
+
+なので
+
+builderで入力されたコマンドの数などを検査する関数を呼び出すようにする。
+
+ひとまずで通ったコード：
+
+```TypeScript
+import yargs from 'yargs';
+import type Yargs from 'yargs/yargs';
+
+type iArgv = {
+  [x: string]: unknown;
+  _: (string | number)[];
+  $0: string;
+} | Promise<{
+  [x: string]: unknown;
+  _: (string | number)[];
+  $0: string;
+}>;
+
+// こいつをbuilder内部で呼び出すことで
+// 入力されたコマンドの数などを検査できる
+const checkCommand = (yargs: yargs.Argv<{}>, argv: iArgv, requiredNumber: number) => {
+  if(argv._.length < requiredNumber) {
+    // show help
+  }
+  else {
+    //...
+  }
+};
+
+const collectBuilder = {
+  // Login ID
+  username: {
+    describe: "username",
+    demandOption: true,
+    type: "string",
+  },
+  // Login Password
+  password: {
+    describe: "password",
+    demandOption: true,
+    type: "string",
+  },
+  // Search keyword
+  keyword: {
+    describe: "keyword",
+    demandOption: false,
+    type: "string",
+  }
+};
+
+const bookmarkBuilder = {
+  bookmarkOver: {
+      describe: "Specify artwork number of Bookmark",
+      demandOption: true,
+      type: "number"
+  },
+  tag: {
+      describe: "Specify tag name must be included",
+      demandOption: false,
+      type: "string"
+  },
+  author: {
+      describe: "Specify author name that msut be included",
+      demandOption: false,
+      type: "string"
+  }
+};
+
+// TODO: check this out.
+let argu = yargs(process.argv.splice(2))
+.command(
+  "collect", "collect something",
+  (yargs) => {
+    const collectArgv = yargs
+    .command(
+      "byKeyword", "collect something by keyword",
+      collectBuilder
+    )
+    .command(
+      "fromBookmark", "collect something from bookmark",
+      collectBuilder
+    )
+    .help('help')
+    .wrap(null)
+    .argv;
+    checkCommand(yargs, collectArgv, 2);
+  },
+  (a) => {
+    // handler collect command...
+  }
+)
+.command(
+  "bookmarkIt", "bookmark something",
+  bookmarkBuilder,
+  (a) => {
+    // handler bookmark command...
+  }
+)
+.help().argv;
+
+checkCommand(yargs, argu, 1);
+
+console.log(argu);
+```
+
+ということで、
+
+checkCommandを、適切なタイミングで呼び出すことでコマンドが正しいかどうかチェックできる。
+
+いまのところ、

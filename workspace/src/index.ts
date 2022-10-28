@@ -1,92 +1,138 @@
-/***
- * TODO: 公式の説明を最初からちゃんと読もう。
+/************************************************************
  * 
- * - マルチコマンドを受け付けるようにする
- * - そのコマンドに必須なオプションがなかったらエラーにする
- * - コマンド必須のときにコマンドがなかったらエラーにする
- * - helpとかは今はいらない
- * 
- * */ 
+ * 結局yargsを使うには型情報を自前で用意するしかない。
+ * ばーか
+ * **********************************************************/ 
 // import { bookmarkCommand } from './bookmarkCommand';
 // import type { iBookmarkOptions } from './bookmarkCommand';
 // import { collectCommand } from './collectCommand';
 // import type { iCollectOptions } from './collectCommand';
-import yargs from 'yargs/yargs';
+import yargs, { Argv } from 'yargs';
+import type Yargs from 'yargs/yargs';
+
+type iArgv = {
+  [x: string]: unknown;
+  _: (string | number)[];
+  $0: string;
+};
+
+// こいつをbuilder内部で呼び出すことで
+// 入力されたコマンドの数などを検査できる
+const checkCommand = (yargs: Argv, argv: iArgv | Promise<iArgv>, requiredNumber: number, requiredCommands: string[]) => {
+  const {_} = argv;
+  if(_.length < requiredNumber) {
+    yargs.showHelp();
+  }
+  else {
+    let c = "";
+    for(const cmd of _) {   // 順番が重要なのでfor..ofを使うこと
+      c = c + cmd;
+    };
+    // 完全一致検査: 完全一致で0を返す
+    if(!requiredCommands.join().localeCompare(c)){
+      // 正しいコマンドを入力した
+      // 処理を続けてOK
+    }
+    else {
+      // 誤ったコマンドを入力している
+    }
+  }
+};
 
 // TODO: check this out.
-let a = yargs(process.argv.splice(2))
+let argu = yargs(process.argv.splice(2))
 .command(
   "collect", "collect something",
   (yargs) => {
-    a = yargs
+    const collectArgv: iArgv = yargs
     .command(
-      "keyword", "collect something by keyword",
-      () => {}, () => {}
+      "byKeyword", "collect something by keyword",
+      {
+        // Login ID
+        username: {
+          describe: "username",
+          demandOption: true,
+          type: "string",
+        },
+        // Login Password
+        password: {
+          describe: "password",
+          demandOption: true,
+          type: "string",
+        },
+        // Search keyword
+        keyword: {
+          describe: "keyword",
+          demandOption: false,
+          type: "string",
+        }
+      }, 
+      () => {}
     )
     .command(
-      "bookmark", "collect something from bookmark",
-      () => {}, () => {}
+      "fromBookmark", "collect something from bookmark",
+      {
+        // Login ID
+        username: {
+          describe: "username",
+          demandOption: true,
+          type: "string",
+        },
+        // Login Password
+        password: {
+          describe: "password",
+          demandOption: true,
+          type: "string",
+        },
+        // Search keyword
+        keyword: {
+          describe: "keyword",
+          demandOption: false,
+          type: "string",
+        }
+      }, 
+      () => {}
     )
     .help('help')
-    // .wrap(null)
+    .wrap(null)
     .argv;
+    checkCommand(yargs, collectArgv, 2);
+  },
+  (a) => {
+    console.log("handler a");
+    console.log(a);
   }
 )
 .command(
-  "bookmark", "bookmark something"
+  "bookmarkIt", "bookmark something",
+  {
+    bookmarkOver: {
+        describe: "Specify artwork number of Bookmark",
+        demandOption: true,
+        type: "number"
+    },
+    tag: {
+        describe: "Specify tag name must be included",
+        demandOption: false,
+        type: "string"
+    },
+    author: {
+        describe: "Specify author name that msut be included",
+        demandOption: false,
+        type: "string"
+    }
+  }, 
+  (a) => {
+    console.log("handler b");
+    console.log(a);
+  }
 )
 .help().argv;
 
-// const argument = yargs(process.argv.splice(2))
-// .command("collect <byKeyword|fromBookmark> [...options]", "collect",
-//   (yargs) => {
-//     return yargs
-//     .positional("byKeyword", {
-//       describe: "Collect by keyword searching.",
-//       type: "string"
-//     })
-//     .positional("fromBookmark", {
-//       describe: "Collect from bookmark collection",
-//       type: "string"
-//     })
-//     .option("keyword", {
-//       describe: "Specify artwork number of Bookmark",
-//       type: "string",
-//       // keywordの時なら必須だけど、bookmarkの時は必須じゃない...
-//       // この矛盾をどう解決したものか
-//       demand: true
-//     })
-//     .option("bookmarkOver", {
-//       describe: "Specify tag name must be included",
-//       type: "number",
-//       demand: false
-//     })
-//     .option("tag", {
-//       describe: "",
-//       type: "string",
-//       demand: false
-//     })
-//     .option("author", {
-//       describe: "Specify author name that msut be included",
-//       type: "string",
-//       demand: false
-//     })
-//   },
-//   (argv) => {
-//     console.log(argv);
-//   }
-// ).help().argv;
+checkCommand(yargs, argu, 1);
 
-// console.log(argument);
 
-/**
- * .help()がどんな役割をするのか確認する
- * 
- * 必須コマンドとオプションはどうやったら実現できるのか
- * Advanced Topicsのサンプルから確認する
- * 
- * 
- * */ 
+console.log(argu);
 
 // (function() {
 //     const bookmarkOptions = {} as iBookmarkOptions; 
