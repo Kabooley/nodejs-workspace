@@ -12,9 +12,7 @@ https://github.com/yargs/yargs/blob/HEAD/docs/typescript.md
 
 [基本](#基本)
 
-[yargsできること](#yargsできること)
-
-[必須コマンドの生成](#必須コマンドの生成)
+[yargsできること](#yargsできること) *yargsはマルチコマンドを実現できない*
 
 [Advanced Topics](#Advanced-Topics)
 
@@ -22,22 +20,24 @@ https://github.com/yargs/yargs/blob/HEAD/docs/typescript.md
 
 [検証](#検証)
 
-[マルチコマンドと必須オプションの実現](#マルチコマンドと必須オプションの実現)
+[実践：マルチコマンドと必須オプションの実現](#実践：マルチコマンドと必須オプションの実現)
 
 参考：
 
 https://github.com/yargs/yargs/issues/225
 
+https://github.com/yargs/yargs/issues/202
+
 TypeScript:
 
-[TypeScript](#TypeScript) TODO: 結局こいつと格闘することになる
+[TypeScript with yargs](#TypeScript with yargs)
 
 
 ## 基本
 
 #### yargsってなに？
 
-さぁ？
+...
 
 #### cliから取得できるもの
 
@@ -197,11 +197,36 @@ wrap(null)で行の文字数に制限をかけない。
 ## yargsできること
 
 - コマンドのヘルプとかをカスタムできる
-- オプションは必須か任意かを指定できる
-- コマンドは必須か任意かは(yargsでは)指定できない
+- .command()で定義したコマンドに対するオプションコマンド引数を定義できる
+- .command()で定義したコマンドに対するオプションコマンド引数を必須に指定できる
 
-yargsわかったこと
 
+#### yargsできないこと
+
+- コマンド(オプションコマンド引数ではない）は必須か任意かは(yargsでは)指定できない
+- **マルチコマンドを扱うことはできない**
+
+参考：
+
+https://github.com/yargs/yargs/issues/225
+
+https://github.com/yargs/yargs/issues/202
+
+つまりyargsはマルチコマンドを入力されても期待するような動作はできず
+
+予期しないコマンドのハンドラが実行される可能性がある。
+
+https://github.com/yargs/yargs/issues/225#issuecomment-128532719
+
+の回答はほぼマルチコマンドを実現できたけど、解決策にはならないみたい。
+
+個人開発ならいいけど、携わっているものいは導入しないほうがいいのだろうね。
+
+マルチコマンドにするのではなくて一つのコマンドで完全に区別するようにしなくてはならない。
+
+#### yargsわかったこと
+
+- **yargsはマルチコマンドを扱うことはできない**
 - 通常マルチコマンドはコマンド引数オブジェクトの`_`に配列として取得される。
 - ポジショナルコマンド引数は、マルチコマンドとして処理されず、オプションコマンド引数として処理される。
 - 上記の場合において、同名のオプションを引き取ることになっていた場合、オプションの値は無視されてポジショナル引数を値として取得する。
@@ -210,62 +235,6 @@ yargsわかったこと
 
 
 
-#### 必須コマンドを指定するには
-
-今度はコマンドを必須にする方法。
-
-ここでいうコマンドとはオプション特別するという意味。
-
-```JavaScript
-yargs.command('get <source> [proxy]', 'make a get HTTP request', (yargs) => {
-  yargs.positional('source', {
-    describe: 'URL to fetch content from',
-    type: 'string',
-    default: 'http://www.google.com'
-  }).positional('proxy', {
-    describe: 'optional proxy URL'
-  })
-})
-.help()
-.argv
-```
-
-上記の場合、
-
-コマンド`get`に続くコマンド`<source>`は必須となる。`[proxy]`はオプショナルである。
-
-さらに順番を守る必要がある。
-
-## 入力コマンドの見直し
-
-何を実装したいのか？
-
-- 指定キーワードまたは条件に一致したartworkのブックマーク
-- 指定キーワードまたは条件に一致したartworkの情報収集(いらないなぁ)
-- 指定キーワードまたは条件に一致したartworkのダウンロード（これはしない方がいい）
-- ブックマークartworkのダウンロード（同上）
-- ログイン情報(promptを使って後から入力でもいいかも...めんどくさいけど)
-
-大きな区別：
-
-- 収集：情報の収集またはartworkのダウンロード
-- ブックマーク：条件に一致する対象のブックマークの実施
-
-両方したいときは？
-
-これなんだわ。
-
-。。。まぁしなくてもいいか。
-
-```bash
-$ node ./dist/index.js collect 
-$ node ./dist/index.js collect [...options]
-```
-
-```bash
-$ node ./dist/index.js collect <keyword>
-$ node ./dist/index.js bookmark <bookmarkOver> [...options]
-```
 
 ## Advanced Topics
 
@@ -769,7 +738,7 @@ $ node ./dist/index.js keyword
 
 これは.command()の入れ子関係ない振る舞えである。
 
-## マルチコマンドと必須オプションの実現
+## 実践：マルチコマンドと必須オプションの実現
 
 次のコマンドを受け付けるようにしたい。
 
@@ -782,126 +751,262 @@ $ node ./dist/index.js bookmark --keyword="COWBOYBEBOP"
 
 つまり、
 
-一番目のコマンド：`collect`, `bookmark`の2種類。
-マルチコマンドの時: `collect byKeyword`, `collect fromBookmark`
+VALID: `collect byKeyword [options]`または`collect fromBookmark [options]`
+VALID: `bookmark [options]`
+INVALID: `collect bookmark`
+INVALID: `collect [options]`または`collect`単体
 
-問題：
+を実現したい。
 
-オプションはcommand()のbuilderにて`demand`プロパティをtrueにすることによって必須オプションかどうかを制御することができる
+先のissueの調査([yargsできないこと](#yargsできないこと))により、yargsはマルチコマンドを実現できない！
 
 しかし、
 
-コマンド（上記でいえば`collect`, `bookmark`, `byKeyword`, `fromBookmark`はyargsのAPIで必須にできない。
+https://github.com/yargs/yargs/issues/225#issuecomment-128532719
 
-なので
-
-builderで入力されたコマンドの数などを検査する関数を呼び出すようにする。
-
-ひとまずで通ったコード：
+上記の解答で示されたやりかたはうまくいきそうなので実践してみる。
 
 ```TypeScript
-import yargs from 'yargs';
-import type Yargs from 'yargs/yargs';
+import yargs from 'yargs/yargs';
+import type { Argv } from 'yargs'
+// yargsのcommandモジュール
+import { bookmarkCommand, iBookmarkOptions } from './bookmarkCommand';
+import { collectCommand, iCollectOptions } from './collectCommand';
 
-type iArgv = {
-  [x: string]: unknown;
-  _: (string | number)[];
-  $0: string;
+// yargs()が返すオブジェクト
+type iArguments =  {
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
 } | Promise<{
-  [x: string]: unknown;
-  _: (string | number)[];
-  $0: string;
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
 }>;
 
-// こいつをbuilder内部で呼び出すことで
-// 入力されたコマンドの数などを検査できる
-const checkCommand = (yargs: yargs.Argv<{}>, argv: iArgv, requiredNumber: number) => {
-  if(argv._.length < requiredNumber) {
-    // show help
-  }
-  else {
-    //...
-  }
+// yargs()が返すオブジェクトのtupleのうちのPromise部分
+type iArgumentsPromise = Promise<{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+}>;
+
+
+const checkCommands = (a: Exclude<iArguments, iArgumentsPromise>, requiredNumber: number) => {
+    if(a._.length < requiredNumber) {
+        console.log("'collect' command expects at least 1 more parameter.");
+    }
+    if(a._.includes("byKeyword") && a._.includes("fromBookmark")) {
+        console.log("Wrong command. Choose one of 'collect byKeyword' or 'collect fromBookmark'.");
+    }
+    
 };
 
-const collectBuilder = {
-  // Login ID
-  username: {
-    describe: "username",
-    demandOption: true,
-    type: "string",
-  },
-  // Login Password
-  password: {
-    describe: "password",
-    demandOption: true,
-    type: "string",
-  },
-  // Search keyword
-  keyword: {
-    describe: "keyword",
-    demandOption: false,
-    type: "string",
-  }
-};
-
-const bookmarkBuilder = {
-  bookmarkOver: {
-      describe: "Specify artwork number of Bookmark",
-      demandOption: true,
-      type: "number"
-  },
-  tag: {
-      describe: "Specify tag name must be included",
-      demandOption: false,
-      type: "string"
-  },
-  author: {
-      describe: "Specify author name that msut be included",
-      demandOption: false,
-      type: "string"
-  }
-};
-
-// TODO: check this out.
-let argu = yargs(process.argv.splice(2))
-.command(
-  "collect", "collect something",
-  (yargs) => {
-    const collectArgv = yargs
+export const input = yargs(process.argv.splice(2))
     .command(
-      "byKeyword", "collect something by keyword",
-      collectBuilder
+        collectCommand.command,
+        collectCommand.description,
+        (yargs: Argv) => {
+                const collectCommandOptions = yargs
+                .command(
+                    "byKeyword", "",
+                    collectCommand.builder
+                    // ここでハンドラを呼び出さないこと
+                )
+                .command(
+                    "fromBookmark", "",
+                    collectCommand.builder
+                    // ここでハンドラを呼び出さないこと
+                )
+                .help('help')
+                .wrap(null).argv as Exclude<iArguments, iArgumentsPromise>;
+
+                // マルチコマンドのハンドラ替わり
+                checkCommands(collectCommandOptions, 2);
+        },
+        // 
+        // ここのハンドラは"collect byKeyword"または"collect fromBookmark"以外のコマンドを
+        // collectに続けて（またはcollect単体で）入力したときに実行される
+        // なので
+        // 'collect'はコマンドを続けて入力するのを必須としたいような場合に
+        // ここでコマンドを検査するようにするとよい
+        // 
+        // 今のところこのhandlerが実行されるとき、checkCommands()も実行される
+        (a) => {
+            if(a._.length < 2) {
+                console.log("'collect' command expects at least 1 more parameter.");
+            }
+            if(a._.includes('bookmark')) {
+                console.log("Wrong command. 'bookmark' command cannot be used with 'collect'.");
+            }
+        }
     )
     .command(
-      "fromBookmark", "collect something from bookmark",
-      collectBuilder
+        bookmarkCommand.command,
+        bookmarkCommand.description,
+        bookmarkCommand.builder,
+        bookmarkCommand.handlerWrapper(bookmarkOptions)
     )
-    .help('help')
+    .help()
     .wrap(null)
     .argv;
-    checkCommand(yargs, collectArgv, 2);
-  },
-  (a) => {
-    // handler collect command...
-  }
-)
-.command(
-  "bookmarkIt", "bookmark something",
-  bookmarkBuilder,
-  (a) => {
-    // handler bookmark command...
-  }
-)
-.help().argv;
-
-checkCommand(yargs, argu, 1);
-
-console.log(argu);
 ```
 
-ということで、
+実験：TODO: 要検証
 
-checkCommandを、適切なタイミングで呼び出すことでコマンドが正しいかどうかチェックできる。
+```bash
+# 結果
 
-いまのところ、
+```
+
+
+## TypeScript with yargs
+
+#### 基本
+
+```TypeScript
+
+import yargs from 'yargs/yargs';    // yargsをインポートするとき
+import type { Argv } from 'yargs'   // yargs()の戻り値の型
+import type Yargs from 'yargs';     // yargsを型としてインポートするときで、値としてのyargsと区別したいとき
+
+const argv: {
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+} | Promise<{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+}>
+// またはargv: Argv
+= yargs(process.argv.slice(2)).help().argv;
+function checkCommands(argv, yargs: Argv) {
+    // ...
+}
+```
+
+#### 実践において経験したTypeScriptの導入
+
+いきなりだけど、期待通りに動作する例：
+
+```TypeScript
+import yargs from 'yargs/yargs';
+import type { Argv } from 'yargs'
+
+// yargs()が返すオブジェクト
+type iArguments =  {
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+} | Promise<{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+}>;
+
+// yargs()が返すオブジェクトのtupleのうちのPromise部分
+type iArgumentsPromise = Promise<{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+}>;
+
+
+// let isCorrect: boolean = false;
+const bookmarkOptions = {} as iBookmarkOptions; 
+const collectOptions = {} as iCollectOptions;
+
+const checkCommands = (a: Exclude<iArguments, iArgumentsPromise>, requiredNumber: number) => {
+    if(a._.length < requiredNumber) {
+        console.log("'collect' command expects at least 1 more parameter.");
+    }
+};
+
+export const input = yargs(process.argv.splice(2))
+    .command(
+        "collect", "collect something by keyword or from bookmark",
+        (yargs: Argv) => {
+                const collectCommandOptions = yargs
+                .command(
+                    "byKeyword", "",
+                    // ...
+                )
+                .command(
+                    "fromBookmark", "",
+                    // ...
+                )
+                .help('help')
+                .wrap(null).argv as Exclude<iArguments, iArgumentsPromise>;
+                checkCommands(collectCommandOptions, 2);
+        },
+        (a) => {
+            // ...
+        }
+    )
+    .command("bookmark", "bookmark something", () => {})
+    .help()
+    .wrap(null)
+    .argv;
+```
+
+つまり、
+
+`yargs().argv`が返すのは以下の通りに型推論された。
+
+```TypeScript
+{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+} | Promise<{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+}>;
+```
+
+なのでこの戻り値を型付けしたいと思ったときにどうしてもPromise<>が入る。
+
+そうすると、
+
+```TypeScript
+type iArguments =  {
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+} | Promise<{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+}>;
+
+// aの型がiArgumentsだと
+const checkCommands = (a: iArguments, requiredNumber: number) => {
+    // エラー！a._というプロパティは存在しない
+    if(a._.length < requiredNumber) {
+        console.log("'collect' command expects at least 1 more parameter.");
+    }
+};
+```
+
+となる。これはaがPromise<>を取りうるせいである。
+
+yargsは非同期にコマンドを解決できる仕様なので、本来そうすべきではないのだろうけど
+
+Promise<>を除外する。
+
+```TypeScript
+type iArgumentsPromise = Promise<{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+}>;
+
+yargs(process.argv.splice(2))
+    // ...
+    .help('help')
+    .wrap(null).argv as Exclude<iArguments, iArgumentsPromise>;
+    checkCommands(collectCommandOptions, 2);    // no error
+```
+

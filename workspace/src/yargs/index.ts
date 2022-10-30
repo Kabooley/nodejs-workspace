@@ -23,21 +23,23 @@ type iArgumentsPromise = Promise<{
     $0: string;
 }>;
 
-
-// let isCorrect: boolean = false;
 const bookmarkOptions = {} as iBookmarkOptions; 
 const collectOptions = {} as iCollectOptions;
 
-// どうやらyargsが返すオブジェクトを型付けすると
-// 以下のように`Yargs.ArgumentsCamelCase<{}>`となるみたい
-// const checkCommands = (a: Yargs.ArgumentsCamelCase<{}>, requiredNumber: number) => {
 const checkCommands = (a: Exclude<iArguments, iArgumentsPromise>, requiredNumber: number) => {
     if(a._.length < requiredNumber) {
         console.log("'collect' command expects at least 1 more parameter.");
     }
-    if(!a._.includes("byKeyword") || !a._.includes("byKeyword")) {
-        console.log("Wrong command.");
+    if(a._.includes("byKeyword") && a._.includes("fromBookmark")) {
+        console.log("Wrong command. Choose one of 'collect byKeyword' or 'collect fromBookmark'.");
     }
+    if(a._.includes("byKeyword") && a._.length === 2) {
+        // handler for 'collect byKeyword' command.
+    }
+    if(a._.includes("fromBookmark") && a._.length === 2) {
+        // handler for 'collect fromBookmark' command.
+    }
+    // TODO: 'collect bookmark'の場合もここでチェックすべきか、'collect'のハンドラに任せるべきか検証
 };
 
 export const input = yargs(process.argv.splice(2))
@@ -57,7 +59,7 @@ export const input = yargs(process.argv.splice(2))
                     collectCommand.handlerWrapper(collectOptions)
                 )
                 .help('help')
-                // Promise<>の場合を取り除く
+                // NOTE: Promise<>の場合を取り除く
                 // そうしないとcheckCommands()へ戻り値を渡すことができない。
                 .wrap(null).argv as Exclude<iArguments, iArgumentsPromise>;
 
@@ -73,17 +75,22 @@ export const input = yargs(process.argv.splice(2))
         // なので
         // 'collect'はコマンドを続けて入力するのを必須としたいような場合に
         // ここでコマンドを検査するようにするとよい
+        // 
+        // 今のところこのhandlerが実行されるとき、checkCommands()も実行される
         (a) => {
             if(a._.length < 2) {
                 console.log("'collect' command expects at least 1 more parameter.");
             }
-            // 少なくともbyKeywordまたはfromBookmarkが含まれているかどうかのチェック
+            if(a._.includes('bookmark')) {
+                console.log("Wrong command. 'bookmark' command cannot be used with 'collect'.");
+            }
         }
     )
     .command(
         bookmarkCommand.command,
         bookmarkCommand.description,
         bookmarkCommand.builder,
+        // TODO: 'bookmark collect'というコマンドに対処できているか検証
         bookmarkCommand.handlerWrapper(bookmarkOptions)
     )
     .help()
