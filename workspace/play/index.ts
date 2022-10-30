@@ -1,28 +1,56 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type http from 'http';
-import { Downloader } from '../../web-scrape/src/components/http';
+import { Downloader, iOptions } from './http';
 
-(function() {
-  const options: http.RequestOptions = {
-    hostname: "cdn8.dirtyship.net",
-    path: "/dirtyship/cdn2/AftynRosetryonhaulv.mp4",
-    method: "GET",
-    protocol: "https",
-    headers: {
-      refer: "https://dirtyship.com/"
+// https://raw.githubusercontent.com/wiki/Microsoft/DirectXTK/images/cat.png
+(async function() {
+    try {
+        const options: iOptions = {
+            host: "raw.githubusercontent.com",
+            path: "/wiki/Microsoft/DirectXTK/images/cat.png",
+            protocol: "https:",
+            method: "GET",
+        };
+        const ws = fs.createWriteStream(
+            path.join(__dirname, "cat.png"),
+            {
+                encoding: 'binary',     /* default: 'utf8' */
+                autoClose: true,
+                emitClose: true,
+                highWaterMark: 1024     /* default: 64 * 1024 */
+            }
+        );
+        const downloader = new Downloader(options, ws);
+        await downloader.download();
     }
-  };
-
-  const ws: fs.WriteStream = fs.createWriteStream()
-
-
+    catch(e) {
+        console.error(e);
+    }
 })();
-
-// https://cdn8.dirtyship.net/dirtyship/cdn2/AftynRosetryonhaulv.mp4
-
-// https://cdn7.dirtyship.net/cdn2/aftyrosesexynightv.mp4
-
-// https://cdn7.dirtyship.net/cdn2/aftyngfneedsattv.mp4
-
-// https://dirtyship.com/aftynrose-asmr-sexy-try-on-haul-outdoor-video-leaked/
+// (async function() {
+//     try {
+//         const options: iOptions = {
+//             host: "cdn8.dirtyship.net",
+//             path: "/dirtyship/cdn2/AftynRosetryonhaulv.mp4",
+//             protocol: "https:",
+//             method: "GET",
+//             headers: {
+//                 referer: "https://dirtyship.com/"
+//             }
+//         };
+//         const ws = fs.createWriteStream(
+//             path.join(__dirname, "AftynRosetryonhaulv.mp4"),
+//             {
+//                 encoding: 'binary',     /* default: 'utf8' */
+//                 autoClose: true,
+//                 emitClose: true,
+//                 highWaterMark: 1024     /* default: 64 * 1024 */
+//             }
+//         );
+//         const downloader = new Downloader(options, ws);
+//         await downloader.download();
+//     }
+//     catch(e) {
+//         console.error(e);
+//     }
+// })();
