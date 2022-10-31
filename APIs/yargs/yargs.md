@@ -101,7 +101,7 @@ yargsではPromiseチェーンみたいにyargsのメソッドをつないでい
 yargsは.argvをつけなければただの定義分で、argvをつけることで実行してくれる。
 
 
-> 注意：**.argvはトップレベルでのみ使用し、コマンドのビルダー関数の中では使用しないでください。**
+> 注意：**.argvはトップレベルでのみ使用し、`.command()`の`builder`関数の中では使用しないでください。**
 
 
 #### `.command()`
@@ -852,13 +852,259 @@ export const input = yargs(process.argv.splice(2))
     .argv;
 ```
 
-実験：TODO: 要検証
+実験：
 
 ```bash
 # 結果
 
+# 正しい使い方をしたとき：
+# checkCommands()のif条件が一致してifブロックが実行された
+$ node ./dist/index.js collect byKeyword --keyword="CBREEZY"
+CBREEZY
+result:
+{
+  _: [ 'collect', 'byKeyword' ],
+  keyword: 'CBREEZY',
+  '$0': 'dist/index.js'
+}
+# 同様
+$ node ./dist/index.js collect fromBookmark --keyword="CBREEZY"
+CBREEZY
+result:
+{
+  _: [ 'collect', 'fromBookmark' ],
+  keyword: 'CBREEZY',
+  '$0': 'dist/index.js'
+}
+
+# 間違ったコマンドを渡したとき：collectだけ渡した
+# checkCommands()と'collect'のハンドラの両方が実行された
+# 
+# 単純に`collect`コマンドだけだったからそのhandlerが実行されただけ
+$ node ./dist/index.js collect 
+'collect' command expects at least 1 more parameter.
+'collect' command expects at least 1 more parameter.
+result:
+{ _: [ 'collect' ], '$0': 'dist/index.js' }
+
+# 間違ったコマンドを渡したとき：collectにつづけてbookmarkを渡した
+# 
+# その時は最初のコマンドcommand()が実行される模様
+# なのでハンドラは`collect`のハンドラが実行された
+$ node ./dist/index.js collect bookmark
+Wrong command. 'bookmark' command cannot be used with 'collect'.
+result:
+{ _: [ 'collect', 'bookmark' ], '$0': 'dist/index.js' }
+
+# 今のところbookmarkを渡したらcollectのcommandの内容は一切登場しない
+$ node ./dist/index.js bookmark
+index.js bookmark
+
+Bookmark artwork if it satifies given command options.
+
+Options:
+  --version       Show version number  [boolean]
+  --help          Show help  [boolean]
+  --bookmarkOver  Specify artwork number of Bookmark  [number] [required]
+  --tag           Specify tag name must be included  [string]
+  --author        Specify author name that msut be included  [string]
+
+Missing required argument: bookmarkOver
+$ node ./dist/index.js collect --keyword="YOUNGMONERY"
+'collect' command expects at least 1 more parameter.
+'collect' command expects at least 1 more parameter.
+result:
+{ _: [ 'collect' ], keyword: 'YOUNGMONERY', '$0': 'dist/index.js' }
 ```
 
+検証：`collect`の`command()`のハンドラをなくしてみる
+
+```bash
+$ npx tsc
+# 
+# ハンドラの実行重複は、`collect`を単体だけ渡したときは解消されたけど...
+# 
+$ node ./dist/index.js collect 
+'collect' command expects at least 1 more parameter.
+result:
+{ _: [ 'collect' ], '$0': 'dist/index.js' }
+
+# 
+# 誤ったコマンドをマルチで渡したときは何も反応しなかった
+# おそらくcheckCommands()の条件分岐に引っかからなかっただけ
+# 
+$ node ./dist/index.js collect bookmark
+result:
+{ _: [ 'collect', 'bookmark' ], '$0': 'dist/index.js' }
+$ node ./dist/index.js collect --chrisbrown="CBREEZY"
+'collect' command expects at least 1 more parameter.
+result:
+{ _: [ 'collect' ], chrisbrown: 'CBREEZY', '$0': 'dist/index.js' }
+$ node ./dist/index.js bookmark colelct
+index.js bookmark
+
+Bookmark artwork if it satifies given command options.
+
+Options:
+  --version       Show version number  [boolean]
+  --help          Show help  [boolean]
+  --bookmarkOver  Specify artwork number of Bookmark  [number] [required]
+  --tag           Specify tag name must be included  [string]
+  --author        Specify author name that msut be included  [string]
+
+Missing required argument: bookmarkOver
+$ node ./dist/index.js collect byKeyword --keyword="ayo"
+ayo
+result:
+{
+  _: [ 'collect', 'byKeyword' ],
+  keyword: 'ayo',
+  '$0': 'dist/index.js'
+}
+```
+
+わかったこと：
+
+- `collect`の`command()`にはハンドラを設置してはならないことと、
+
+- 想定されるあらゆるコマンドの入力の対処をhandlerの代わりにcheckCommands()にすべて盛り込む必要があること。
+
+想定されるコマンド：
+
+- `collect` : 対処済
+- `collect undefined-command`: 未対処
+- `collect [undefined-options]`: 対処済
+
+ということで想定されないコマンドを`collect`に続けて入力されたときを想定する
+
+_には`collect`と`byKeyword`または`collect`と`fromBookmark`の2通りだけ以外は受け付けない条件にすること
+
+_.length === 2: これはcheckCommandsに盛り込み済
+_.length.includes("collect"): これはyargsの仕様で解決済
+!_.includes("beyKeyword")&&!_.includes("fromBookmark") === true: これをもりこめばいいかしら
+
+盛り込んだ。下記の通り。
+
+#### 完成
+
+```TypeScript
+import yargs from 'yargs/yargs';
+import type { Argv } from 'yargs'
+import { bookmarkCommand, iBookmarkOptions } from './bookmarkCommand';
+import { collectCommand, iCollectOptions } from './collectCommand';
+
+// yargs()が返すオブジェクト
+type iArguments =  {
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+} | Promise<{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+}>;
+
+// yargs()が返すオブジェクトのtupleのうちのPromise部分
+type iArgumentsPromise = Promise<{
+    [x: string]: unknown;
+    _: (string | number)[];
+    $0: string;
+}>;
+
+const bookmarkOptions = {} as iBookmarkOptions; 
+const collectOptions = {} as iCollectOptions;
+
+/****
+ * Handles and check `collect <byKeyword|fromBookmark>` commands are valid.
+ * 
+ * `collect`と`collect byKeyword`と`collect bookmark`のすべての
+ * コマンドの入力検査とハンドリングを担う。
+ * */ 
+const checkCommands = (a: Exclude<iArguments, iArgumentsPromise>, requiredNumber: number) => {
+    console.log("CHECK COMMANDS");
+    // コマンド引数が足りない
+    if(a._.length < requiredNumber) {
+        console.log("'collect' command expects at least 1 more parameter.");
+        // throw new Error();
+    }
+    // 関係ないコマンドを入力していないか
+    if(!a._.includes("byKeyword") && !a._.includes("fromBookmark")){
+        console.log("You input unnecessary command following 'collect'.");
+        // throw new Error();
+    }
+    // byKeywordもfromBookmarkも両方入れられている
+    // これはむしろ数ではじいた方がいいかも
+    if(a._.includes("byKeyword") && a._.includes("fromBookmark")) {
+        console.log("Wrong command. Choose one of 'collect byKeyword' or 'collect fromBookmark'.");
+        // throw new Error();
+    }
+
+    // handling each commands.
+
+    if(a._.includes("byKeyword") && a._.length === 2) {
+        // handler for 'collect byKeyword' command.
+        console.log(a!.keyword);
+        // retrieve options into object.
+    }
+    if(a._.includes("fromBookmark") && a._.length === 2) {
+        // handler for 'collect fromBookmark' command.
+        console.log(a!.keyword);
+        // retrieve options into object.
+    }
+};
+
+export const input = yargs(process.argv.splice(2))
+    .command(
+        collectCommand.command,
+        collectCommand.description,
+        (yargs: Argv) => {
+                const collectCommandOptions = yargs
+                .command(
+                    "byKeyword", "",
+                    collectCommand.builder
+                    // NOTE: DO NOT CALL handler here for works multi commands.
+                )
+                .command(
+                    "fromBookmark", "",
+                    collectCommand.builder
+                    // NOTE: DO NOT CALL handler here for works multi commands.
+                )
+                .help('help')
+                // NOTE: Promise<>の場合を取り除く
+                // そうしないとcheckCommands()へ戻り値を渡すことができない。
+                .wrap(null).argv as Exclude<iArguments, iArgumentsPromise>;
+
+                checkCommands(collectCommandOptions, 2);
+        }
+        // NOTE: DO NOT CALL handler here for works multi commands.
+
+    )
+    .command(
+        bookmarkCommand.command,
+        bookmarkCommand.description,
+        bookmarkCommand.builder,
+        bookmarkCommand.handlerWrapper(bookmarkOptions)
+    )
+    .help()
+    .wrap(null)
+    .argv;
+```
+
+`.argv`は`.command()`のなかの`builder`では使うなと公式に明記されているし、
+
+マルチコマンドは実現できないとされているけれど
+
+上記の通りにすればひとまずは実現できた。
+
+ただしyargsの本来の機能を無視している部分があるので
+
+そこは開発者側が気を付ける必要がある。
+
+たとえばcheckCommands()で条件に一致したら本来通してはいけない場合
+
+errorを投げるなどの停止措置を盛り込まないと
+
+上記のコードの場合yargsは特に停止してくれない。
 
 ## TypeScript with yargs
 
