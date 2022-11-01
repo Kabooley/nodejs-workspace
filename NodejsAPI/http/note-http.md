@@ -17,7 +17,7 @@ https://nodejs.org/dist/latest-v16.x/docs/api/http.html#class-httpclientrequest
 
 `http.ClientRequest`は内部的に生成されて、`http.request()`から返されることで取得することができる。
 
-これは、ヘッダーがすでにキューに入れられている進行中のリクエストを表します。
+これは、HTTPヘッダーがすでにキューに入れられている進行中のリクエストを表します。
 
 ヘッダーは`setHeader(name, value)`, `getHeader(name)`, `removeHeader(name)` APIでまだ変更可能である。
 
@@ -290,20 +290,52 @@ https://nodejs.org/dist/latest-v16.x/docs/api/http.html#httprequestoptions-callb
 
 ## `request.end()`が必須だけど、いつ呼び出せばいいの？
 
+結論：*リクエストの送信を完了したら*
+
 `http.request()`APIの説明のところで`request.end()`呼び出しが必須と書いてあったので、
 
 送信完了したことを確認してからendするようにする。
 
-問題は、「リクエストの完了」が、サーバにもうレスポンス返さなくていいよのサインになるかもしれないということ。
+リクエストを送信したことを完了したということをサーバに知らせるだけで、
 
-レスポンスおくっている途中で、リクエスト完了信号を受信してサーバが途中だけどレスポンス返すのやめるかもしれない...
+レスポンスをもう返さなくていいよということを知らせるわけではない。
 
-それを検証しないとわからない。（公式には載っていない...クソ）
+公式は以下のように述べている。
+
+https://nodejs.org/dist/latest-v16.x/docs/api/http.html#class-httpclientrequest
+
+> The actual header will be sent along with the first data chunk or when calling request.end().
+
+つまり`request.end()`を呼び出してからリクエストヘッダを送信するので
+
+さっさとend()を呼び出してしまえばよい。
+
+なので以下のようにして大丈夫
+
+```TypeScript
+  const req: http.ClientRequest = https.request(options ? options : this.options, (res: http.IncomingMessage)  => {
+      if(res.statusCode !== 200) throw new Error(`Error: Server reapond ${res.statusCode}. ${res.statusMessage}`);
+      this.res = res;
+      this._setEventListener();
+  });
+
+  req.on('error', (e: Error) => { console.error(e);});
+  req.on('finish', () => { console.log("req: finished."); });
+  req.on('close', () => { console.log("req: closed."); });
+  req.on('end', () => { console.log("req: end."); });
+  req.end(() => {console.log("req: Request stream is finished"); });
+```
+
+つまり`http.request()`の戻り値が返ってきたらすぐ呼出していいのかも。
+
+`POST`のときにめちゃおおきなデータを送信するとかなったらすぐに`end()`しない方がいいのかしら？
+
+まぁそれは別の機会に。
 
 ## `http.request()`でエラー発生したときの適切な終了のさせ方は？
+
+TODO: 要検証
 
 fsの時みたいに、`writable.destroy()`、`readable.destroy()`していいの？
 
 それとも`http.end()`を呼び出してちゃんとサーバに信号おくったほうがいいの？
-
-それとも

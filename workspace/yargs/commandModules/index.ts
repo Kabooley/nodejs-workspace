@@ -53,17 +53,17 @@ const checkCommands = (a: Exclude<iArguments, iArgumentsPromise>, requiredNumber
 
     if(a._.includes("byKeyword") && a._.length === 2) {
         // handler for 'collect byKeyword' command.
-        console.log(a!.keyword);
         // retrieve options into object.
+        collectCommand.handlerWrapper(collectOptions)(a);
     }
     if(a._.includes("fromBookmark") && a._.length === 2) {
         // handler for 'collect fromBookmark' command.
-        console.log(a!.keyword);
         // retrieve options into object.
+        collectCommand.handlerWrapper(collectOptions)(a);
     }
 };
 
-export const input = yargs(process.argv.splice(2))
+const input = yargs(process.argv.splice(2))
     .command(
         collectCommand.command,
         collectCommand.description,
@@ -98,3 +98,9 @@ export const input = yargs(process.argv.splice(2))
     .help()
     .wrap(null)
     .argv;
+
+export const commands = {
+    argv: input,
+    collectOptions: collectOptions,
+    bookmarkOptions: bookmarkOptions
+}; 

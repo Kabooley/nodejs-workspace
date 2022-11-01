@@ -7,6 +7,9 @@ import { search } from './components/search';
 import { collectFromSearchResult } from './components/collectFromResultPage';
 import type { iBodyIncludesIllustManga } from './components/Collect';
 import { collectArtworkData } from './components/collectFromArtworkPage';
+// TODO: account情報はpromptで入力するようにする
+// そのうえでaccount情報をコマンド入力必須にしないようにする
+// import { commands } from './cliParser/index';
 // import { login } from './components/login';
 
 // 
