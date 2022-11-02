@@ -7,9 +7,8 @@ import { search } from './components/search';
 import { collectFromSearchResult } from './components/collectFromResultPage';
 import type { iBodyIncludesIllustManga } from './components/Collect';
 import { collectArtworkData } from './components/collectFromArtworkPage';
-// TODO: account情報はpromptで入力するようにする
-// そのうえでaccount情報をコマンド入力必須にしないようにする
-// import { commands } from './cliParser/index';
+import { commands } from './commandParser/index';
+import type { iCommands } from './commandParser/index';
 // import { login } from './components/login';
 
 // 
@@ -25,7 +24,6 @@ interface iCommand {
 let browser: puppeteer.Browser | undefined;
 let page: puppeteer.Page | undefined;
 let escapedKeyword: string = "";
-const commands: iCommand = {};
 const options: puppeteer.PuppeteerLaunchOptions = {
     headless: true,
     args: ['--disable-infobars'],
@@ -34,30 +32,33 @@ const options: puppeteer.PuppeteerLaunchOptions = {
     slowMo: 150,
 };
 
+const isObjectEmpty = (o: object): boolean => {
+    return Object.keys(o).length === 0 ? true : false; 
+};
+
+const 
 
 // 
-// -- COMMAND MANAGER --
 // 
-yargs(process.argv.slice(2)).command(commandName, commandDesc, 
-    {...builder},   // {...builder}とするのと、builderに一致するinterfaceが必須となっている...
-    (args) => {
-        console.log(`username: ${args.username}. password: ${args.password}. keyword: ${args.keyword}`);
-        commands['username'] =args.username;
-        commands['password'] =args.password;
-        commands['keyword'] =args.keyword;
-        escapedKeyword = encodeURIComponent(args.keyword!);
-        console.log(commands);
-}).argv;
-
-
+const checkCommands = (c: iCommands) => {
+    const { argv, collectOptions, bookmarkOptions } = c;
+    if(!isObjectEmpty(collectOptions)) {
+        // There is order to 'collect'
+        // Retrieve sub command
+        const {_} = argv;
+        
+    }
+    if(!isObjectEmpty(bookmarkOptions)) {
+        // There is order to 'bookmark'
+    }
+}; 
 
 // 
 // -- MAIN PROCESS --
 // 
 (async function() {
     try {
-        const {username, password, keyword} = commands;
-        if(!username || !password || !keyword) throw new Error("command option is required");
+
 
         browser = await puppeteer.launch(options);
         page = await initialize(browser);

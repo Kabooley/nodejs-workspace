@@ -54,4 +54,24 @@ export const builder: iCollectCommand = {
   //   demandOption: false,
   //   type: "string"
   // }
-}
+};
+
+
+// --- USAGE ---
+// 
+// const commands: iCommand = {};
+// // 
+// // -- COMMAND MANAGER --
+// // 
+// yargs(process.argv.slice(2)).command(commandName, commandDesc, 
+//   {...builder},   // {...builder}とするのと、builderに一致するinterfaceが必須となっている...
+//   (args) => {
+//       console.log(`username: ${args.username}. password: ${args.password}. keyword: ${args.keyword}`);
+//       commands['username'] =args.username;
+//       commands['password'] =args.password;
+//       commands['keyword'] =args.keyword;
+//       escapedKeyword = encodeURIComponent(args.keyword!);
+//       console.log(commands);
+// }).argv;
+// const {username, password, keyword} = commands;
+// if(!username || !password || !keyword) throw new Error("command option is required");
