@@ -1,5 +1,5 @@
 import yargs from 'yargs/yargs';
-import type { Argv } from 'yargs'
+import { Argv, string } from 'yargs'
 import { bookmarkCommand, iBookmarkOptions } from './bookmarkCommand';
 import { collectCommand, iCollectOptions } from './collectCommand';
 
@@ -31,64 +31,45 @@ const expectedSubCommands: string[] = ["byKeyword", "fromBookmark"];
  * `collect`と`collect byKeyword`と`collect bookmark`のすべての
  * コマンドの入力検査とハンドリングを担う。
  * */ 
-const checkCommands = (a: Exclude<iArguments, iArgumentsPromise>, requiredNumber: number) => {
-    console.log("CHECK COMMANDS");
-    // コマンド引数が足りない
-    if(a._.length < requiredNumber) {
-        console.log("'collect' command expects at least 1 more parameter.");
+const checkCommands = (y: Argv, a: Exclude<iArguments, iArgumentsPromise>, requiredNumber: number) => {
+
+    // _ includes commands.
+    const { _ } = a;
+
+    // Insufficient number of arguments
+    if(_.length < requiredNumber) {
+        console.log("Subcommand is missing. 'collect' command expects 1 more subcommand.");
+        y.showHelp();
         // throw new Error();
     }
-    // CHECK SUBCOMMANDS ARE CORRECT.
-    // 
-    // TODO: 要改善：ハードコーディングを避ける
-    // 関係ないコマンドを入力していないか
-    // if(!a._.includes("byKeyword") && !a._.includes("fromBookmark")){
-    //     console.log("You input unnecessary command following 'collect'.");
-    //     // throw new Error();
-    // }
-
-    // sub commandは先の検査で入力数が正しいとする
-    // a._[1]を比較対象とする
-    let isSubcommandCorrect: boolean = false;
-    for(const subcommand of expectedSubCommands) {
-
-        // DEBUG:
-        console.log(subcommand);
-        console.log(a._[1]);
-        console.log(isSubcommandCorrect);
-        console.log(a._[1] === subcommand);
-
-        // This operator will return true if one of operand is true. 
-        isSubcommandCorrect = isSubcommandCorrect || a._[1] === subcommand;
-    }
-
-
-    if(!isSubcommandCorrect) {
-        console.log("There is no expected subcommand.");
-        console.log(`Expected subcommands for 'collect' are: ${expectedSubCommands.join(',')}`);
-        // throw new Erorr();
+    // Excessive number of arguments
+    if(_.length > requiredNumber) {
+        console.log("Too much subcommands. 'collect' command expects only 1 additional subcommand.");
+        y.showHelp();
+        // throw new Error();
     }
 
     // CHECK EVERY SUBCOMMANDS ARE INCLUDED.
+    // すべての期待されるサブコマンドが含まれてしまっていないか検査する
+    // NOTE: この検査機能は本当はいらない。すでにコマンド引数の数ではじいているから。
     // 
-    // byKeywordもfromBookmarkも両方入れられている
-    // これはむしろ数ではじいた方がいいかも
-    if(a._.includes("byKeyword") && a._.includes("fromBookmark")) {
+    // TODO: test this.
+    if(expectedSubCommands.every(e => _.includes(e))) {
         console.log("Wrong command. Choose one of 'collect byKeyword' or 'collect fromBookmark'.");
         // throw new Error();
-    }
-
-    // handling each commands.
-
-    if(a._.includes("byKeyword") && a._.length === 2) {
-        // handler for 'collect byKeyword' command.
-        // retrieve options into object.
+    };
+    // Check if at least one of expectedSubCommands is includes in command.
+    if(expectedSubCommands.some(e => _.includes(e))) {
+        // 
+        // TODO: handlerで、このファイルの下部に書いてあるorderを生成させるようにする
+        // 
         collectCommand.handlerWrapper(collectOptions)(a);
+
     }
-    if(a._.includes("fromBookmark") && a._.length === 2) {
-        // handler for 'collect fromBookmark' command.
-        // retrieve options into object.
-        collectCommand.handlerWrapper(collectOptions)(a);
+    else {
+        console.log("Commands not include expected subcommand.");
+        y.showHelp();
+        // throw new Error();
     }
 };
 
@@ -97,7 +78,7 @@ const input = yargs(process.argv.splice(2))
         collectCommand.command,
         collectCommand.description,
         (yargs: Argv) => {
-                const collectCommandOptions = yargs
+                const subcommands = yargs
                 .command(
                     "byKeyword", "",
                     collectCommand.builder
@@ -113,7 +94,7 @@ const input = yargs(process.argv.splice(2))
                 // そうしないとcheckCommands()へ戻り値を渡すことができない。
                 .wrap(null).argv as Exclude<iArguments, iArgumentsPromise>;
 
-                checkCommands(collectCommandOptions, 2);
+                checkCommands(yargs, subcommands, 2);
         }
         // NOTE: DO NOT CALL handler here for works multi commands.
 
@@ -133,3 +114,11 @@ export const commands = {
     collectOptions: collectOptions,
     bookmarkOptions: bookmarkOptions
 }; 
+// 次をexportするようにしたい
+// export const order = {
+//     command: string,
+//     subcommand: string,
+//     options: {
+//         // ...
+//     }
+// }

@@ -16,7 +16,8 @@
 
 [Deep dive into Promise chain](#Deep dive into Promise chain)
 
-[](#)
+[配列の中には他の配列の何かが含まれているのか検査する](#配列の中には他の配列の何かが含まれているのか検査する)
+
 [](#)
 
 ## for...in vs for...of
@@ -372,3 +373,120 @@ promise = promise.asyncFunction;
 async関数はPromiseチェーンに含めることができない?
 
 promise.then(() => return asyncFunction())は有効？
+
+## 配列の中には他の配列の何かが含まれているのか検査する
+
+たとえばこういうこと
+
+```JavaScript
+const expected = ["foo", "bar"];
+const target = ["goo", "boo", "rah", "bee", "foo"];
+```
+- targetにはexpectedの要素のうち少なくとも一つでも含まれているかどうか
+- targetはexpectedの要素のうち一つも含まれていないかどうか
+- targetはexpectedの要素のうちすべての要素を含んでいるかどうか
+
+
+上記の検査を実現したい。
+
+#### 参考
+
+1. 配列の中に特定の値が含まれているかどうか
+
+https://stackoverflow.com/questions/237104/how-do-i-check-if-an-array-includes-a-value-in-javascript
+
+https://stackoverflow.com/questions/12623272/how-to-check-if-a-string-array-contains-one-string-in-javascript
+
+> `Array.prototype.includes()`か`Array.prototype.indexOf()`を使え
+
+2. 配列の中には、他の配列の値のうち、すくなくともが一つ含まれているか（ひとつも含まれていないか）
+
+https://stackoverflow.com/questions/16312528/check-if-an-array-contains-any-element-of-another-array-in-javascript
+
+https://stackoverflow.com/questions/37428338/check-if-a-string-contains-any-element-of-an-array-in-javascript
+
+> `Array.prototype.some()`と`Array.prototype.include()`(`Array.prototype.indexOf()`)の組み合わせを使え
+
+3. ある配列は、他の配列のすべての要素が含まれているのかどうか
+
+https://stackoverflow.com/questions/53606337/check-if-array-contains-all-elements-of-another-array
+
+> `Array.prototype.every()`と`Array.prototype.include()`(`Array.prototype.indexOf()`)の組み合わせを使え
+
+#### ある配列には他の配列要素のうち少なくとも一つは含まれているかどうか
+
+`Array.prototype.some()`と`Array.prototype.include()`(`Array.prototype.indexOf()`)の組み合わせを使え
+
+some()は与えられた配列の要素のうちひとつでもテスト関数を合格したらtrueを返す。
+
+```JavaScript
+// 以下の配列要素を含むのか調べる
+const expectedStrings = ["foo", "bar"];
+// 検査対象3パターン
+const target = ["goo", "boo", "rah", "bee", "foo"];
+const target2 = ["goo", "boo", "rah", "bee", "Moo"];
+const target3 = ["goo", "boo", "rah", "bee", "bar"];
+
+// テスト関数
+const checkIncludes = (element) => expectedStrings.includes(element);
+
+// 実施結果
+console.log(target.some(checkIncludes));    // true
+console.log(target2.some(checkIncludes));   // false
+console.log(target3.some(checkIncludes));   // true
+
+// 同様に...
+const expectedCommands = ["byKeyword", "fromBookmark"];
+const correctArgvUnderscore = ["collect", "byKeyword"];
+const incorrectArgvUnderscore = ["collect", "byKeywordd"];
+
+const isCommandIncludesSubcommand = (c) => expectedCommands.includes(c);
+
+console.log(correctArgvUnderscore.some(isCommandIncludesSubcommand));   // true
+console.log(incorrectArgvUnderscore.some(isCommandIncludesSubcommand)); // false
+```
+このように少なくとも一つでも含めばtrueなのでfalseが帰ってきたら一つも含まないということになる。
+
+#### ある配列は他の配列のすべての要素が含まれているか
+
+```JavaScript
+let array1 = [1,2,3],
+    array2 = [1,2,3,4],
+    array3 = [1,2];
+
+let checker = (arr, target) => target.every(v => arr.includes(v));
+
+console.log(checker(array2, array1));  // true
+console.log(checker(array3, array1));  // false
+```
+
+#### まとめ
+
+```JavaScript
+const expected = ["byKeyword", "fromBookmark"];
+const target = ["Check", "if", "array", "contains", "all", "elements"];
+const target2 = ["Check", "if", "array", "contains", "byKeyword", "fromBookmark"];
+const target3 = ["Check", "if", "array", "contains", "byKeyword"];
+
+// target配列のうちexpect配列の要素が少なくとも一つは含まれかどうか
+// true: 少なくとも一つは含む
+// false: ひとつも含まない
+const isIncludesAtLeastOne = (expect, target) => {
+    return expect.some(e => target.includes(e));
+};
+
+// target配列はexpect配列をすべて含むかどうか
+// true: すべて含む
+// false: 少なくとも一つ欠けている
+const isIncludesAllOf = (expect, target) => {
+    return expect.every(e => target.includes(e));
+};
+
+console.log(isIncludesAtLeastOne(expected, target));    // false
+console.log(isIncludesAtLeastOne(expected, target2));   // true
+console.log(isIncludesAtLeastOne(expected, target3));   // true
+
+console.log(isIncludesAllOf(expected, target));     // false
+console.log(isIncludesAllOf(expected, target2));    // true
+console.log(isIncludesAllOf(expected, target3));    // false
+```

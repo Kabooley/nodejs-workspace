@@ -46,11 +46,6 @@ const wrapHandler = (options: {[key: string]: any}) => {
         Object.keys(args).forEach(key=> {
             if(optionList.includes(key)) options[key] = args[key];
         });
-        
-        //  DEBUG:
-        console.log("collect command handler");
-        console.log(args);
-        console.log(options);
     };
 };
 
