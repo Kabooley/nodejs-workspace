@@ -21,6 +21,8 @@ type iArgumentsPromise = Promise<{
     $0: string;
 }>;
 
+
+// command and option container
 const bookmarkOptions = {} as iBookmarkOptions; 
 const collectOptions = {} as iCollectOptions;
 
@@ -110,7 +112,16 @@ export const commands: iCommands = {
     collectOptions: collectOptions,
     bookmarkOptions: bookmarkOptions
 }; 
-// 
-// 最終的にコマンドとそのオプションを確保できればよろしい
-// アプリケーションにはどのコマンドなのか、どのオプションなのかがわかればいいので
-// 上記のcommandsでなくていい（ここでは機能もりもりにしたくないのでこのままですが）
+
+/*******************
+ * TODO: commandとオプションの組みだけを返すようにする
+ * input : {
+ *  _: ["collect", "byKeyword"],
+ *  
+ * }
+ * 
+ * 
+ * 現状オプションを格納したオブジェクトは生成することができている
+ * なので、
+ * あとはどのコマンドが入力されたのかがわかればいい
+ * */ 

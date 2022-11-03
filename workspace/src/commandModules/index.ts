@@ -23,6 +23,7 @@ type iArgumentsPromise = Promise<{
 
 const bookmarkOptions = {} as iBookmarkOptions; 
 const collectOptions = {} as iCollectOptions;
+const expectedSubCommands: string[] = ["byKeyword", "fromBookmark"];
 
 /****
  * Handles and check `collect <byKeyword|fromBookmark>` commands are valid.
@@ -37,11 +38,39 @@ const checkCommands = (a: Exclude<iArguments, iArgumentsPromise>, requiredNumber
         console.log("'collect' command expects at least 1 more parameter.");
         // throw new Error();
     }
+    // CHECK SUBCOMMANDS ARE CORRECT.
+    // 
+    // TODO: 要改善：ハードコーディングを避ける
     // 関係ないコマンドを入力していないか
-    if(!a._.includes("byKeyword") && !a._.includes("fromBookmark")){
-        console.log("You input unnecessary command following 'collect'.");
-        // throw new Error();
+    // if(!a._.includes("byKeyword") && !a._.includes("fromBookmark")){
+    //     console.log("You input unnecessary command following 'collect'.");
+    //     // throw new Error();
+    // }
+
+    // sub commandは先の検査で入力数が正しいとする
+    // a._[1]を比較対象とする
+    let isSubcommandCorrect: boolean = false;
+    for(const subcommand of expectedSubCommands) {
+
+        // DEBUG:
+        console.log(subcommand);
+        console.log(a._[1]);
+        console.log(isSubcommandCorrect);
+        console.log(a._[1] === subcommand);
+
+        // This operator will return true if one of operand is true. 
+        isSubcommandCorrect = isSubcommandCorrect || a._[1] === subcommand;
     }
+
+
+    if(!isSubcommandCorrect) {
+        console.log("There is no expected subcommand.");
+        console.log(`Expected subcommands for 'collect' are: ${expectedSubCommands.join(',')}`);
+        // throw new Erorr();
+    }
+
+    // CHECK EVERY SUBCOMMANDS ARE INCLUDED.
+    // 
     // byKeywordもfromBookmarkも両方入れられている
     // これはむしろ数ではじいた方がいいかも
     if(a._.includes("byKeyword") && a._.includes("fromBookmark")) {
