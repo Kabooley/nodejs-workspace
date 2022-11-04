@@ -7,6 +7,4 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * **********************************************************/
 const index_1 = require("./commandModules/index");
 console.log("result:");
-console.log(index_1.commands.argv);
-console.log(index_1.commands.collectOptions);
-console.log(index_1.commands.bookmarkOptions);
+console.log(index_1.order);
