@@ -19,7 +19,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 [ログインすべきかしなくていいか区別する](#ログインすべきかしなくていいか区別する)
 [機能：ブックマーク機能の追加](#機能：ブックマーク機能の追加)
 [設計の考察](#設計の考察)
-[](#)
+[コマンドラインからの命令に従って実行処理をセットアップする](#コマンドラインからの命令に従って実行処理をセットアップする)
 [](#)
 [](#)
 
@@ -1496,3 +1496,92 @@ bookmarkを自動で行ってくれる機能の追加
 設計について学ばないといけない？
 
 DomainDD, EventDD
+
+
+## コマンドラインからの命令に従って実行処理をセットアップする
+
+- yargsからコマンドとオプションのオブジェクトを取得する
+- コマンド内容から、taskQueueに実行する処理単位をプッシュする
+- taskQueueを実行する
+
+ということで各処理単位を細かく単一の実行単位に砕く
+
+各処理単位をpromisifyでラップしてつなげることができるようにする
+
+```TypeScript
+import { orders } from './commandModules/index';
+
+interface iOrders {
+    commands: string[];
+    options: object;
+};
+
+
+const setupTaskQueue = (orders: iOrders) => {
+    const { commands, options } = orders;
+    switch(commands.join()) {
+        case 'collectbyKeyword':
+            break;
+        default:
+    }
+}
+```
+- キーワード検索
+
+```TypeScript
+
+// get form dom
+// type keyword to form
+// navigation by press enter
+
+const letKeywordSearch = (page: puppeteer.Page, keyword: string) => {
+	return page.type(selectors.searchBox, keyword, { delay: 100 });
+};
+
+// do keyword search part
+letKeywordSearch(page, "keyword")
+// trigger navigation part 
+.then(() => {
+	const navigation = new Navigation();
+	setupNavigation(); // setup navigation class
+
+	// これでnavigateBy()の戻り値を次のthenで取得できたっけ？
+	return navigation.navigateBy(page, page.keyoard.press('Enter'));
+})
+// interpret http response part
+.then(res => {
+
+})
+```
+
+適切なところで的なエラーハンドラを実行できるようにプロミスチェーンを改善する
+
+- resultページで何かする
+
+```TypeScript
+```
+
+- artworkページで何かする
+
+```TypeScript
+```
+
+ページを移動する
+
+```TypeScript
+// setup HTTPResponse interceptor
+// setup waitForNavigation 
+// trigger it
+```
+
+ページ遷移したときのHTTP
+
+
+```TypeScript
+```
+
+```TypeScript
+```
+
+puppeteerを使う以上、何かする-->ページ遷移の実行が必ずセットになる
+
