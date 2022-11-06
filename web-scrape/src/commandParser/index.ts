@@ -1,127 +1,144 @@
-import yargs from 'yargs/yargs';
-import type { Argv } from 'yargs'
-import { bookmarkCommand, iBookmarkOptions } from './commandModules/bookmarkCommand';
-import { collectCommand, iCollectOptions } from './commandModules/collectCommand';
-
-// yargs()が返すオブジェクト
-type iArguments =  {
-    [x: string]: unknown;
-    _: (string | number)[];
-    $0: string;
-} | Promise<{
-    [x: string]: unknown;
-    _: (string | number)[];
-    $0: string;
-}>;
-
-// yargs()が返すオブジェクトのtupleのうちのPromise部分
-type iArgumentsPromise = Promise<{
-    [x: string]: unknown;
-    _: (string | number)[];
-    $0: string;
-}>;
-
-
-// command and option container
-const bookmarkOptions = {} as iBookmarkOptions; 
-const collectOptions = {} as iCollectOptions;
-
-/****
- * Handles and check `collect <byKeyword|fromBookmark>` commands are valid.
+/************************************************************
+ * Parse entered commands into cli and check them.
+ * If correct return as command and option object.
  * 
- * `collect`と`collect byKeyword`と`collect bookmark`のすべての
- * コマンドの入力検査とハンドリングを担う。
- * */ 
-const checkCommands = (a: Exclude<iArguments, iArgumentsPromise>, requiredNumber: number) => {
-    console.log("CHECK COMMANDS");
-    // コマンド引数が足りない
-    if(a._.length < requiredNumber) {
-        console.log("'collect' command expects at least 1 more parameter.");
-        // throw new Error();
-    }
-    // 関係ないコマンドを入力していないか
-    if(!a._.includes("byKeyword") && !a._.includes("fromBookmark")){
-        console.log("You input unnecessary command following 'collect'.");
-        // throw new Error();
-    }
-    // byKeywordもfromBookmarkも両方入れられている
-    // これはむしろ数ではじいた方がいいかも
-    if(a._.includes("byKeyword") && a._.includes("fromBookmark")) {
-        console.log("Wrong command. Choose one of 'collect byKeyword' or 'collect fromBookmark'.");
-        // throw new Error();
-    }
+ * TODO: Implement error handling.
+ * TODO: Implement command interpreter and introduce themn to entire app.
+ * **********************************************************/ 
+ import yargs from 'yargs/yargs';
+ import { Argv } from 'yargs'
+ import { bookmarkCommand } from './bookmarkCommand';
+ import { collectCommand } from './collectCommand';
+ 
+ // yargs()が返すオブジェクト
+ type iArguments =  {
+     [x: string]: unknown;
+     _: (string | number)[];
+     $0: string;
+ } | Promise<{
+     [x: string]: unknown;
+     _: (string | number)[];
+     $0: string;
+ }>;
+ 
+ // yargs()が返すオブジェクトのtupleのうちのPromise部分
+ type iArgumentsPromise = Promise<{
+     [x: string]: unknown;
+     _: (string | number)[];
+     $0: string;
+ }>;
+ 
+ // Contains options.
+ const options = {};
+ 
+ // NOTE: Commands array below must be modified if you add or remove.
+ const demandCommands: string[] = ["collect", "bookmark"];
+ const expectedSubCommands: string[] = ["byKeyword", "fromBookmark"];
+ 
+ 
+ /****
+  * Check demand command is correctly 
+  * 
+  * */ 
+ const checkDemandCommands = (a: Exclude<iArguments, iArgumentsPromise>): void => {
+     const { _ } = a;
+ 
+     if(!demandCommands.some(e => _.includes(e))) {
+         console.log("There is no demand command.");
+         // throw new Error();
+     }
+ };
+ 
+ /****
+  * Handles and check `collect <byKeyword|fromBookmark>` commands are valid.
+  * 
+  * `collect`と`collect byKeyword`と`collect bookmark`のすべての
+  * コマンドの入力検査とハンドリングを担う。
+  * 
+  * */ 
+ const checkCollectCommands = (y: Argv, a: Exclude<iArguments, iArgumentsPromise>, requiredNumber: number): void => {
+ 
+     // _ includes commands.
+     const { _ } = a;
+ 
+     // Insufficient number of arguments
+     if(_.length < requiredNumber) {
+         console.log("Subcommand is missing. 'collect' command expects 1 more subcommand.");
+         y.showHelp();
+         // throw new Error();
+     }
+     // Excessive number of arguments
+     if(_.length > requiredNumber) {
+         console.log("Too much subcommands. 'collect' command expects only 1 additional subcommand.");
+         y.showHelp();
+         // throw new Error();
+     }
+ 
+     // Check if at least one of expectedSubCommands is includes in command.
+     // 
+     // If process passes to here, then commands are correct.
+     if(expectedSubCommands.some(e => _.includes(e))) {
+         // 
+         // TODO: handlerで、このファイルの下部に書いてあるorderを生成させるようにする
+         // 
+         // collectCommand.handlerWrapper(collectOptions)(a);
+         collectCommand.handlerWrapper(options)(a);
+ 
+     }
+     else {
+         console.log("Commands not include expected subcommand.");
+         y.showHelp();
+         // throw new Error();
+     }
+ };
+ 
+ const order = yargs(process.argv.splice(2))
+     .command(
+         collectCommand.command,
+         collectCommand.description,
+         (yargs: Argv) => {
+                 const subcommands = yargs
+                 .command(
+                     "byKeyword", "",
+                     collectCommand.builder
+                     // NOTE: DO NOT CALL handler here for works multi commands.
+                 )
+                 .command(
+                     "fromBookmark", "",
+                     collectCommand.builder
+                     // NOTE: DO NOT CALL handler here for works multi commands.
+                 )
+                 .help('help')
+                 // NOTE: Promise<>の場合を取り除く
+                 // そうしないとcheckCollectCommands()へ戻り値を渡すことができない。
+                 .wrap(null).argv as Exclude<iArguments, iArgumentsPromise>;
+ 
+                 checkCollectCommands(yargs, subcommands, 2);
+         }
+         // NOTE: DO NOT CALL handler here for works multi commands.
+ 
+     )
+     .command(
+         bookmarkCommand.command,
+         bookmarkCommand.description,
+         bookmarkCommand.builder,
+         bookmarkCommand.handlerWrapper(options)
+     )
+     .help()
+     .wrap(null)
+     .argv as Exclude<iArguments, iArgumentsPromise>;
+ 
+ checkDemandCommands(order);
 
-    // handling each commands.
-
-    if(a._.includes("byKeyword") && a._.length === 2) {
-        // handler for 'collect byKeyword' command.
-        // retrieve options into object.
-        collectCommand.handlerWrapper(collectOptions)(a);
-    }
-    if(a._.includes("fromBookmark") && a._.length === 2) {
-        // handler for 'collect fromBookmark' command.
-        // retrieve options into object.
-        collectCommand.handlerWrapper(collectOptions)(a);
-    }
-};
-
-const input = yargs(process.argv.splice(2))
-    .command(
-        collectCommand.command,
-        collectCommand.description,
-        (yargs: Argv) => {
-                const collectCommandOptions = yargs
-                .command(
-                    "byKeyword", "",
-                    collectCommand.builder
-                    // NOTE: DO NOT CALL handler here for works multi commands.
-                )
-                .command(
-                    "fromBookmark", "",
-                    collectCommand.builder
-                    // NOTE: DO NOT CALL handler here for works multi commands.
-                )
-                .help('help')
-                // NOTE: Promise<>の場合を取り除く
-                // そうしないとcheckCommands()へ戻り値を渡すことができない。
-                .wrap(null).argv as Exclude<iArguments, iArgumentsPromise>;
-
-                checkCommands(collectCommandOptions, 2);
-        }
-        // NOTE: DO NOT CALL handler here for works multi commands.
-
-    )
-    .command(
-        bookmarkCommand.command,
-        bookmarkCommand.description,
-        bookmarkCommand.builder,
-        bookmarkCommand.handlerWrapper(bookmarkOptions)
-    )
-    .help()
-    .wrap(null)
-    .argv as Exclude<iArguments, iArgumentsPromise>;
-
-export interface iCommands {
-    argv: Exclude<iArguments, iArgumentsPromise>;
-    collectOptions: iCollectOptions;
-    bookmarkOptions: iBookmarkOptions;
-};
-
-export const commands: iCommands = {
-    argv: input,
-    collectOptions: collectOptions,
-    bookmarkOptions: bookmarkOptions
-}; 
-
-/*******************
- * TODO: commandとオプションの組みだけを返すようにする
- * input : {
- *  _: ["collect", "byKeyword"],
- *  
- * }
- * 
- * 
- * 現状オプションを格納したオブジェクトは生成することができている
- * なので、
- * あとはどのコマンドが入力されたのかがわかればいい
- * */ 
+ export interface iOrders {
+    commands: (string | number)[];
+    options: {
+        [x: string]: unknown
+    };
+ };
+ 
+ export const orders: iOrders = {
+     // commands includes subcommand.
+     commands: order._,
+     options: options
+ };
