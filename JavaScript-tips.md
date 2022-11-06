@@ -18,6 +18,10 @@
 
 [配列の中には他の配列の何かが含まれているのか検査する](#配列の中には他の配列の何かが含まれているのか検査する)
 
+[Promiseチェーンで任意の場所でエラーハンドリング](#Promiseチェーンで任意の場所でエラーハンドリング)
+
+[](#)
+[](#)
 [](#)
 
 ## for...in vs for...of
@@ -490,3 +494,14 @@ console.log(isIncludesAllOf(expected, target));     // false
 console.log(isIncludesAllOf(expected, target2));    // true
 console.log(isIncludesAllOf(expected, target3));    // false
 ```
+
+
+## Promiseチェーンで任意の場所でエラーハンドリング
+
+プロミスチェーンは一番最後にだけ`.catch()`を付ければそれでいいのか？
+
+`.then()`でつないでいくときに、特定のthen()のところでエラーキャッチさせたいときはどうすればいいのか？
+
+参考：
+
+https://stackoverflow.com/a/43079803

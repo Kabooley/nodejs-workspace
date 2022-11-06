@@ -1526,62 +1526,225 @@ const setupTaskQueue = (orders: iOrders) => {
     }
 }
 ```
-- キーワード検索
+- キーワード検索処理
 
 ```TypeScript
+// SEQUENTIAL
 
-// get form dom
-// type keyword to form
-// navigation by press enter
+const tasksPromise = Promise.resolve();
 
+// Core task
 const letKeywordSearch = (page: puppeteer.Page, keyword: string) => {
 	return page.type(selectors.searchBox, keyword, { delay: 100 });
 };
 
+tasksPromise = tasksPromise
 // do keyword search part
-letKeywordSearch(page, "keyword")
+.then(() => {
+	return letKeywordSearch(page, "keyword")
+		.catch(err => {
+			// handling for letKeywordSearch() error
+		})
+})
 // trigger navigation part 
 .then(() => {
 	const navigation = new Navigation();
 	setupNavigation(); // setup navigation class
 
 	// これでnavigateBy()の戻り値を次のthenで取得できたっけ？
-	return navigation.navigateBy(page, page.keyoard.press('Enter'));
+	return navigation.navigateBy(page, page.keyoard.press('Enter'))
+		.catch(err => {
+			// error handling for navigation.navigateBy()
+		});
 })
-// interpret http response part
-.then(res => {
+// check res is valid part
+// res is returned value of navigation.navigateBy()
+.then((res: (puppeteer.HTTPResponse | any)[]) => {
+	// resを検査するパート
+	
+    const response: puppeteer.HTTPResponse = res.shift();
+	return response.json()
+		.catch(err => {
+			// error handling for response.json()
+		});
+})
+.catch(err => {
+})
+.finally(() => {
+	// もしもエラーフラグなどが立っていれば終了処理を実施するとか
+});
 
-})
+return tasksPromise;
 ```
 
-適切なところで的なエラーハンドラを実行できるようにプロミスチェーンを改善する
+上記のプロミスチェーが実現できるならば、
 
-- resultページで何かする
+チェーンの各プロミスはいったん配列に突っ込んで
+
+forループとかでpromiseのthenへpushし続ければいいのかも
+
+- resultページで情報収集する処理
 
 ```TypeScript
+// PARALLELPOSSIBLE 
+
+// global variable
+const page: puppeteer.Page;
+const browser: puppeteer.Browser;
+
+// from previous process
+const jsonData = {/* got from previous process */};
+
+const tasksPromise = Promise.resolve();
+// Contains result id
+let resultIds: string[] = [];
+// Result pages
+let lastPage: number = 1;
+// Current page of result pages
+let currentPage: number = 1; 
+
+// Relatives of parallel process.
+let concurrency: number = 1;
+let pageInstances: puppeteer.Page[] = [];
+let sequences: Promise<void>[] = [];
+
+
+const setupParallelExecution = (processUpTo: number) => {
+	pageInstances.push(page);
+	concurrency = processUpTo;
+
+	for(let i = 1; i < concurrency; i++) {
+		pageInstances.push(await browser.newPage());
+		sequences.push(Promise.resolve());
+	};
+
+	// NOTE: そういえば検索結果ページだとURLへgotoしているわけではなく、>をクリックして移動しているだけだから...この並行処理は通用しないかも
+	// 
+	// TODO: 検索結果ページでもURLのGOTOで通用するのかチェック
+	for(let i = 1; i < lastPage; i++) {
+		const circulator: number = i % concurrency;
+		if(sequences[circulator] !== undefined && pageInstances[circulator] !== undefined) {
+			sequences[circulator] = sequences[circulator]!.then(() => {
+				// NOTE: executor未定義。上記のTODOの検証結果次第。
+				executor(pageInstances[circulator]!);
+			});
+		}
+	};
+
+	return Promise.all(sequences);
+}
+
+
+// SETUP: 検索結果が多かったら並行処理を準備する
+// HTTPResponseを解釈する
+// HTTPResponseから情報を取得する
+// 次のページへ移動する
+tasksPromise = tasksPromise
+// Retrieve data from http response json data part.
+.then(() => {
+	return retrieveDeepProp<iIllustManga>(["body", "illustManga"], jsonData);
+})
+// Set up parallel process according to number of total result part.
+// 
+// この部分はのちに再利用できるかも
+.then((props) => {
+	const { data, total } = props;
+	lastPage = Math.floor(total / data.length);
+	let numberOfProcess: number = 1;
+	
+	if(lastPage >= 20 && lastPage < 50) {
+		numberOfProcess = 2;
+	}
+	else if(lastPage >= 50 && lastPage < 100) {
+		numberOfProcess = 5;	
+	}
+	else if(lastPage >= 100) {
+		numberOfProcess = 10;
+	}
+	else {
+		numberOfProcess = 1;
+	};
+
+	return {
+		data: data,
+		total: total,
+		numberOfProcess: numberOfProcess
+	};
+})
+.then((props) => {
+	const { numberOfProcess } = props;
+	return setupParallelExecution(numberOfProcess)
+		.catch(err => {
+			// handle 
+		});
+})
+.then(collected => {
+	// handle collected informantion.
+})
+.catch(() => {
+	// 
+})
+.finally(() => {
+	// Delete all extra page instances.
+});
+
+return tasksPromise;
 ```
+
+検索結果ページの移動はpage.goto()でイケるのか検証
+executorの定義
 
 - artworkページで何かする
 
 ```TypeScript
+// NOTE: ここの処理が今回の変更を適用する部分
+// artworkページでブックマークするのか等の処理を追加できるようにする
+// tasksPromiseへ追加することにはならず、setupParallelExecutionを変更することになる
+
+// data from previous process
+const ids: string[];
+const browser: puppeteer.Browser;
+const page: puppeteer.Page;
+
+
+const tasksPromise = Promise.resolve();
+let pageInstances: puppeteer.Page[] = [];
+let collected: iIllustData[] = [];
+let sequences: Promise<void>[] = [];
+let concurrency: number = 1;
+
+
+tasksPromise = tasksPromise
+.then(() => {
+	if(ids.length >= 20 && ids.length < 50) {
+		numberOfProcess = 2;
+	}
+	else if(ids.length >= 50 && ids.length < 100) {
+		numberOfProcess = 5;	
+	}
+	else if(ids.length >= 100) {
+		numberOfProcess = 10;
+	}
+	else {
+		numberOfProcess = 1;
+	};
+	return numberOfProcess;
+})
+.then(numberOfProcess => {
+	return setupParallelExecution(numberOfProcess)
+		.catch(err => {
+			// handler
+		})
+})
+.then(collected => {
+
+})
+.catch(err => {
+
+})
+.finally(() => {
+
+});
+
+return tasksPromise;
 ```
-
-ページを移動する
-
-```TypeScript
-// setup HTTPResponse interceptor
-// setup waitForNavigation 
-// trigger it
-```
-
-ページ遷移したときのHTTP
-
-
-```TypeScript
-```
-
-```TypeScript
-```
-
-puppeteerを使う以上、何かする-->ページ遷移の実行が必ずセットになる
-
