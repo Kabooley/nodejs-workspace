@@ -1,21 +1,55 @@
 import * as puppeteer from 'puppeteer';
 import * as fs from 'fs';
-import yargs from 'yargs/yargs';
-import { commandName, commandDesc, builder } from './cliParser';
 import { initialize } from './helper/initialize';
+import { Navigation } from './components/Navigation';
 import { search } from './components/search';
+import { retrieveDeepProp } from './utilities/objectModifier';
 import { collectFromSearchResult } from './components/collectFromResultPage';
 import type { iBodyIncludesIllustManga } from './components/Collect';
 import { collectArtworkData } from './components/collectFromArtworkPage';
 import { orders, iOrders } from './commandParser/index';
 // import { login } from './components/login';
 
-// 
-// -- TYPES --
-// 
-interface iCommand {
-    [key: string]: string | undefined;
-}
+// Only requiring title and id.
+export interface iIllustMangaDataElement {
+    id: string;
+    title: string;
+    illustType?: number;
+    xRestrict?: number;
+    restrict?: number;
+    sl?: number;
+    url?: string;
+    description?: string;
+    tags?: any[];
+    userId?: string;
+    userName?: string;
+    width?: number;
+    height?: number;
+    pageCount?: number;
+    isBookmarkable?: boolean;
+    bookmarkData?: any;
+    alt?: string;
+    titleCaptionTranslation?: any[];
+    createDate?: string;
+    updateDate?: string;
+    isUnlisted?: boolean;
+    isMasked?: boolean;
+    profileImageUrl?: string;
+};
+
+export interface iIllustManga {
+    data: iIllustMangaDataElement[],
+    total: number
+};
+
+export interface iBodyIncludesIllustManga {
+    error: boolean;
+    body: {
+        illustManga: iIllustManga;
+    }
+};
+
+
 
 // 
 // -- GLOBALS --
@@ -31,15 +65,52 @@ const options: puppeteer.PuppeteerLaunchOptions = {
     slowMo: 150,
 };
 
-const isObjectEmpty = (o: object): boolean => {
-    return Object.keys(o).length === 0 ? true : false; 
-};
-
+// const taskQueue: Promise<any>[] = [];
+const taskQueue: (Promise<any> | ((p?:any) => Promise<any>))[] = [];
 
 const setupTaskQueue = (order: iOrders) => {
+    if(page === undefined) throw new Error("Error: page is not initialized. @setupTaskQueue");
     const { commands, options } = order;
     switch(commands.join()) {
         case 'collectbyKeyword':
+            const { keyword, tag, author } = options;
+            let lastPage: number = 1;
+            taskQueue.push(search(page, keyword as string));
+            // TODO: Navigation instance must be initialized.
+            taskQueue.push((new Navigation()).navigateBy(page, page.keyboard.press('Enter')));
+            // TODO: 以下のpushした関数はpromisifyすればいいから、taskQueueの型はunion型にしなくていいかも
+            taskQueue.push((res: (puppeteer.HTTPResponse | any)[]) => {
+                const response: puppeteer.HTTPResponse = res.shift();
+                return response.json()
+                    .catch(err => {
+                        // error handling for response.json()
+                    });
+            });
+            // Promise.resolve()で大丈夫なのか？promisifyするべきなのか？
+            taskQueue.push((jsonData) => {
+                return Promise.resolve(retrieveDeepProp<iIllustManga>(["body", "illustManga"], jsonData));
+            });
+            taskQueue.push(Promise.resolve((illustManga: iIllustManga) => {
+                const { data, total } = illustManga;
+                lastPage = Math.floor(total / data.length);
+                let numberOfProcess: number = 1;
+
+                if(lastPage >= 20 && lastPage < 50) {
+                    numberOfProcess = 2;
+                }
+                else if(lastPage >= 50 && lastPage < 100) {
+                    numberOfProcess = 5;	
+                }
+                else if(lastPage >= 100) {
+                    numberOfProcess = 10;
+                }
+                else {
+                    numberOfProcess = 1;
+                };
+                return numberOfProcess;
+            }));
+            taskQueue.push()
+
         break;
         case 'collectfromBookmark':
         break;
@@ -47,13 +118,20 @@ const setupTaskQueue = (order: iOrders) => {
         break;
         default:
     }
-}
+};
+
 
 
 (async function() {
     try {
         setupTaskQueue(orders);
-
+        
+        browser = await puppeteer.launch(options);
+        page = await initialize(browser);
+        
+        // await login(page, { username: username, password: password});
+        await page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]});
+        await taskQueue;
     }
     catch(e) {
         console.error(e);
@@ -73,6 +151,62 @@ const setupTaskQueue = (order: iOrders) => {
     }
 })();
 
+// -- LEGACY --
+
+// import * as puppeteer from 'puppeteer';
+// import * as fs from 'fs';
+// import yargs from 'yargs/yargs';
+// import { commandName, commandDesc, builder } from './cliParser';
+// import { initialize } from './helper/initialize';
+// import { search } from './components/search';
+// import { collectFromSearchResult } from './components/collectFromResultPage';
+// import type { iBodyIncludesIllustManga } from './components/Collect';
+// import { collectArtworkData } from './components/collectFromArtworkPage';
+// import { commands } from './commandParser/index';
+// import type { iCommands } from './commandParser/index';
+// // import { login } from './components/login';
+
+// // 
+// // -- TYPES --
+// // 
+// interface iCommand {
+//     [key: string]: string | undefined;
+// }
+
+// // 
+// // -- GLOBALS --
+// // 
+// let browser: puppeteer.Browser | undefined;
+// let page: puppeteer.Page | undefined;
+// let escapedKeyword: string = "";
+// const options: puppeteer.PuppeteerLaunchOptions = {
+//     headless: true,
+//     args: ['--disable-infobars'],
+//     userDataDir: "./userdata/",
+//     handleSIGINT: true,
+//     slowMo: 150,
+// };
+
+// const isObjectEmpty = (o: object): boolean => {
+//     return Object.keys(o).length === 0 ? true : false; 
+// };
+
+// const 
+
+// // 
+// // 
+// const checkCommands = (c: iCommands) => {
+//     const { argv, collectOptions, bookmarkOptions } = c;
+//     if(!isObjectEmpty(collectOptions)) {
+//         // There is order to 'collect'
+//         // Retrieve sub command
+//         const {_} = argv;
+        
+//     }
+//     if(!isObjectEmpty(bookmarkOptions)) {
+//         // There is order to 'bookmark'
+//     }
+// }; 
 
 // // 
 // // -- MAIN PROCESS --
