@@ -20,7 +20,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 [機能：ブックマーク機能の追加](#機能：ブックマーク機能の追加)
 [設計の考察](#設計の考察)
 [コマンドラインからの命令に従って実行処理をセットアップする](#コマンドラインからの命令に従って実行処理をセットアップする)
-[](#)
+[検証:検索結果ページはpage.goto(url)で移動・取得できるか](#検証:検索結果ページはpage.goto(url)で移動・取得できるか)
 [](#)
 
 ## TODOS
@@ -1748,3 +1748,30 @@ tasksPromise = tasksPromise
 
 return tasksPromise;
 ```
+
+## 検証:検索結果ページはpage.goto(url)で移動・取得できるか
+
+URL: https://www.pixiv.net/tags/%E5%8E%9F%E7%A5%9E/artworks?p=7&s_mode=s_tag
+
+`artworks?p=${pagenumber}`でいけそう
+
+pagenumberは1でも通用するみたい
+
+あとは欲しい情報がHTTPResponseで取得できるのかである
+
+
+取得できた時のリクエストURL
+
+https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%A5%9E&order=date_d&mode=all&p=2&s_mode=s_tag&type=all&lang=ja
+
+https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%A5%9E&order=date_d&mode=all&p=10&s_mode=s_tag&type=all&lang=ja
+
+https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%A5%9E&order=date_d&mode=all&p=100&s_mode=s_tag&type=all&lang=ja
+
+ということで、
+
+`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}&order=date_d&mode=all&p={pagenumber}&s_mode=s_tag&type=all&lang=ja`
+
+で取得している
+
+あとはこれがwaitForResponse()で取得できるかどうかである
