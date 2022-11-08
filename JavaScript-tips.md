@@ -20,7 +20,7 @@
 
 [Promiseチェーンで任意の場所でエラーハンドリング](#Promiseチェーンで任意の場所でエラーハンドリング)
 
-[](#)
+[実験Promiseチェーン](#実験Promiseチェーン)
 [](#)
 [](#)
 
@@ -505,3 +505,200 @@ console.log(isIncludesAllOf(expected, target3));    // false
 参考：
 
 https://stackoverflow.com/a/43079803
+
+## 実験Promiseチェーン
+
+いろいろいじってプロミスチェーンを理解する。
+
+```TypeScript
+  // return 非同期関数
+  const async1 = () => {
+    console.log("async1: invoked");
+    return setTimeout(function() {
+        console.log("async1: wait 5 sec.");
+    }, 5000);
+  };
+
+  // 非同期関数が完了してからreturn Promise.resolve();
+  const async2 = () => {
+    console.log("async2: invoked");
+    setTimeout(function() {
+        console.log("async2: wait 8 sec.");
+        return Promise.resolve();
+    }, 8000);
+  };
+
+  // ただの同期関数
+  const sync1 = () => {
+    console.log("sync1: invoked.");
+    console.log("sync1: no wait.");
+    for(let i = 0; i < 1000; i++) {
+      console.log(i);
+    }
+  };
+
+  // async1と同様
+  const async2 = () => {
+    console.log("async2 invoked.");
+    return setTimeout(function() {
+        console.log("async2: wait for 12 sec");
+    }, 12000);
+  };
+
+let promise = Promise.resolve();
+
+[async1, async2, sync1, async2].forEach(f => {
+    promise = promise.then(() => f());
+});
+
+promise.then(() => {
+    console.log("done");
+});
+```
+結果:
+
+```bash
+$ node ./dist/index.js
+async1: invoked
+async2: invoked
+sync1: invoked.
+sync1: no wait.
+async2 invoked.
+done
+async1: wait 5 sec.   # 実行してから5秒
+async2: wait 8 sec.   # 同様に
+async2: wait for 12 sec　# 同様に
+```
+
+ここからわかるのは、
+
+- then()はそのコールバックを同期的に呼び出している。
+then()のコールバックの内容が非同期関数ならばそれらは非同期に処理される。
+
+- then()のコールバック関数が非同期的に`return Promise.resolve()`しても関係なく同期的に次の処理へ移っている。
+なので非同期処理は単純にイベントループのキューへ登録されて処理は同期部分へさっさと戻ってくるようだ。
+then()のなかで非同期処理を完了させてから次のthen()へ移動させたいときは、別のアプローチをとる必要があるようだ。
+
+1. then()のコールバック同期関数をブロックしてみる
+
+```TypeScript
+const sync1 = () => {
+  console.log("sync1: invoked.");
+  // 
+  // blocking: 2万ループするまで次に行かなくなるのか検証
+  // 
+  for(let i = 0; i < 20000; i++) {
+      console.log(i);
+    }
+};
+```
+結果：
+
+```bash
+$ node ./dist/index.js
+async1: invoked
+async2: invoked
+sync1: invoked.
+0
+1
+2
+
+# 省略...
+
+19984
+19985
+19986
+19987
+19988
+19989
+19990
+19991
+19992
+19993
+19994
+19995
+19996
+19997
+19998
+19999
+async2 invoked.
+done
+async1: wait 5 sec.
+async2: wait 8 sec.
+async2: wait for 12 sec
+```
+
+then()の中身の同期処理が長いとプロミスチェーンの以降の部分の呼び出しがブロックされる。
+sync1のループが終了しない限りasync2は呼び出されていないことがわかる。
+
+
+1. 非同期処理が完了してから次のthen()へ移動させる
+
+初めの方で、非同期処理はイベントループへさっさと登録されて同期処理へすぐ戻ってくることが分かった。
+
+では非同期処理の完了を待ってから次のthen()へ移動するようにさせたいときはどうすべきか。
+
+```TypeScript
+/************************************************************
+ * 
+ * Implememt Command Interpreter 
+ * **********************************************************/ 
+
+  const async1 = () => {
+    console.log("async1: invoked");
+    return setTimeout(function() {
+        console.log("async1: wait 5 sec.");
+    }, 5000);
+  };
+
+  // 明示的にPromiseがresolve()を返すようにした
+  const async2 = (): Promise<void> => {
+    console.log("async2: invoked");
+    return new Promise((resolve, reject) => {
+        setTimeout(function() {
+            console.log("async2: wait for 8 sec.");
+            return resolve();
+        }, 8000);
+    });
+  }
+
+  const sync1 = () => {
+    console.log("sync1: invoked.");
+  };
+
+  const async3 = () => {
+    console.log("async3 invoked.");
+    return setTimeout(function() {
+        console.log("async3: wait for 12 sec");
+    }, 12000);
+  };
+
+let promise = Promise.resolve();
+
+[async1, async2, sync1, async3].forEach(f => {
+    promise = promise.then(() => f());
+});
+
+promise.then(() => {
+    console.log("done");
+});
+```
+
+結果：
+
+```bash
+$ node ./dist/index.js
+async1: invoked
+async2: invoked
+async1: wait 5 sec.
+async2: wait for 8 sec.
+sync1: invoked.
+async3 invoked.
+done
+async3: wait for 12 sec
+```
+
+async2のsetTimeoutが完了してから次のsync1のthen()が呼び出されていることがわかる。
+
+つまり明示的にPromiseがresolve()を返せばthen()の完了のタイミングを施御することはできる。
+
