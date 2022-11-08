@@ -631,6 +631,8 @@ async2: wait for 12 sec
 then()の中身の同期処理が長いとプロミスチェーンの以降の部分の呼び出しがブロックされる。
 sync1のループが終了しない限りasync2は呼び出されていないことがわかる。
 
+なのでプロミスチェーンに同期関数を含めることは可能だが、常にブロッキング発生することには注意しなくてはならない。
+
 
 1. 非同期処理が完了してから次のthen()へ移動させる
 
@@ -702,3 +704,103 @@ async2のsetTimeoutが完了してから次のsync1のthen()が呼び出され�
 
 つまり明示的にPromiseがresolve()を返せばthen()の完了のタイミングを施御することはできる。
 
+3. then()がasync関数を返す場合
+
+async関数は暗黙的にPromiseを返すので、その処理内容は非同期として登録されるはず...
+
+```TypeScript
+  const async1 = () => {
+    console.log("async1: invoked");
+    return setTimeout(function() {
+        console.log("async1: wait 5 sec.");
+    }, 5000);
+  };
+
+  const async2 = async (): Promise<void> => {
+    console.log("async2: invoked.");
+    for(let i = 1; i < 40000; i++) {
+      console.log(i);
+    };
+    console.log("async2: done.");
+  }
+
+  const sync1 = () => {
+    console.log("sync1: invoked.");
+  };
+
+  const async3 = () => {
+    console.log("async3 invoked.");
+    return setTimeout(function() {
+        console.log("async3: wait for 12 sec");
+    }, 12000);
+  };
+
+let promise = Promise.resolve();
+
+[async1, async2, sync1, async3].forEach(f => {
+    promise = promise.then(() => f());
+});
+
+promise.then(() => {
+    console.log("done");
+});
+```
+結果：
+
+```bash
+async1: invoked
+async2: invoked.
+0
+1
+2
+# 中略...
+39998
+39999
+async2: done.
+sync1: invoked.
+async3 invoked.
+done
+async1: wait 5 sec.
+async3: wait for 12 sec
+```
+
+同期的に処理された。これはMDNの次の記述からそういうものであるとわかる。
+
+https://developer.mozilla.org/ja/docs/Web/JavaScript/Reference/Statements/async_function
+
+> 非同期関数の本体は、 await 式で分割されていると考えることができます。最上位のコードは、 (ある場合) 最初の await 式まで、それを含めて同期的に実行されます。したがって、await 式のない非同期関数は同期的に実行されます。しかし、関数本体の中に await 式がある場合、非同期関数は常に非同期に完了します。
+
+ということでasync関数の中身が完全に同期処理であるならばそれは同期関数として扱い、
+
+
+```bash
+$ node ./dist/index.js
+==SEQUENTIAL START==
+starting slow promise
+slow promise is done
+slow
+starting fast promise
+fast promise is done
+fast
+==CONCURRENT START with await==
+starting slow promise
+starting fast promise
+fast promise is done
+slow promise is done
+slow
+fast
+==CONCURRENT START with Promise.all==
+starting slow promise
+starting fast promise
+fast promise is done
+slow promise is done
+slow
+fast
+==PARALLEL with await Promise.all==
+starting slow promise
+starting fast promise
+fast promise is done
+fast
+slow promise is done
+slow
+```
