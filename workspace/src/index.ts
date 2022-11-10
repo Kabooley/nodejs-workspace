@@ -1,180 +1,96 @@
-/************************************************************
- * 
- * Implememt Command Interpreter 
- * **********************************************************/ 
-
-
-/****************************************************
- * TODO: promisifyを用途に合わせる.
- * 
- * 現状promisifyはどんな関数を受け入れられるのかわかっていない。
- * 
- * 元のページをよく確認したら、promisifyはラップされる関数がcallback関数をとることを前提にしていた...
- * 
- * **************************************************/ 
 {
-  // NOTE: このpromisifyだと戻り値がPromise<unknown>で固定される
-  // 
-  // USAGE
-  // function foo() { console.log("this is foo.");};
-  // const functionReturnsPromise = promisify(foo);
-  // const resultOfFoo = functionReturnsPromise();
-  // // resultOfFoo: Promise<unknown> 
-  function promisify(f: (a?: any) => any) {
-    return function (...args: any[]): Promise<unknown> {
-      return new Promise((resolve, reject) => {
-        function callback(err: Error, result: any) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(result);
-          }
-        }
-        args.push(callback);
-        f.call(null, ...args); // call the original function
-      });
-    };
-  };
 
-  // そのため戻り値をジェネリックにする
-  function promisifyGenerics<T>(f: (a?: any) => T) {
-    return function (...args: any[]): Promise<T> {
-      return new Promise((resolve, reject) => {
-        function callback(err: Error, result: any) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(result);
-          }
-        }
-        args.push(callback);
-        f.call(null, ...args); // call the original function
-      });
-    };
-  };
-  function foo() { console.log("this is foo.");};
-  // promisifyGenericsにジェネリクスの型を与えないとPromise<unknown>になってしまう
-  const functionReturnsPromise: (...args: any[]) => Promise<void> = promisifyGenerics<void>(foo);
-  const resultOfFoo = functionReturnsPromise();
-  // resultOfFoo: Promise<void>
-  function bar() { return "this is bar";};
-  const functionReturnsBarPromise = promisifyGenerics<string>(bar);
-  const resultOfBar = functionReturnsBarPromise();
-  // resultOfBar: Promise<string>
-
-
-  // check if synchronous function converted to asynchronous
-  const async1 = () => {
-    console.log("async1: invoked");
-    return setTimeout(function() {
-        console.log("async1: wait 5 sec.");
-    }, 5000);
-  };
- 
-  const async2 = async () => {
-    console.log("async2: invoked.");
-    return setTimeout(function() {
-      console.log("async2: done.");
-    }, 5000);
-  };
-
-  const sync1 = () => {
-    console.log("sync1: invoked.");
-    for(let i = 0; i < 20000; i++) {
-        if(i === 19999) console.log(i);
-      }
-    console.log("sync1: done");
-  };
-
-  
-  const async3 = () => {
-    console.log("async3 invoked.");
-    return setTimeout(function() {
-        console.log("async3: wait for 12 sec");
-    }, 12000);
-  };
-
-  let promise = Promise.resolve();
-
-  [async1, async2, promisifyGenerics<void>(sync1), async3].forEach(f => {
-      promise = promise.then(() => f());
+// -----------
+function resolveAfter6Seconds(m: string) {
+  console.log("starting slow promise");
+  console.log(`display previous value: ${m}`);
+  return new Promise((resolve) => {
+    setTimeout(function () {
+      resolve("slow");
+      console.log("slow promise is done");
+    }, 6000);
   });
-
-  promise.then(() => {
-      console.log("done");
-  });
-
 }
 
-{
-  const async1 = () => {
-    console.log("async1: invoked");
-    return setTimeout(function() {
-        console.log("async1: wait 5 sec.");
-    }, 5000);
-  };
+function resolveAfter3Seconds(m: string) {
+  console.log("starting fast promise");
+  console.log(`display previous value: ${m}`);
+  return new Promise((resolve) => {
+    setTimeout(function () {
+      resolve("fast");
+      console.log("fast promise is done");
+    }, 3000);
+  });
+}
 
-//   const async2 = () => {
-//     console.log("async2: invoked");
-//     setTimeout(function() {
-//         console.log("async2: wait 8 sec.");
-//         return Promise.resolve();
-//     }, 8000);
-//   };
+function sync(m: string) {
+  console.log("starting sync function");
+  console.log(`display previous value: ${m}`);
+  return "sync done";
+}
 
-  // const async2 = (): Promise<void> => {
-  //   console.log("async2: invoked");
-  //   return new Promise((resolve, reject) => {
-  //       setTimeout(function() {
-  //           console.log("async2: wait for 8 sec.");
-  //           return resolve();
-  //       }, 8000);
-  //   });
-  // }
+function sync2() {
+  console.log("starting sync2 function");
+  console.log("sync 2 would not get parameter. But returns value.");
+  return "sync2 done";
+}
 
-  const temporary = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(function() {
-        console.log("wait for 7 sec.");
-        return resolve();
-      }, 7000);
-    })
-  };
+function sync3() {
+  console.log("starting sync3 function");
+  console.log("sync3 would not get parameter and return value.");
+  return;
+}
 
-  const async2 = async (): Promise<void> => {
-    console.log("async2: invoked.");
-    for(let i = 1; i < 40000; i++) {
-      // console.log(i);
-    };
-    await temporary();
-    console.log("async2: done.");
-  }
+function resolveAfter10Seconds(m: string) {
+  console.log("starting very slow promise");
+  console.log(`display previous value: ${m}`);
+  return new Promise((resolve) => {
+    setTimeout(function () {
+      resolve("very slow");
+      console.log("very slow promise is done");
+    }, 10000);
+  });
+}
+// -----------
 
-  const sync1 = () => {
-    console.log("sync1: invoked.");
-    // // 
-    // // blocking: 2万ループするまで次に行かなくなるのか検証
-    // // 
-    // for(let i = 0; i < 20000; i++) {
-    //     console.log(i);
-    //   }
-  };
+let tasks: (((a?: any) => any) | ((a?: any) => Promise<any>))[] = [];
 
-  const async3 = () => {
-    console.log("async3 invoked.");
-    return setTimeout(function() {
-        console.log("async3: wait for 12 sec");
-    }, 12000);
-  };
+tasks.push(resolveAfter6Seconds);
+tasks.push(resolveAfter3Seconds);
+tasks.push(sync);
+tasks.push(sync2);
+tasks.push(sync3);
+tasks.push(resolveAfter10Seconds);
 
-let promise = Promise.resolve();
 
-[async1, async2, sync1, async3].forEach(f => {
-    promise = promise.then(() => f());
-});
+type iGenTask<T> = ((a?: any) => T) | ((a?: any) => Promise<T>);
+type iSequentialAsyncTask = ((a?: any) => any) | ((a?: any) => Promise<any>);
+type iSequentialAsyncTasks = iSequentialAsyncTask[];
 
-promise.then(() => {
-    console.log("done");
+const sequentialAsyncTasks = (
+  tasks: iSequentialAsyncTasks
+) => {
+  let promise = Promise.resolve();
+  tasks.forEach((t) => {
+    promise = promise.then(t);
+  });
+  return promise;
+};
+
+// const sequentialAsyncTasks = <T>(
+//   tasks: iSequentialAsyncTasks,
+//   tailEnd: iGenTask<T>
+// ): Promise<T> => {
+//   let promise = Promise.resolve();
+//   tasks.forEach((t) => {
+//     promise = promise.then(t);
+//   });
+//   return promise.then(tailEnd);
+// };
+
+sequentialAsyncTasks(tasks).then((a) => {
+  console.log(a);
+  console.log("sequential async tasks done.");
 });
 
 }

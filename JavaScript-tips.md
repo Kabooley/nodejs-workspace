@@ -21,8 +21,10 @@
 [Promiseチェーンで任意の場所でエラーハンドリング](#Promiseチェーンで任意の場所でエラーハンドリング)
 
 [実験Promiseチェーン](#実験Promiseチェーン)
-[](#)
-[](#)
+
+[逐次処理](#逐次処理)
+
+[promisify](#promisify)
 
 ## for...in vs for...of
 
@@ -770,37 +772,371 @@ https://developer.mozilla.org/ja/docs/Web/JavaScript/Reference/Statements/async_
 
 > 非同期関数の本体は、 await 式で分割されていると考えることができます。最上位のコードは、 (ある場合) 最初の await 式まで、それを含めて同期的に実行されます。したがって、await 式のない非同期関数は同期的に実行されます。しかし、関数本体の中に await 式がある場合、非同期関数は常に非同期に完了します。
 
-ということでasync関数の中身が完全に同期処理であるならばそれは同期関数として扱い、
+ということでasync関数の中身が完全に同期処理であるならばそれは同期関数として扱う
 
+
+## 逐次処理
+
+#### CASE: 引数も戻り値もとる関数をtaskとして逐次処理させるとき
+
+Node.js Design Patternより、Promiseを使った逐次処理を知った。
+
+テキストでは戻り値を返さない、かつ引数をとらない関数を逐次処理させていた。
+
+なので非常にシンプルなのだが、
+
+戻り値を返すし、その戻り値を次のthenが必要とする場合を考える。
+
+そんな逐次処理を実現するとき。
+
+#### 結論
+
+```TypeScript
+let tasks: (((a?:any) => any) | ((a?: any) => Promise<any>))[] = [];
+// This can't accept.
+// let tasks: (Promise<any> | ((a?:any) => any) | ((a?: any) => Promise<any>))[] = [];
+let promise = Promise.resolve();
+
+tasks.push(/* then handler function */);
+// ...
+
+// 引数は?でとっても取らなくてもいいようにする
+tasks.forEach((t?) => {
+  promise = promise.then(t);
+});
+
+promise.then(() => {
+  console.log("all done");
+});
+// or
+// await promise;  // If context is inside of async function.
+```
+
+then handler functionは非同期関数でも同期関数でも大丈夫。
+
+引数をとってもとらなくても、戻り値を返しても返さなくても大丈夫。
+
+今回tasksはthen()のハンドラ関数を含めるので、
+
+`Promise<any>`は含めることはできない。
+
+`let tasks: (((a?:any) => any) | ((a?: any) => Promise<any>) | Promise<any>)[] = [];`はできないという意味。
+
+戻り値をとるか取らないかはtask次第。
+
+#### 使いどころ
+
+テキストでは全く同じ関数を別の引数などで呼び出して順番通りに実行するのに最適な逐次処理であった。
+
+今回の自作の逐次処理は、どんな引数をとるのか、どんな戻り値が返されるのかあらかじめ把握しているときに使うことができる。
+
+つまり`tasks`の要素の順番が重要である場合である。
+
+#### 検証
+
+テスト内容：
+
+```JavaScript
+// テキストの逐次処理パターン
+
+let tasks = [/* ...tasks */];
+let promise = Promise.resolve();    // 空の解決済プロミスの生成
+tasks.forEach(task => {
+    promise = promise.then(() => { return task(); });
+});
+
+promise.then(() => {
+    // All tasks completed.
+})
+```
+
+```TypeScript
+// 戻り値引数をとる逐次処理
+function resolveAfter6Seconds(m: string) {
+  console.log("starting slow promise")
+  console.log(`display previous value: ${m}`);
+  return new Promise(resolve => {
+    setTimeout(function() {
+      resolve("slow")
+      console.log("slow promise is done")
+    }, 6000)
+  })
+}
+
+function resolveAfter3Seconds(m: string) {
+  console.log("starting fast promise");
+  console.log(`display previous value: ${m}`);
+  return new Promise(resolve => {
+    setTimeout(function() {
+      resolve("fast")
+      console.log("fast promise is done")
+    }, 3000)
+  })
+}
+
+function sync(m: string) {
+  console.log("starting sync function");
+  console.log(`display previous value: ${m}`);
+  return "sync done";
+}
+
+function resolveAfter10Seconds(m: string) {
+  console.log("starting very slow promise");
+  console.log(`display previous value: ${m}`);
+  return new Promise(resolve => {
+    setTimeout(function() {
+      resolve("very slow")
+      console.log("very slow promise is done")
+    }, 10000)
+  })
+};
+
+let tasks: (((a?:any) => any) | ((a?: any) => Promise<any>))[] = [];
+let promise = Promise.resolve();
+
+tasks.push(resolveAfter6Seconds);
+tasks.push(resolveAfter3Seconds);
+tasks.push(sync);
+tasks.push(resolveAfter10Seconds);
+
+tasks.forEach(t => {
+  promise = promise.then(t);
+});
+
+promise.then((a?: any) => {
+  console.log("all done.");
+  console.log(a);
+});
+```
+検証1: 期待する出力結果通りに動くか
 
 ```bash
-$ node ./dist/index.js
-==SEQUENTIAL START==
 starting slow promise
+display previouse value: undefined    # しょっぱなの呼び出しだから引数がなくundefinedになる
+# promise.thenではpromiseを返すまで次のthen()に処理が移動しないので、
+# この時点から6秒経過後
 slow promise is done
-slow
+# 次のthenへ移動
 starting fast promise
+display previouse value: slow
+# この時点から3秒経過後
 fast promise is done
-fast
-==CONCURRENT START with await==
-starting slow promise
-starting fast promise
-fast promise is done
-slow promise is done
-slow
-fast
-==CONCURRENT START with Promise.all==
-starting slow promise
-starting fast promise
-fast promise is done
-slow promise is done
-slow
-fast
-==PARALLEL with await Promise.all==
-starting slow promise
-starting fast promise
-fast promise is done
-fast
-slow promise is done
-slow
+# 次のthenへ移動
+starting sync function
+display previouse value: fast
+# 次のthenへ移動
+starting very slow promise
+display previouse value: sync done
+# この時点から10秒後
+very slow pormise is done
+# 終了
+all done.
+very slow
 ```
+結果、
+
+```bash
+starting slow promise 
+display previous value: undefined 
+slow promise is done 
+starting fast promise 
+display previous value: slow 
+fast promise is done 
+starting sync function 
+display previous value: fast 
+starting very slow promise 
+display previous value: sync done 
+very slow promise is done 
+all done. 
+very slow 
+```
+
+期待通りに動作。
+
+検証２：引数をとらないハンドラが含まれても期待通りに動作するか
+
+```TypeScript
+
+function sync2() {
+  console.log("starting sync function");
+  console.log("sync 2 would not get parameter. But returns value.");
+  return "sync2 done";
+};
+
+tasks.forEach((t?) => {
+  promise = promise.then(t);
+});
+```
+
+```bash
+starting slow promise 
+display previous value: undefined 
+slow promise is done 
+starting fast promise 
+display previous value: slow 
+fast promise is done 
+starting sync function 
+display previous value: fast 
+# sync2: 引数をとらないけど戻り値を返す関数
+starting sync2 function 
+sync 2 would not get parameter. But returns value. 
+starting very slow promise 
+display previous value: sync2 done 
+very slow promise is done 
+all done. 
+very slow 
+```
+
+ここに記録しないけど、引数も取らないし戻り値も返さない関数も受け入れることができた。
+
+#### 使いやすいインタフェイスにしてみる
+
+```TypeScript
+type iSequentialAsyncTasks = (((a?:any) => any) | ((a?: any) => Promise<any>))[];
+const sequentialAsyncTasks = (tasks: iSequentialAsyncTasks) => {
+  let promise = Promise.resolve();
+  tasks.forEach(t => {
+    promise = promise.then(t);
+  });
+  return promise;
+};
+
+sequentialAsyncTasks(tasks).then((a) => {
+  console.log("sequentail async tasks done.");
+  console.log(a);
+});
+```
+最後のpromise.then()の引数（戻り値）も取得できた。
+
+次のようにしてもいい。
+
+```TypeScript
+type iGenTask = <T>((a?:any) => T) | ((a?: any) => Promise<T>);
+type iSequentialAsyncTask = ((a?:any) => any) | ((a?: any) => Promise<any>);
+type iSequentialAsyncTasks = iSequentialAsyncTasks[];
+const sequentialAsyncTasks = (
+  tasks: iSequentialAsyncTasks,
+  tailEnd: iGenTask
+  ) => {
+  let promise = Promise.resolve();
+  tasks.forEach(t => {
+    promise = promise.then(t);
+  });
+  return promise.then(tailEnd);
+};
+
+sequentialAsyncTasks(tasks).then((a) => {
+  console.log("sequentail async tasks done.");
+  console.log(a); // aは出力されなかった...
+});
+```
+動作確認：
+
+```TypeScript
+{
+
+// -----------
+function resolveAfter6Seconds(m: string) {
+  console.log("starting slow promise");
+  console.log(`display previous value: ${m}`);
+  return new Promise((resolve) => {
+    setTimeout(function () {
+      resolve("slow");
+      console.log("slow promise is done");
+    }, 6000);
+  });
+}
+
+function resolveAfter3Seconds(m: string) {
+  console.log("starting fast promise");
+  console.log(`display previous value: ${m}`);
+  return new Promise((resolve) => {
+    setTimeout(function () {
+      resolve("fast");
+      console.log("fast promise is done");
+    }, 3000);
+  });
+}
+
+function sync(m: string) {
+  console.log("starting sync function");
+  console.log(`display previous value: ${m}`);
+  return "sync done";
+}
+
+function sync2() {
+  console.log("starting sync2 function");
+  console.log("sync 2 would not get parameter. But returns value.");
+  return "sync2 done";
+}
+
+function sync3() {
+  console.log("starting sync3 function");
+  console.log("sync3 would not get parameter and return value.");
+  return;
+}
+
+function resolveAfter10Seconds(m: string) {
+  console.log("starting very slow promise");
+  console.log(`display previous value: ${m}`);
+  return new Promise((resolve) => {
+    setTimeout(function () {
+      resolve("very slow");
+      console.log("very slow promise is done");
+    }, 10000);
+  });
+}
+// -----------
+
+let tasks: (((a?: any) => any) | ((a?: any) => Promise<any>))[] = [];
+
+tasks.push(resolveAfter6Seconds);
+tasks.push(resolveAfter3Seconds);
+tasks.push(sync);
+tasks.push(sync2);
+tasks.push(sync3);
+tasks.push(resolveAfter10Seconds);
+
+
+type iGenTask<T> = ((a?: any) => T) | ((a?: any) => Promise<T>);
+type iSequentialAsyncTask = ((a?: any) => any) | ((a?: any) => Promise<any>);
+type iSequentialAsyncTasks = iSequentialAsyncTask[];
+
+const sequentialAsyncTasks = (
+  tasks: iSequentialAsyncTasks
+) => {
+  let promise = Promise.resolve();
+  tasks.forEach((t) => {
+    promise = promise.then(t);
+  });
+  return promise;
+};
+
+// const sequentialAsyncTasks = <T>(
+//   tasks: iSequentialAsyncTasks,
+//   tailEnd: iGenTask<T>
+// ): Promise<T> => {
+//   let promise = Promise.resolve();
+//   tasks.forEach((t) => {
+//     promise = promise.then(t);
+//   });
+//   return promise.then(tailEnd);
+// };
+
+sequentialAsyncTasks(tasks).then((a) => {
+  console.log(a);
+  console.log("sequential async tasks done.");
+});
+
+}
+```
+
+## promisify
+
+Node.js Design Patternでは、コールバックAPIをプロミス化するための方法を教えてくれた。
+
+ふと思ったのが、
+
+同期関数をpromiseでラップすることができたら、
+
+その同期関数はイベントループへ追加されることになるのか、である。

@@ -1508,6 +1508,26 @@ DomainDD, EventDD
 
 各処理単位をpromisifyでラップしてつなげることができるようにする
 
+## TODOs
+
+TODO: 次の通りの設計に作り直す
+
+コマンドラインからコマンドを受け取る
+コマンドごとにtaskキューを形成する
+taskキューを順番に実行する
+
+という設計に作り直す
+
+TODO: taskキューはpromiseを使った逐次処理にするが、各thenで適切にエラーハンドリングできるようにする
+
+TODO: taskキューに突っ込むのはthen()ハンドラにすること。プロミス事態にしないこと。
+
+理由は各then()で密接にかかわるので引数と戻り値と順番が重要だから。
+
+TODO: エラーハンドリングは最終的にpuppeteerインスタンスをcloseできるように。
+
+## 各処理単位は細かく分離できるか？
+
 ```TypeScript
 import { orders } from './commandModules/index';
 
