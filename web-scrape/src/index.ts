@@ -11,45 +11,8 @@ import { orders, iOrders } from './commandParser/index';
 // import { login } from './components/login';
 import { setupCollectByKeywordTaskQueue } from './components/setupCollectByKeywordTaskQueue';
 import type { iSequentialAsyncTask } from '../utilities/TaskQueue';
+import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } from './constants/illustManga';
 
-// Only requiring title and id.
-export interface iIllustMangaDataElement {
-    id: string;
-    title: string;
-    illustType?: number;
-    xRestrict?: number;
-    restrict?: number;
-    sl?: number;
-    url?: string;
-    description?: string;
-    tags?: any[];
-    userId?: string;
-    userName?: string;
-    width?: number;
-    height?: number;
-    pageCount?: number;
-    isBookmarkable?: boolean;
-    bookmarkData?: any;
-    alt?: string;
-    titleCaptionTranslation?: any[];
-    createDate?: string;
-    updateDate?: string;
-    isUnlisted?: boolean;
-    isMasked?: boolean;
-    profileImageUrl?: string;
-};
-
-export interface iIllustManga {
-    data: iIllustMangaDataElement[],
-    total: number
-};
-
-export interface iBodyIncludesIllustManga {
-    error: boolean;
-    body: {
-        illustManga: iIllustManga;
-    }
-};
 
 
 
