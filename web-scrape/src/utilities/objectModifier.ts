@@ -8,7 +8,8 @@ interface iReplacableKeyObject {
 };
 
 /****
- * T
+ * `keys`配列の末尾のプロパティをオブジェクト`o`のなかから発見したら、そのプロパティを返す。
+ * 見つからなかった場合undefinedを返す。
  * 
  * */ 
 export const retrieveDeepProp = <T>(keys: string[], o: object): T => {

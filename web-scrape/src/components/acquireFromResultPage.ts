@@ -20,37 +20,33 @@ import type puppeteer from 'puppeteer';
 import { Collect } from './Collect';
 import { Navigation} from './Navigation';
 import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } from '../constants/illustManga';
+import { retrieveDeepProp } from '../utilities/objectModifier';
 
 // 検索結果の各artworkのidを格納する
 let collectedIds: string[] = [];
-const collector: Collect = new Collect<iIllustMangaDataElement>();
-const navigatoin: Navigation = new Navigation();
+const collector: Collect<iIllustMangaDataElement> = new Collect<iIllustMangaDataElement>();
 const filterUrl: string = "";
 
 
-/****
- * 検索結果ページ遷移時に取得できるHTTPResponseのjsonデータをobjectで引数として取得する
- * 必要な情報を取り出して収集用の配列へpushする
+
+/*******
+ * TODO: taskを組み立てるだけ
+ * 実行はしない
+ * 
+ * というようにしたい
+ * 
+ * TODO: finallyを組み込んでここで生成したpageインスタンスを必ずcloseする
  * 
  * 
  * */ 
-const executor = (data: iBodyIncludesIllustManga, key: string) => {
-    // retrieve data
-    const retrievedData: iIllustMangaDataElement[] = retrieveProcess();
-    collector.resetData(retrievedData);
-    // contains ids to collectedIds
-    collectedIds = [...collectedIds, ...collector.execute(key)];
-}
-
-const setupTasks = async (
+const setupTasks = (
     browser: puppeteer.Browser,
     numberOfProcess: number,    // 作成するpageインスタンスの数
     numberOfPages: number,       // 検索結果ページがなんページなのか
-    ) => {
+    ): Promise<void>[] => {
     let concurrency: number = numberOfProcess;
     const pageInstances: puppeteer.Page[] = [];
     const sequences: Promise<void>[] = [];
-    let currentPage: number = 1;
     const navigation: Navigation = new Navigation();
 
     for(let i = 0; i < concurrency; i++) {
@@ -58,42 +54,37 @@ const setupTasks = async (
         sequences.push(Promise.resolve());
     }
     // NOTE: iは検索結果ページのページ番号と同じになる
-    for(let i = 1; i < numberOfPages; i++) {
-        const circulator: number = i % concurrency;
-        sequences[circulator] = sequences[circulator]?
-        .then(() => {   // 引数はいらないはず
-            navigation.resetFilter((res: puppeteer.HTTPResponse) => 
-                // TODO: filterUrl = "https:....?p=${i}"となるURLにすること
-                res.status() === 200 && res.url() === filterUrl
-            );
-            
-            // i番目のページへアクセスする(Navigationはひとつでいいのか？sequence毎でいいのか？)
-            const responces: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(pageInstances[circulator]!, pageInstances[circulator]!.goto(filterUrl));
+    for(let currentPage = 1; currentPage < numberOfPages; currentPage++) {
+        const circulator: number = currentPage % concurrency;
+        if(sequences[circulator] !== undefined) {
+            sequences[circulator] = sequences[circulator]!
+            .then(() => {
+                navigation.resetFilter((res: puppeteer.HTTPResponse) => 
+                    // TODO: filterUrl = "https:....?p=${i}"となるURLにすること
+                    res.status() === 200 && res.url() === filterUrl
+                );
+                
+                // TODO: awaitのエラーはthne()のハンドラ関数がasyncじゃないから
+                // あとで分離するので一旦awaitのままで
 
-            // filterUrlに対するHTTPResponseを取得する
-            const requiredResponse: puppeteer.HTTPResponse = responces.shift();
-            // HTTPResponseからデータを取得する
-            // データを取り出す
-            // データからほしい情報をollectedへ格納する
-        })
+                // i番目のページへアクセスする(Navigationはひとつでいいのか？sequence毎でいいのか？)
+                const responces: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(pageInstances[circulator]!, pageInstances[circulator]!.goto(filterUrl));
+    
+                // filterUrlに対するHTTPResponseを取得する
+                // HTTPResponseからデータを取得する
+                const illustMangaDataElements: iIllustMangaDataElement[] = retrieveDeepProp<iIllustMangaDataElement[]>(["body", "illustManga", "data"], (await responces.shift().json()) as iBodyIncludesIllustManga); 
+                // データからほしい情報をollectedへ格納する
+                collector.resetData(illustMangaDataElements);
+                collectedIds = [...collectedIds, ...collector.execute("id")];
+            });
+        }
+        else {
+            console.error("RangeError: Accessing out range of array.");
+        }
     }
 
-    // TODO: finallyで必ず新規作成したpageインスタンスをcloseすること
+    return sequences;
 
-
-
-}
-
-/*****************************
- * 検索結果レスポンスからヒット数が何件あるのか判明する: totalPage
- * 
- * 並列処理数がヒット数から決まる: numberOfProcess
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * */ 
+    // finallyで必ず新規作成したpageインスタンスをcloseすること
+    // となるとclassにしたほうがいいかも
+};
