@@ -22,6 +22,7 @@ import { Collect } from './Collect';
 import { Navigation} from './Navigation';
 import { retrieveDeepProp } from '../utilities/objectModifier';
 
+// T: might be `iIllustMangaDataElement`
 export class CollectResultPage<T> {
     pageInstances: puppeteer.Page[] = [];
     sequences: Promise<void>[] = [];
@@ -29,11 +30,13 @@ export class CollectResultPage<T> {
     navigation: Navigation;
     collector: Collect<T>;
     collected: T[];
+    keyword: string;
     constructor(private browser: puppeteer.Browser, concurrency: number,  keyword: string){
         this.concurrency = concurrency;
         this.navigation = new Navigation();
         this.collector = new Collect<T>();
         this.collected = [];
+        this.keyword = keyword;
     };
 
     async _generatePageInstances() {
@@ -49,52 +52,47 @@ export class CollectResultPage<T> {
     };
 
     // Generate new instances according to this.concurrency
-    initialize() {
+    async initialize() {
         for(let i = 0; i < this.concurrency; i++) {
+            await this._generatePageInstances();
             this._initializeSequences();
-            // TODO: async関数をいかにして呼出すか...
-        }
+        };
     };
 
+
+    _retrieveDataFromResponses(propOrder: string[]) {
+
+    };
 
     _resolveJson(responses: (puppeteer.HTTPResponse | any)[]) {
         return responses.shift().json() as iBodyIncludesIllustManga;
     };
 
-    _collect() {
+    _collect(data: T[], key: keyof T) {
+        this.collector.resetData(data);
+        this.collected = [...this.collected, ...this.collector.execute(key)]
+    };
 
-    }
-
-    _executor(page: puppeteer.Page, navigation: Navigation, currentPage: number): Promise<void> {
-        try {
-            const url: string = `https://www.pixiv.net/ajax/search/artworks/${encodeURIComponent(keyword)}?word=${encodeURIComponent(keyword)}&order=date_d&mode=all&p=${currentPage}&s_mode=s_tag&type=all&lang=ja`;
-    
-            // setup navigation filter.
-            navigation.resetFilter((res: puppeteer.HTTPResponse) => res.status() === 200 && res.url() === url);
-            // let it navigate to the url.
-            const responces: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(page, page.goto(url));
-            // HTTPResponseから必要なデータを取得する
-            const illustMangaDataElements: iIllustMangaDataElement[] = retrieveDeepProp<iIllustMangaDataElement[]>(["body", "illustManga", "data"], (await responces.shift().json()) as iBodyIncludesIllustManga); 
-            // Check if the data is exist
-            if(illustMangaDataElements === undefined) throw new Error("Error: ")
-            // Retrieve and save. 
-            collector.resetData(illustMangaDataElements);
-            collectedIds = [...collectedIds, ...collector.execute("id")];
-        }
-        catch(e) {
-            console.error(e);
-            throw e;
-        }
-
-    }
-
-    generateTasks() {
-        for(let currentPage = 1; currentPage < numberOfPages; currentPage++) {
-            const circulator: number = currentPage % concurrency;
+    generateTasks(amountOfTasks: number) {
+        for(let i = 1; i < amountOfTasks; i++) {
+            const circulator: number = i % this.concurrency;
             if(this.sequences[circulator] !== undefined) {
                 this.sequences[circulator] = this.sequences[circulator]!
-                // Reset navigation filter function.
-                .then(() => this._executor(this.pageInstances[circulator]!, this.navigation, currentPage))
+                .then(() => 
+                    this._resetResponseFilter((res: puppeteer.HTTPResponse) => res.status() === 200 && res.url() === `https://www.pixiv.net/ajax/search/artworks/${encodeURIComponent(this.keyword)}?word=${encodeURIComponent(this.keyword)}&order=date_d&mode=all&p=${i}&s_mode=s_tag&type=all&lang=ja`)
+                )
+                .then(() => this.navigation.navigateBy(
+                    this.pageInstances[circulator]!, 
+                    // TODO: url違う気がする...
+                    this.pageInstances[circulator]!.goto(`https://www.pixiv.net/ajax/search/artworks/${encodeURIComponent(this.keyword)}?word=${encodeURIComponent(this.keyword)}&order=date_d&mode=all&p=${i}&s_mode=s_tag&type=all&lang=ja`)
+                ))
+                .then(this._resolveJson)
+                .then()
+                // reset navigation filter
+                // navigate
+                // get httpresponse
+                // retrieve data
+                // contain data
             }
             else {
                 console.error("RangeError: Accessing out range of array.");
@@ -106,7 +104,16 @@ export class CollectResultPage<T> {
     // finally() will not be invoked automatically.
     // But this method must be called after all process is done.
     finally() {
+        // DEBUG:
+        console.log("finally(): acquireFromResultPage.ts");
 
+        if(this.sequences.length > 0) {
+            this.sequences = [];
+        }
+        if(this.pageInstances.length > 0) {
+            this.pageInstances.forEach(p => p.close());
+            this.pageInstances = [];
+        }
     }
 }
 
