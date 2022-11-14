@@ -27,10 +27,12 @@ export class CollectResultPage<T> {
     sequences: Promise<void>[] = [];
     concurrency: number;
     navigation: Navigation;
+    collector: Collect<T>;
     collected: T[];
-    constructor(private browser: puppeteer.Browser, numberOfProcess: number, numberOfPages: number, keyword: string){
-        this.concurrency = numberOfProcess;
+    constructor(private browser: puppeteer.Browser, concurrency: number,  keyword: string){
+        this.concurrency = concurrency;
         this.navigation = new Navigation();
+        this.collector = new Collect<T>();
         this.collected = [];
     };
 
@@ -42,18 +44,26 @@ export class CollectResultPage<T> {
         return this.sequences.push(Promise.resolve());
     };
 
-    _resetNavigationFilter(url: string) {
-        this.navigation.resetFilter((response: puppeteer.HTTPResponse) => 
-            response.status() === 200 && response.url() === url
-        );
+    _resetResponseFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
+        this.navigation.resetFilter(filter);
     };
 
+    // Generate new instances according to this.concurrency
     initialize() {
-        for(let i = 0; i < this.numberOfProcess; i++) {
+        for(let i = 0; i < this.concurrency; i++) {
             this._initializeSequences();
             // TODO: async関数をいかにして呼出すか...
         }
     };
+
+
+    _resolveJson(responses: (puppeteer.HTTPResponse | any)[]) {
+        return responses.shift().json() as iBodyIncludesIllustManga;
+    };
+
+    _collect() {
+
+    }
 
     _executor(page: puppeteer.Page, navigation: Navigation, currentPage: number): Promise<void> {
         try {

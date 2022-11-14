@@ -706,7 +706,7 @@ async2のsetTimeoutが完了してから次のsync1のthen()が呼び出され�
 
 つまり明示的にPromiseがresolve()を返せばthen()の完了のタイミングを施御することはできる。
 
-3. then()がasync関数を返す場合
+3. then()がasync関数(内容は同期処理)を返す場合
 
 async関数は暗黙的にPromiseを返すので、その処理内容は非同期として登録されるはず...
 
@@ -739,13 +739,13 @@ async関数は暗黙的にPromiseを返すので、その処理内容は非同�
 
 let promise = Promise.resolve();
 
-[async1, async2, sync1, async3].forEach(f => {
-    promise = promise.then(() => f());
-});
+// [async1, async2, sync1, async3].forEach(f => {
+//     promise = promise.then(() => f());
+// });
 
-promise.then(() => {
-    console.log("done");
-});
+// promise.then(() => {
+//     console.log("done");
+// });
 ```
 結果：
 
@@ -773,6 +773,161 @@ https://developer.mozilla.org/ja/docs/Web/JavaScript/Reference/Statements/async_
 > 非同期関数の本体は、 await 式で分割されていると考えることができます。最上位のコードは、 (ある場合) 最初の await 式まで、それを含めて同期的に実行されます。したがって、await 式のない非同期関数は同期的に実行されます。しかし、関数本体の中に await 式がある場合、非同期関数は常に非同期に完了します。
 
 ということでasync関数の中身が完全に同期処理であるならばそれは同期関数として扱う
+
+4. then()がasync関数（内容は非同期処理）を返すとき
+
+結論：**then()がasync関数を返すとawait呼出の非同期処理を含むとしてもその完了を待つ（同期的に解決される）**
+
+async関数が内部でawaitで非同期関数を呼び出す。
+
+```TypeScript
+const timer = (msg: string, time: number): Promise<void> => {
+  return new Promise((resolve, rejct) => {
+    setTimeout(function() {
+      console.log(msg);
+      resolve();
+    }, time);
+  })
+};
+
+const async1 = async () => {
+  console.log("async1: invoked");
+  await timer("async1: wait 5 sec.", 5000);
+};
+
+
+const async2 = async () => {
+  console.log("async2: invoked");
+  await timer("async2: wait 10 sec.", 10000);
+};
+
+
+const async3 = async () => {
+  console.log("async3: invoked");
+  await timer("async3: wait 15 sec.", 15000);
+};
+
+
+const sync1 = () => {
+  console.log("sync1: invoked.");
+};
+
+
+let promise = Promise.resolve();
+
+[async1, async2, sync1, async3].forEach(f => {
+    promise = promise.then(() => f());
+});
+
+promise.then(() => {
+    console.log("done");
+});
+```
+
+結果：
+
+```bash
+async1: invoked 
+async1: wait 5 sec.   # wait for 5 sec.
+async2: invoked   # Immediately
+async2: wait 10 sec. # wait for 10 sec.
+sync1: invoked. # Immediately
+async3: invoked # Immediately
+async3: wait 15 sec. # wait for 15 sec.
+done 
+```
+
+まとめ：
+
+async関数がthen()から返されるとき、そのasync関数が内部でawaitで非同期処理を呼び出していても、
+then()はその完了を待つ。
+
+次の変更を施してもそれ等が守られているのがわかる
+
+```TypeScript
+const timer = (msg: string, time: number): Promise<void> => {
+  return new Promise((resolve, rejct) => {
+    setTimeout(function() {
+      console.log(msg);
+      resolve();
+    }, time);
+  })
+};
+
+const async1 = async () => {
+  console.log("async1: invoked");
+  await timer("async1: wait 5 sec.", 5000);
+};
+
+
+const async2 = async () => {
+  console.log("async2: invoked");
+  await timer("async2: wait 10 sec.", 10000);
+  // NOTE: 次の呼び出しがこのループ中に行われるのか確認するため
+  for(let i = 0; i < 30; i++) {
+    console.log(i);
+  }
+
+};
+
+
+const async3 = async () => {
+  console.log("async3: invoked");
+  await timer("async3: wait 15 sec.", 15000);
+};
+
+
+
+const sync1 = () => {
+  console.log("sync1: invoked.");
+  // NOTE: 次の呼び出しがこのループ中に行われるのか確認するため
+  for(let i = 0; i < 30; i++) {
+    console.log(i);
+  }
+};
+
+
+let promise = Promise.resolve();
+
+[async1, async2, sync1, async3].forEach(f => {
+    promise = promise.then(() => f());
+});
+
+promise.then(() => {
+    console.log("done");
+});
+```
+```bash
+async1: wait 5 sec. 
+async2: invoked 
+async2: wait 10 sec. 
+# 非同期処理が完了してから次の処理へ移動しているし...
+0
+1
+2
+3
+4
+5
+# ...
+26
+27
+28
+29
+# それ等が終わってから次のthen()へ移っている
+sync1: invoked. 
+0
+1
+2
+3
+# ...
+27
+28
+29
+async3: invoked 
+async3: wait 15 sec. 
+done 
+```
+
 
 
 ## 逐次処理
