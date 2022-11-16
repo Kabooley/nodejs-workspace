@@ -1,42 +1,74 @@
 /*******************************************************
- * 検索結果ページ（正しくはそのページにアクセスしたときのHTTPResponse）からほしい情報を取得して収集する。
+ * 検索結果全ページから指定のデータを取得するクラス
  * 
- * 前の処理段階で増加させるpageインスタンスが決められており、
- * ここではインスタンスどうし並列処理させて、
- * インスタンス毎逐次処理させる。
+ * 基本的な流れを守ればあとはほぼカスタマイズ可能な並列処理を定義できる
+ * sequenceの逐次処理：
+ * 1. Prepare to navigate
+ * 2. Navigate
+ * 3. Solve returned HTTPResponses from Navigate process
+ * 4. Collect data from returned value from solving http response process
+ * 5. Error handling
  * 
- * page: puppeteer.Pageインスタンス, 
- * pageInstances: pageインスタンスを格納している配列
- * sequence: 各pageの逐次処理taskQueue
- * concurrency: 並列処理同時実行数上限
+ * 問題：
+ * - Solveの段階でどんなデータをとるのかは場合に因るのでハードコーディングはできない
+ * 取得できたHTTPResponseのどの深度のプロパティが必要なのかとか,
+ * HTTPResponseはjson()で解決するのかtext()で解決するのかも固定できない。
  * 
- * 
- * 外部でこのモジュールが呼び出されるとして、
- * 前提とする変数をすべて引き取らなくてはいけないはず...
- * (検索結果ページがなんページなのかとか)
- * 
+ * - Navigateの段階でどのpageインスタンスを
  * *****************************************************/ 
 import type puppeteer from 'puppeteer';
 import type { iIllustMangaDataElement, iBodyIncludesIllustManga } from '../constants/illustManga';
 import { Collect } from './Collect';
 import { Navigation} from './Navigation';
 import { retrieveDeepProp } from '../utilities/objectModifier';
+import mustache from '../utilities/mustache';
 
+// TEMPORARY GLOABL
+const url: string = "https://www.pixiv.net/tags/{{keyword}}/artworks?p={{i}}&s_mode=s_tag";
+const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}}?word={{keyword}}&order=date_d&mode=all&p={{i}}&s_mode=s_tag&type=all&lang=ja";
+
+type iResponsesResolver<TO> = (responses: (puppeteer.HTTPResponse | any)[]) => TO | Promise<TO>;
+
+/****
+ * What if Navigation instance was passed as constructor paremeter?
+ * What if Collect instacen was pased as constructor parameter?
+ *  Then I don't need to mind about the type of data?
+ * 
+ * 
+ * @type {T} - The type of `collected` variable.
+ * 
+ * pageインスタンスからのHTTPResponseから指定のデータを抽出してcollectedへ納める
+ * という仕事を遂行するためのclass
+ * 
+ * なので次の部分はハードコーディングになるかも:
+ * pageインスタンスを持つ
+ * ジェネリクスで型指定されたcollected変数
+ * 
+ * */ 
 // T: might be `iIllustMangaDataElement`
 export class CollectResultPage<T> {
     pageInstances: puppeteer.Page[] = [];
     sequences: Promise<void>[] = [];
     concurrency: number;
-    navigation: Navigation;
-    collector: Collect<T>;
     collected: T[];
     keyword: string;
-    constructor(private browser: puppeteer.Browser, concurrency: number,  keyword: string){
+    responsesResolver: iResponsesResolver<T>;
+    loopIterator: number;
+    circulator: number;
+    constructor(
+        private browser: puppeteer.Browser, 
+        concurrency: number,  
+        keyword: string,
+        public navigation: Navigation,
+        public collector: Collect<T>
+        ){
         this.concurrency = concurrency;
-        this.navigation = new Navigation();
         this.collector = new Collect<T>();
         this.collected = [];
         this.keyword = keyword;
+        this.responsesResolver = null;
+        this.loopIterator = 0;
+        this.circulator = 0;
     };
 
     async _generatePageInstances() {
@@ -47,58 +79,74 @@ export class CollectResultPage<T> {
         return this.sequences.push(Promise.resolve());
     };
 
-    _resetResponseFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
-        this.navigation.resetFilter(filter);
+
+    _resolveJson(responses: (puppeteer.HTTPResponse | any)[]) {
+        return responses.shift().json() as iBodyIncludesIllustManga;
     };
 
-    // Generate new instances according to this.concurrency
+
+    // -- PUBLIC METHODS --
+
+    /***
+     * Generate new instances according to this.concurrency
+     * - Generate page instances.
+     * - Generate sequence instances.
+     * 
+     * NOTE: DO NOT DO ANYTHING BEFORE CALL THIS initialize().
+     * */ 
     async initialize() {
         for(let i = 0; i < this.concurrency; i++) {
             await this._generatePageInstances();
             this._initializeSequences();
         };
     };
+    
 
-
-    _retrieveDataFromResponses(propOrder: string[]) {
-
+    resetResponseFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
+        this.navigation.resetFilter(filter);
     };
 
-    _resolveJson(responses: (puppeteer.HTTPResponse | any)[]) {
-        return responses.shift().json() as iBodyIncludesIllustManga;
+    /****
+     * 
+     * Call this method everyloop that updates sequences 
+     * to update iterator of loop.
+     * 
+     * */ 
+    updateIterates(i: number) {
+        this.loopIterator = i;
+    }
+    
+    
+    setResponsesResolver<T>(callback: iResponsesResolver<T>) {
+        this.responsesResolver = callback;
     };
+    
+    /****
+     * navigation.navigateBy()で遷移するのは固定なので引数は固定である
+     * 
+     * responses --> resolver --> ValueYouWant or error
+     * 
+     * 1: responses.shift() or response.pop()など
+     * 2: 1.json() or 1.text()など
+     * 3: どのプロパティか、どの深度かにあるプロパティを何とかして取得する
+     * 4: 取得で来たらそれを返す、または取得できなかったらエラーを返す
+     * 
+     * */ 
+     resolveResponses(responses: (puppeteer.HTTPResponse | any)[]) {
+        return this.responsesResolver(responses);
+    }
 
-    _collect(data: T[], key: keyof T) {
+    collect(data: T[], key: keyof T) {
         this.collector.resetData(data);
         this.collected = [...this.collected, ...this.collector.execute(key)]
     };
 
-    generateTasks(amountOfTasks: number) {
-        for(let i = 1; i < amountOfTasks; i++) {
-            const circulator: number = i % this.concurrency;
-            if(this.sequences[circulator] !== undefined) {
-                this.sequences[circulator] = this.sequences[circulator]!
-                .then(() => 
-                    this._resetResponseFilter((res: puppeteer.HTTPResponse) => res.status() === 200 && res.url() === `https://www.pixiv.net/ajax/search/artworks/${encodeURIComponent(this.keyword)}?word=${encodeURIComponent(this.keyword)}&order=date_d&mode=all&p=${i}&s_mode=s_tag&type=all&lang=ja`)
-                )
-                .then(() => this.navigation.navigateBy(
-                    this.pageInstances[circulator]!, 
-                    // TODO: url違う気がする...
-                    this.pageInstances[circulator]!.goto(`https://www.pixiv.net/ajax/search/artworks/${encodeURIComponent(this.keyword)}?word=${encodeURIComponent(this.keyword)}&order=date_d&mode=all&p=${i}&s_mode=s_tag&type=all&lang=ja`)
-                ))
-                .then(this._resolveJson)
-                .then()
-                // reset navigation filter
-                // navigate
-                // get httpresponse
-                // retrieve data
-                // contain data
-            }
-            else {
-                console.error("RangeError: Accessing out range of array.");
-            }
-        }
-        return this.sequences;
+    run(): Promise<void[]> {
+        return Promise.all(this.sequences);
+    }
+
+    getResult(): T[] {
+        return this.collected;
     }
 
     // finally() will not be invoked automatically.
@@ -111,11 +159,67 @@ export class CollectResultPage<T> {
             this.sequences = [];
         }
         if(this.pageInstances.length > 0) {
+            // NOTE: awaitで待つ必要がないのでp.close()は同期的な呼び出し
             this.pageInstances.forEach(p => p.close());
             this.pageInstances = [];
         }
-    }
-}
+        if(this.browser !== undefined){
+            this.browser = undefined;
+        }
+    };
+
+
+    
+    // generateTasks(amountOfTasks: number) {
+    //     for(let i = 1; i <= amountOfTasks; i++) {
+    //         // Circulates 1 ~ amountOfTasks
+    //         const circulator: number = i % this.concurrency;
+    //         if(
+    //             this.sequences[circulator] !== undefined 
+    //             && this.pageInstances[circulator] !== undefined
+    //         ) {
+    //             this.sequences[circulator] = this.sequences[circulator]!
+    //             // Update the filter url everytime loop.
+    //             // ここはこのままでもいいかも
+    //             // 
+    //             .then(() => 
+    //                 this.resetResponseFilter((res: puppeteer.HTTPResponse) => res.status() === 200 && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(this.keyword), i: i}))
+    //             )
+    //             // navigate to the url.
+    //             .then(() => this.navigation.navigateBy(
+    //                 this.pageInstances[circulator]!, 
+    //                 this.pageInstances[circulator]!.goto(mustache(url, {keyword: encodeURIComponent(this.keyword), i: i}))
+    //             ))
+    //             // retrieve data from http reponses from filter url.
+    //             // this then() returns iBodyIncludesIllustManga.
+    //             .then(this._resolveJson)
+    //             // retrieve data from http response
+    //             .then((responseBody: iBodyIncludesIllustManga) => this._retrieveDataFromResponse(["body", "illustManga", "data"], responseBody))
+    //             // Contains the data
+    //             .then((data: T[]) => {
+    //                 if(data === undefined) throw new Error("Error: Could not retrieve data from http response. @acquireFromResultPage");
+    //                 this._collect(data, "id");
+    //             })
+    //             // Error handling.
+    //             .catch(e => {
+
+    //             });
+    //         }
+    //         else {
+    //             console.error("RangeError: Accessing out range of array.");
+    //         }
+    //     }
+    //     return this.sequences;
+    // }
+    
+
+    // _retrieveDataFromResponse(responseBody: object, propOrder: string[]) {
+    //     // TODO: FIX: Genericsの型付けがハードコーディングである
+    //     // TODO: FIX: retrieveDeepPropの第一引数がハードコーディングである
+    //     return retrieveDeepProp<T[]>(propOrder, responseBody);
+    // };
+
+};
 
 // 検索結果の各artworkのidを格納する
 let collectedIds: string[] = [];

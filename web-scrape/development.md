@@ -1769,6 +1769,21 @@ tasksPromise = tasksPromise
 return tasksPromise;
 ```
 
+#### acquireFromResultPage.ts
+
+検索結果ページ全てから検索結果作品すべての情報を取得する処理。
+
+大まかな流れ
+
+- 検索結果件数評価
+- 評価結果から並列処理数を決定する
+- 並列処理準備
+	- 
+- 並列処理実行
+- 収集情報を返す
+
+
+
 ## 検証:検索結果ページはpage.goto(url)で移動・取得できるか
 
 URL: https://www.pixiv.net/tags/%E5%8E%9F%E7%A5%9E/artworks?p=7&s_mode=s_tag
