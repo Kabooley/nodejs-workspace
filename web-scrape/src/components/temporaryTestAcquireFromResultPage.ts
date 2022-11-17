@@ -5,7 +5,7 @@ import { Navigation} from './Navigation';
 import mustache from '../utilities/mustache';
 import { retrieveDeepProp } from '../utilities/objectModifier';
 
-import { CollectResultPage } from './acquireFromResultPage';
+import { CollectResultPage, CollectResultPage2 } from './acquireFromResultPage';
 
 
 type iResponsesResolver<TO> = (responses: (puppeteer.HTTPResponse | any)[]) => TO | Promise<TO>;
@@ -27,6 +27,7 @@ const url: string = "https://www.pixiv.net/tags/{{keyword}}/artworks?p={{i}}&s_m
 const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}}?word={{keyword}}&order=date_d&mode=all&p={{i}}&s_mode=s_tag&type=all&lang=ja";
 
 
+// test for ver.3
 (async function() {
     const keyword: string = "COWBOYBEBOP";
     const browser: puppeteer.Browser = await puppeteer.launch();
@@ -43,8 +44,8 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
     for(let i = 1; i <= 100; i++) {
         const circulator: number = i % 4;
         collectorOfResult.updateIterates(i);    // いらないかも？
-        collectorOfResult.sequences[circulator]!
-        = collectorOfResult.sequences[circulator]!
+        let promise = collectorOfResult.getSequence(circulator)!;
+        promise = collectorOfResult.getSequence(circulator)!
         // 1. Prepare to navigate. Return void.
         // 
         // 結局この形が一番だと思う...
@@ -54,8 +55,8 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
         // 2. Navigate: Return (puppeteer.HTTPResponse | any)[] 
         // that express Navigation.navigateBy() return value. 
         .then(() => collectorOfResult.navigation.navigateBy(
-            collectorOfResult.pageInstances[circulator]!, 
-            collectorOfResult.pageInstances[circulator]!
+            collectorOfResult.getPageInstance(circulator)!, 
+            collectorOfResult.getPageInstance(circulator)!
             .goto(mustache(url, {keyword: encodeURIComponent(keyword), i: i}))
         ))
         // 3. Soleve returned value to specified data
@@ -72,4 +73,60 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
     console.log(result);
 })();
 
-// TODO: 次回、テスト、型情報の整理
+
+/***
+ * Navigationインスタンスの変更はnavigationインスタンスに対して実行する
+ * CollectResultPage2のインスタンスは呼び出さないとしてみる
+ * 
+ * */ 
+(async function() {
+    // 同時実行数上限
+    const concurrency: number = 5;
+    const keyword: string = "COWBOYBEBOP";
+    const browser: puppeteer.Browser = await puppeteer.launch();
+    const navigation = new Navigation();
+    const collector = new Collect<iIllustMangaDataElement>();
+    const collectorOfResultPage = new CollectResultPage2(
+        browser, 4, navigation, collector);
+
+    const generateNavigationFilter = (i: number) => {
+        return (res: puppeteer.HTTPResponse): boolean | Promise<boolean> => {
+            return res.status() === 200 
+            && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(keyword), i: i})
+        }
+    };
+
+    let circulator: number = 0;
+    // Generate instances: pages, sequences
+    /*******************************************
+     * NOTE: 勝手に理想を記述してみただけ。
+     * 実装はまだ
+     * *****************************************/ 
+    await collectorOfResultPage.initialize();
+    for(let i = 1; i < 100; i++) {
+        circulator = i % concurrency;
+        // Generate task 
+        // update navigation set for new loop process.
+        collectorOfResultPage.updateNavigationFilter(generateNavigationFilter(i));
+        // navigation
+        collectorOfResultPage.updateNavigationTrigger(
+            collectorOfResultPage.getPageInstance(circulator).goto(
+                mustache(url, {keyword: encodeURIComponent(keyword), i: i})
+            )
+        );
+        // get navigation returned value
+        collectorOfResultPage.updateParser();
+        // parse returned value and retrieve data from http response
+        // run executor (something like contain data from retrieved data)
+        collectorOfResultPage.updateExecutor();
+
+        // タスクを一つ組み立てる
+        // どのsequenceでどのpageインスタンスなのかをcirculatorで
+        // 指定する
+        collectorOfResultPage.createTask(circulator);
+    }
+    await collectorOfResultPage.run();
+    const result = collectorOfResultPage.getResult();
+    await collectorOfResultPage.finally();
+
+})();
