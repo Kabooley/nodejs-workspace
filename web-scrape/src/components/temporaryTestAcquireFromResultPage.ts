@@ -5,7 +5,7 @@ import { Navigation} from './Navigation';
 import mustache from '../utilities/mustache';
 import { retrieveDeepProp } from '../utilities/objectModifier';
 
-import { CollectResultPage, CollectResultPage2 } from './acquireFromResultPage';
+import { CollectResultPage, CollectResultPage_2 } from './acquireFromResultPage';
 
 
 type iResponsesResolver<TO> = (responses: (puppeteer.HTTPResponse | any)[]) => TO | Promise<TO>;
@@ -86,7 +86,7 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
     const browser: puppeteer.Browser = await puppeteer.launch();
     const navigation = new Navigation();
     const collector = new Collect<iIllustMangaDataElement>();
-    const collectorOfResultPage = new CollectResultPage2(
+    const collectorOfResultPage = new CollectResultPage_2(
         browser, 4, navigation, collector);
 
     const generateNavigationFilter = (i: number) => {
@@ -123,10 +123,10 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
         // タスクを一つ組み立てる
         // どのsequenceでどのpageインスタンスなのかをcirculatorで
         // 指定する
-        collectorOfResultPage.createTask(circulator);
+        collectorOfResultPage.generateTask(circulator);
     }
     await collectorOfResultPage.run();
     const result = collectorOfResultPage.getResult();
-    await collectorOfResultPage.finally();
+    collectorOfResultPage.finally();
 
 })();

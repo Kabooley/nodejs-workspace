@@ -58,6 +58,22 @@ export class CollectResultPage_2<T> {
         this.responsesResolver = null;
         this.loopIterator = 0;
         this.circulator = 0;
+        // bind methods
+        this._generatePageInstances = this._generatePageInstances.bind(this);
+        this._initializeSequences = this._initializeSequences.bind(this);
+        this._resolveJson = this._resolveJson.bind(this);
+        this.getPageInstance = this.getPageInstance.bind(this);
+        this.getSequence = this.getSequence.bind(this);
+        this.initialize = this.initialize.bind(this);
+        this.resetResponseFilter = this.resetResponseFilter.bind(this);
+        this.updateIterates = this.updateIterates.bind(this);
+        this.setResponsesResolver = this.setResponsesResolver.bind(this);
+        this.resolveResponses = this.resolveResponses.bind(this);
+        this.collect = this.collect.bind(this);
+        this.run = this.run.bind(this);
+        this.getResult = this.getResult.bind(this);
+        this.finally = this.finally.bind(this);
+        this.generateTask = this.generateTask.bind(this);
     };
 
     async _generatePageInstances() {
@@ -173,56 +189,32 @@ export class CollectResultPage_2<T> {
         }
     };
 
+    resolveResponse(responses: (puppeteer.HTTPResponse | any)[]) {
+        return this.responsesResolver(responses);
+    };
 
-    
-    // generateTasks(amountOfTasks: number) {
-    //     for(let i = 1; i <= amountOfTasks; i++) {
-    //         // Circulates 1 ~ amountOfTasks
-    //         const circulator: number = i % this.concurrency;
-    //         if(
-    //             this.sequences[circulator] !== undefined 
-    //             && this.pageInstances[circulator] !== undefined
-    //         ) {
-    //             this.sequences[circulator] = this.sequences[circulator]!
-    //             // Update the filter url everytime loop.
-    //             // ここはこのままでもいいかも
-    //             // 
-    //             .then(() => 
-    //                 this.resetResponseFilter((res: puppeteer.HTTPResponse) => res.status() === 200 && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(this.keyword), i: i}))
-    //             )
-    //             // navigate to the url.
-    //             .then(() => this.navigation.navigateBy(
-    //                 this.pageInstances[circulator]!, 
-    //                 this.pageInstances[circulator]!.goto(mustache(url, {keyword: encodeURIComponent(this.keyword), i: i}))
-    //             ))
-    //             // retrieve data from http reponses from filter url.
-    //             // this then() returns iBodyIncludesIllustManga.
-    //             .then(this._resolveJson)
-    //             // retrieve data from http response
-    //             .then((responseBody: iBodyIncludesIllustManga) => this._retrieveDataFromResponse(["body", "illustManga", "data"], responseBody))
-    //             // Contains the data
-    //             .then((data: T[]) => {
-    //                 if(data === undefined) throw new Error("Error: Could not retrieve data from http response. @acquireFromResultPage");
-    //                 this._collect(data, "id");
-    //             })
-    //             // Error handling.
-    //             .catch(e => {
+    resetNavigation() {
+    }
 
-    //             });
-    //         }
-    //         else {
-    //             console.error("RangeError: Accessing out range of array.");
-    //         }
-    //     }
-    //     return this.sequences;
-    // }
-    
 
-    // _retrieveDataFromResponse(responseBody: object, propOrder: string[]) {
-    //     // TODO: FIX: Genericsの型付けがハードコーディングである
-    //     // TODO: FIX: retrieveDeepPropの第一引数がハードコーディングである
-    //     return retrieveDeepProp<T[]>(propOrder, responseBody);
-    // };
+    navigate() {
+        return this.navigation.navigateBy(this.pageInstances[circulator]!, this.navigationTrigger)
+    };
+
+    updateNavigationFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
+        this.navigation.resetFilter(filter)
+    };
+
+    generateTask(circulator: number) {
+        if(this.sequences[circulator] !== undefined) {
+            this.sequences[circulator] = this.sequences[circulator]!
+            .then(() => this.resetNavigation)
+            .then(() => this.navigate)
+            .then((responses) => this.resolveResponse(responses))
+            .then((data: T) => this.collect)
+            .catch((e: Error) => this.errorHandler)
+        }
+    }
 };
 
 
@@ -230,7 +222,7 @@ type iResponsesResolver<TO> = (responses: (puppeteer.HTTPResponse | any)[]) => T
 
 
 
-/****VER.3
+/****<<<<VER.3>>>>
  * 
  * @type {T} - The type of `collected` variable.
  * @constructor
