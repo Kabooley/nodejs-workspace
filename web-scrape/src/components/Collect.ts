@@ -1,8 +1,15 @@
 /********************************************************************
  * Collects value by specified key from array consist of data typed T
  * 
- * NOTE: 配列にしか使えない。
+ * 与えられたT型オブジェクトからなる配列から、
+ * 指定のT型のプロパティに一致する値を取り出して配列で返す。
+ * 
  * *******************************************************************/ 
+
+/***
+ * @type {T} - Type of the array element object.
+ * 
+ * */ 
 export class Collect<T> {
     private data: T[];
     constructor() {
@@ -16,16 +23,6 @@ export class Collect<T> {
      * @param {keyof T} key - Key of object that passed as first argument and to be retrieved.
      * @return {T[keyof t][]} - Array 
      * 
-     * USAGE:
-     * 
-     * Example below collecting `id` and `title` value from `illustManga.data` object and make them array.
-     * 
-     * ```TypeScript
-     * let ids: string[] = [];
-     * let titles: string[] = [];
-     * ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
-     * titles = [...titles, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'title')];
-     * ```
      * */ 
     _collector(key: keyof T): T[keyof T][] {
         const arr = this.data.map((e: T) => {
@@ -48,7 +45,27 @@ export class Collect<T> {
         this.data.length = 0;
         this.data = [...data];
     }
-}
+};
+
+// --- USAGE ---
+// 
+// interface iData {
+//     id: number;
+//     name: string;
+// };
+
+// const data: iData[] = [
+//     {id: 1, name: "Maria", ...},
+//     {id: 2, name: "Mario", ...},
+//     {id: 3, name: "Mary", ...},
+//     {id: 4, name: "Matilda", ...},
+//     {id: 5, name: "Manda", ...},
+// ];
+// const collector = new Collect<iData>;
+// collector.resetData(data);
+// const ids = collector.execute("id");
+// console.log(ids); // 1, 2, 3, 4, ...
+
 
 // --- LEGACY ---
 // 

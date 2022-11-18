@@ -24,205 +24,12 @@ import { retrieveDeepProp } from '../utilities/objectModifier';
 import mustache from '../utilities/mustache';
 
 
-/****VER.4
- * 
- * @type {T} - The type of `collected` variable.
- * @constructor
- *  @param
- *  @param
- *  @param
- *  @param
- * 
- * NOTE: 要検討項目
- * 
- * - puppeteer.browserはクラスが保有するべきなのか？外部から渡されてもいいのでは？
- * - 外部でsequenceのタスクを組み立てるループを回してsequenceを組み立てるけれど、
- * インスタンスの呼び出しはクラスメソッドを通じてアクセスできるよう制限する
- * circulatorの番号とループの
- * */ 
-// T: might be `iIllustMangaDataElement`
-export class CollectResultPage_2<T> {
-    public sequences: Promise<void>[] = [];
-    private pageInstances: puppeteer.Page[] = [];
-    private collected: T[];
-    responsesResolver: iResponsesResolver<T>;
-    private loopIterator: number;
-    private circulator: number;
-    constructor(
-        private browser: puppeteer.Browser, 
-        private concurrency: number,
-        public navigation: Navigation,
-        public collector: Collect<T>
-        ){
-        this.collected = [];
-        this.responsesResolver = null;
-        this.loopIterator = 0;
-        this.circulator = 0;
-        // bind methods
-        this._generatePageInstances = this._generatePageInstances.bind(this);
-        this._initializeSequences = this._initializeSequences.bind(this);
-        this._resolveJson = this._resolveJson.bind(this);
-        this.getPageInstance = this.getPageInstance.bind(this);
-        this.getSequence = this.getSequence.bind(this);
-        this.initialize = this.initialize.bind(this);
-        this.resetResponseFilter = this.resetResponseFilter.bind(this);
-        this.updateIterates = this.updateIterates.bind(this);
-        this.setResponsesResolver = this.setResponsesResolver.bind(this);
-        this.resolveResponses = this.resolveResponses.bind(this);
-        this.collect = this.collect.bind(this);
-        this.run = this.run.bind(this);
-        this.getResult = this.getResult.bind(this);
-        this.finally = this.finally.bind(this);
-        this.generateTask = this.generateTask.bind(this);
-    };
-
-    async _generatePageInstances() {
-        return this.pageInstances.push(await this.browser.newPage());
-    };
-
-    _initializeSequences() {
-        return this.sequences.push(Promise.resolve());
-    };
-
-
-    _resolveJson(responses: (puppeteer.HTTPResponse | any)[]) {
-        return responses.shift().json() as iBodyIncludesIllustManga;
-    };
-
-
-    // -- PUBLIC METHODS --
-
-    /***
-     * Returns puppeteer Page instance which is indexed by iterator number.
-     * 
-     * */ 
-    getPageInstance(iterator: number): puppeteer.Page | undefined {
-        return this.pageInstances[iterator];
-    };
-
-    /***
-     * Returns specified sequence promise by index number.
-     * 
-     * */ 
-    getSequence(iterator: number): Promise<void> | undefined {
-        return this.sequences[iterator];
-    };
-
-    /***
-     * Generate new instances according to this.concurrency
-     * - Generate page instances.
-     * - Generate sequence instances.
-     * 
-     * NOTE: DO NOT DO ANYTHING BEFORE CALL THIS initialize().
-     * */ 
-    async initialize() {
-        for(let i = 0; i < this.concurrency; i++) {
-            await this._generatePageInstances();
-            this._initializeSequences();
-        };
-    };
-    
-
-    resetResponseFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
-        this.navigation.resetFilter(filter);
-    };
-
-    /****
-     * 
-     * Call this method everyloop that updates sequences 
-     * to update iterator of loop.
-     * 
-     * */ 
-    updateIterates(i: number) {
-        this.loopIterator = i;
-    }
-    
-    
-    setResponsesResolver<T>(callback: iResponsesResolver<T>) {
-        this.responsesResolver = callback;
-    };
-    
-    /****
-     * navigation.navigateBy()で遷移するのは固定なので引数は固定である
-     * 
-     * responses --> resolver --> ValueYouWant or error
-     * 
-     * 1: responses.shift() or response.pop()など
-     * 2: 1.json() or 1.text()など
-     * 3: どのプロパティか、どの深度かにあるプロパティを何とかして取得する
-     * 4: 取得で来たらそれを返す、または取得できなかったらエラーを返す
-     * 
-     * */ 
-     resolveResponses(responses: (puppeteer.HTTPResponse | any)[]) {
-        return this.responsesResolver(responses);
-    }
-
-    collect(data: T[], key: keyof T) {
-        this.collector.resetData(data);
-        this.collected = [...this.collected, ...this.collector.execute(key)]
-    };
-
-    run(): Promise<void[]> {
-        return Promise.all(this.sequences);
-    }
-
-    getResult(): T[] {
-        return this.collected;
-    }
-
-    // finally() will not be invoked automatically.
-    // But this method must be called after all process is done.
-    finally() {
-        // DEBUG:
-        console.log("finally(): acquireFromResultPage.ts");
-
-        if(this.sequences.length > 0) {
-            this.sequences = [];
-        }
-        if(this.pageInstances.length > 0) {
-            // NOTE: awaitで待つ必要がないのでp.close()は同期的な呼び出し
-            this.pageInstances.forEach(p => p.close());
-            this.pageInstances = [];
-        }
-        if(this.browser !== undefined){
-            this.browser = undefined;
-        }
-    };
-
-    resolveResponse(responses: (puppeteer.HTTPResponse | any)[]) {
-        return this.responsesResolver(responses);
-    };
-
-    resetNavigation() {
-    }
-
-
-    navigate() {
-        return this.navigation.navigateBy(this.pageInstances[circulator]!, this.navigationTrigger)
-    };
-
-    updateNavigationFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
-        this.navigation.resetFilter(filter)
-    };
-
-    generateTask(circulator: number) {
-        if(this.sequences[circulator] !== undefined) {
-            this.sequences[circulator] = this.sequences[circulator]!
-            .then(() => this.resetNavigation)
-            .then(() => this.navigate)
-            .then((responses) => this.resolveResponse(responses))
-            .then((data: T) => this.collect)
-            .catch((e: Error) => this.errorHandler)
-        }
-    }
-};
-
 
 type iResponsesResolver<TO> = (responses: (puppeteer.HTTPResponse | any)[]) => TO | Promise<TO>;
 
 
 
-/****<<<<VER.3>>>>
+/****
  * 
  * @type {T} - The type of `collected` variable.
  * @constructor
@@ -242,7 +49,7 @@ type iResponsesResolver<TO> = (responses: (puppeteer.HTTPResponse | any)[]) => T
 export class CollectResultPage<T> {
     public sequences: Promise<void>[] = [];
     private pageInstances: puppeteer.Page[] = [];
-    private collected: T[];
+    private collected: T[keyof T][];
     responsesResolver: iResponsesResolver<T>;
     private loopIterator: number;
     private circulator: number;
@@ -370,6 +177,201 @@ export class CollectResultPage<T> {
             this.browser = undefined;
         }
     };
+
+
+    
+// /****VER.4
+//  * 
+//  * @type {T} - The type of `collected` variable.
+//  * @constructor
+//  *  @param
+//  *  @param
+//  *  @param
+//  *  @param
+//  * 
+//  * NOTE: 要検討項目
+//  * 
+//  * - puppeteer.browserはクラスが保有するべきなのか？外部から渡されてもいいのでは？
+//  * - 外部でsequenceのタスクを組み立てるループを回してsequenceを組み立てるけれど、
+//  * インスタンスの呼び出しはクラスメソッドを通じてアクセスできるよう制限する
+//  * circulatorの番号とループの
+//  * */ 
+// // T: might be `iIllustMangaDataElement`
+// export class CollectResultPage_2<T> {
+//     public sequences: Promise<void>[] = [];
+//     private pageInstances: puppeteer.Page[] = [];
+//     private collected: T[];
+//     responsesResolver: iResponsesResolver<T>;
+//     private loopIterator: number;
+//     private circulator: number;
+//     constructor(
+//         private browser: puppeteer.Browser, 
+//         private concurrency: number,
+//         public navigation: Navigation,
+//         public collector: Collect<T>
+//         ){
+//         this.collected = [];
+//         this.responsesResolver = null;
+//         this.loopIterator = 0;
+//         this.circulator = 0;
+//         // bind methods
+//         this._generatePageInstances = this._generatePageInstances.bind(this);
+//         this._initializeSequences = this._initializeSequences.bind(this);
+//         this._resolveJson = this._resolveJson.bind(this);
+//         this.getPageInstance = this.getPageInstance.bind(this);
+//         this.getSequence = this.getSequence.bind(this);
+//         this.initialize = this.initialize.bind(this);
+//         this.resetResponseFilter = this.resetResponseFilter.bind(this);
+//         this.updateIterates = this.updateIterates.bind(this);
+//         this.setResponsesResolver = this.setResponsesResolver.bind(this);
+//         this.resolveResponses = this.resolveResponses.bind(this);
+//         this.collect = this.collect.bind(this);
+//         this.run = this.run.bind(this);
+//         this.getResult = this.getResult.bind(this);
+//         this.finally = this.finally.bind(this);
+//         this.generateTask = this.generateTask.bind(this);
+//     };
+
+//     async _generatePageInstances() {
+//         return this.pageInstances.push(await this.browser.newPage());
+//     };
+
+//     _initializeSequences() {
+//         return this.sequences.push(Promise.resolve());
+//     };
+
+
+//     _resolveJson(responses: (puppeteer.HTTPResponse | any)[]) {
+//         return responses.shift().json() as iBodyIncludesIllustManga;
+//     };
+
+
+//     // -- PUBLIC METHODS --
+
+//     /***
+//      * Returns puppeteer Page instance which is indexed by iterator number.
+//      * 
+//      * */ 
+//     getPageInstance(iterator: number): puppeteer.Page | undefined {
+//         return this.pageInstances[iterator];
+//     };
+
+//     /***
+//      * Returns specified sequence promise by index number.
+//      * 
+//      * */ 
+//     getSequence(iterator: number): Promise<void> | undefined {
+//         return this.sequences[iterator];
+//     };
+
+//     /***
+//      * Generate new instances according to this.concurrency
+//      * - Generate page instances.
+//      * - Generate sequence instances.
+//      * 
+//      * NOTE: DO NOT DO ANYTHING BEFORE CALL THIS initialize().
+//      * */ 
+//     async initialize() {
+//         for(let i = 0; i < this.concurrency; i++) {
+//             await this._generatePageInstances();
+//             this._initializeSequences();
+//         };
+//     };
+    
+
+//     resetResponseFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
+//         this.navigation.resetFilter(filter);
+//     };
+
+//     /****
+//      * 
+//      * Call this method everyloop that updates sequences 
+//      * to update iterator of loop.
+//      * 
+//      * */ 
+//     updateIterates(i: number) {
+//         this.loopIterator = i;
+//     }
+    
+    
+//     setResponsesResolver<T>(callback: iResponsesResolver<T>) {
+//         this.responsesResolver = callback;
+//     };
+    
+//     /****
+//      * navigation.navigateBy()で遷移するのは固定なので引数は固定である
+//      * 
+//      * responses --> resolver --> ValueYouWant or error
+//      * 
+//      * 1: responses.shift() or response.pop()など
+//      * 2: 1.json() or 1.text()など
+//      * 3: どのプロパティか、どの深度かにあるプロパティを何とかして取得する
+//      * 4: 取得で来たらそれを返す、または取得できなかったらエラーを返す
+//      * 
+//      * */ 
+//      resolveResponses(responses: (puppeteer.HTTPResponse | any)[]) {
+//         return this.responsesResolver(responses);
+//     }
+
+//     collect(data: T[], key: keyof T) {
+//         this.collector.resetData(data);
+//         this.collected = [...this.collected, ...this.collector.execute(key)]
+//     };
+
+//     run(): Promise<void[]> {
+//         return Promise.all(this.sequences);
+//     }
+
+//     getResult(): T[] {
+//         return this.collected;
+//     }
+
+//     // finally() will not be invoked automatically.
+//     // But this method must be called after all process is done.
+//     finally() {
+//         // DEBUG:
+//         console.log("finally(): acquireFromResultPage.ts");
+
+//         if(this.sequences.length > 0) {
+//             this.sequences = [];
+//         }
+//         if(this.pageInstances.length > 0) {
+//             // NOTE: awaitで待つ必要がないのでp.close()は同期的な呼び出し
+//             this.pageInstances.forEach(p => p.close());
+//             this.pageInstances = [];
+//         }
+//         if(this.browser !== undefined){
+//             this.browser = undefined;
+//         }
+//     };
+
+//     resolveResponse(responses: (puppeteer.HTTPResponse | any)[]) {
+//         return this.responsesResolver(responses);
+//     };
+
+//     resetNavigation() {
+//     }
+
+
+//     navigate() {
+//         return this.navigation.navigateBy(this.pageInstances[circulator]!, this.navigationTrigger)
+//     };
+
+//     updateNavigationFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
+//         this.navigation.resetFilter(filter)
+//     };
+
+//     generateTask(circulator: number) {
+//         if(this.sequences[circulator] !== undefined) {
+//             this.sequences[circulator] = this.sequences[circulator]!
+//             .then(() => this.resetNavigation)
+//             .then(() => this.navigate)
+//             .then((responses) => this.resolveResponse(responses))
+//             .then((data: T) => this.collect)
+//             .catch((e: Error) => this.errorHandler)
+//         }
+//     }
+// };
 
 
     
