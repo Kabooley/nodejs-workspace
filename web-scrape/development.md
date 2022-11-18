@@ -1810,3 +1810,123 @@ https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%
 で取得している
 
 あとはこれがwaitForResponse()で取得できるかどうかである
+
+
+## temporary
+
+
+Collect<>: 与えられたオブジェクト配列から指定プロパティに一致する値を取り出して配列で返す。
+
+```JavaScript
+const data = [
+    {id: 1, name: "Maria", ...},
+    {id: 2, name: "Mario", ...},
+    {id: 3, name: "Mary", ...},
+    {id: 4, name: "Matilda", ...},
+    {id: 5, name: "Manda", ...},
+];
+// ids: number[]
+const ids = collector.execute(id);
+```
+
+Navigate: 与えられたpageインスタンスにおいて、与えられた関数をトリガーにナビゲーションを実行する
+
+CollectFromResultPage: 
+
+- 逐次処理sequenceを必要なだけ生成する
+- Collectの振る舞いに責任を負わない
+- Navigationのふるまいに責任を負わない
+
+```JavaScript
+class CollectFromResultPage {
+    private sequences: Promise<void>[];
+    constructor(
+        private navigation: Navigation,
+        private collector: Collector,
+        private concurrency: number
+    )
+    {
+        this.sequences = [];
+    }
+
+    getNavigation() {
+        return this.navigation;
+    };
+
+    getCollector() {
+        return this.collector;
+    };
+
+    setNavigationTrigger(trigger: Promise<any>) {
+        this.navigationTrigger = trigger;
+    };
+
+    // 受け取るデータから取得することになるデータは、
+    // 最終的にcollector.execute()できるデータ型でなくてはならない
+    setResolveResponses(resolver){
+        this.responsesResolver = resolver;
+    };
+
+    generateSequences() {
+        for(let i = 0; i < this.concurrency; i++) {
+            this.sequences.push(Promise.resolve());
+        }
+    };
+
+    generateTasks(upto: number) {
+        for(let i = 1; i < upto; i++) {
+            let circulator: number = i % this.concurrency;
+            this.sequences[circulator] = this.sequences[circulator]!
+            .then(() => this.navigation.navigateBy(
+                /* TODO: ここでpageインスタンスが必要 */
+                // setNavigationTrigger()を追加した
+                // しかしまだ、ここではpageインスタンスが必要で
+                // インスタンスはクラスが所有していないので
+                // 外部から取得するほかない
+                // なので
+                // pageインスタンスを所有すべきか検討しなくてはならない
+                , 
+                this.navigationTrigger
+            ))
+            .then((response) => this.responsesResolver)
+            .then((data: T) => this.collector.execute)
+            .then(() => {/* 何か後片付け */})
+            .catch(this.errorHandler);
+        }
+    };
+
+    generateTask(circulator: number) {
+        if(this.sequences[circulator] === undefined) return;
+        this.sequences[circulator] = this.sequences[circulator]!
+        .then(() => this.navigation.navigateBy(
+            /* TODO: ここでpageインスタンスが必要 */
+        ))
+        .then((response) => this.resolveResponses)
+        .then((data: T) => this.collector.execute)
+        .then(() => {/* 何か後片付け */})
+        .catch(this.errorHandler);
+    }
+};
+
+// --- USAGE ---
+
+const keyword = "COWBOYBEBOP";
+const browser: pupeteer.Browser;
+const concurrency: number = 3;
+const collectFromResultPages = new CollectFromResultPages(
+    new Collect<iIllustMangaDataElement[]>(), new Navigation(), concurrency
+);
+const pageInstances: puppeteer.Page[] = []:
+for(let i = 0; i < concurrency; i++) {
+    pageInstances.push(await browser.newPage());
+};
+const upTo:number = 100;
+
+for(let i = 1; i < upTo; i++) {
+    const circulator: number = concurrency % upTo;
+    collectFromResultPages.getNavigation().resetFilter(
+        (r: puppeteer.HTTPResponse) => r.status() === 200 && r.url() === mustache(filterUrl, {keyword: encodingURIComponent(keyword), i: }) 
+    );
+    collectFrom
+}
+```
