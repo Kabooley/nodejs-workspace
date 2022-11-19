@@ -22,31 +22,85 @@
  * ****************************************************************/ 
 import type puppeteer from 'puppeteer';
 import type { iSequentialAsyncTask } from '../utilities/TaskQueue';
+import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } from '../constants/illustManga';
 import { search } from './search';
 import { Navigation } from './Navigation';
+import { Collect } from './Collect';
 import { AssembleParallelPageSequences } from './AssembleParallelPageSequences';
-import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } from '../constants/illustManga';
-
+import mustache from '../utilities/mustache';
+import { retrieveDeepProp } from '../utilities/objectModifier';
 
 let tasks: iSequentialAsyncTask[] = [];
-// TODO: define url.
-const url = "";
+const url: string = "https://www.pixiv.net/tags/{{keyword}}/artworks?p={{i}}&s_mode=s_tag";
+const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}}?word={{keyword}}&order=date_d&mode=all&p={{i}}&s_mode=s_tag&type=all&lang=ja";
+
+type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
+
+const resolver: iResponsesResolveCallback<iIllustMangaDataElement> = async (responses: (puppeteer.HTTPResponse | any)[]) => {
+    const response = await responses.shift().json() as iBodyIncludesIllustManga;
+    const resolved: iIllustMangaDataElement[] = retrieveDeepProp<iIllustMangaDataElement[]>(["body", "illustManga", "data"], response);
+    if(resolved === undefined) throw new Error("");
+    return resolved;
+};
+
+
+const assemblingCollectProcess = async (
+    browser: puppeteer.Browser, numberOfProcess: number, numberOfPages: number
+    ) => {
+    try {
+        const assembler = new AssembleParallelPageSequences<iIllustMangaDataElement>(
+            browser, numberOfProcess, new Navigation(), new Collect<iIllustMangaDataElement>()
+        );
+
+        await assembler.initialize();
+        assembler.setResponsesResolver(resolver);
+
+        for(let page = 1; page <= numberOfPages; page++) {
+            const circulator: number = page % numberOfProcess;
+            if(assembler.getSequence(circulator) !== undefined
+                && assembler.getPageInstance(circulator) !== undefined
+            ) {
+                let sequence = assembler.getSequence(circulator)!;
+                const page = assembler.getPageInstance(circulator)!;
+                assembler.setResponseFilter((res: puppeteer.HTTPResponse) => 
+                res.status() === 200 
+                && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(keyword), i: page}));
+
+                // TODO: 一旦sequenceのプロミスを外に出しちゃっているけど、これちゃんとthis.sequencesに格納されているのかしら？
+                sequence = sequence
+                .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(keyword), i: i}))))
+                .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
+                // TODO: tagやauthorを指定されているときに、assembler.collect()の段階でフィルタリングを設けなくてはならない
+                .then((data: iIllustMangaDataElement[]) => assembler.collect(data, key))
+                .catch((e) => assembler.errorHandler(e))
+            }
+        };
+        return assembler;
+    }
+    catch(e) {
+
+    }
+};
+
+interface iOptions {
+    keyword: string;
+    tag?: string;
+    author?: string;
+};
+
 
 export const setupCollectByKeywordTaskQueue = (
+    browser: puppeteer.Browser,
     page: puppeteer.Page, 
-    options: {[x: string]: unknown}     // 型をはっきりと指定できないかなぁ...
+    options: iOptions
+    // options: {[x: string]: unknown}
     ) => {
     const { keyword, tag, author } = options;
-
-    // prepare for setting up
-    const escapedKeyword: string = encodeURIComponent(keyword as string); 
-    let lastPage: number = 1;
 
     // setting up task queue.
     // 
     // 1. fill search form with keyword.
-    tasks.push(() => search(page, keyword as string));
-    // TODO: NavigationのwaitFoHTTPResponseのセットアップ
+    tasks.push(() => search(page, keyword));
     // 2. page navigation.
     tasks.push(() => {
         const navigation = new Navigation();
@@ -56,37 +110,39 @@ export const setupCollectByKeywordTaskQueue = (
         return navigation.navigateBy(page, page.keyboard.press('Enter'))
     });
     // 3. Check the response includes required data.
-    tasks.push((res: (puppeteer.HTTPResponse | any)[]) => {
-        const response: puppeteer.HTTPResponse = res.shift();
-        return response.json()
-            .catch(err => {
-                // error handling for response.json()
-            });
-    });
-    // 4. Define numberOfProcess according to number of result. 
+    tasks.push((res: (puppeteer.HTTPResponse | any)[]) => res.shift().json() as iBodyIncludesIllustManga);
+    // 4. Resolve HTTPResponse body to specific type.
+    tasks.push((responseBody: iBodyIncludesIllustManga): iIllustManga => {
+        const resolved = retrieveDeepProp<iIllustManga>(["body", "illustManga"], responseBody);
+        if(resolved === undefined) throw new Error("");
+        return resolved;
+    })
+    // 5. Define numberOfProcess according to number of result. 
     tasks.push((illustManga: iIllustManga) => {
         const { data, total } = illustManga;
-        lastPage = Math.floor(total / data.length);
+        const numberOfPages: number = Math.floor(total / data.length);
         let numberOfProcess: number = 1;
 
-        if(lastPage >= 20 && lastPage < 50) {
+        if(numberOfPages >= 20 && numberOfPages < 50) {
             numberOfProcess = 2;
         }
-        else if(lastPage >= 50 && lastPage < 100) {
+        else if(numberOfPages >= 50 && numberOfPages < 100) {
             numberOfProcess = 5;	
         }
-        else if(lastPage >= 100) {
+        else if(numberOfPages >= 100) {
             numberOfProcess = 10;
         }
         else {
             numberOfProcess = 1;
         };
-        return numberOfProcess;
+        return {
+            numberOfProcess: numberOfProcess, 
+            numberOfPages: numberOfPages
+        };
     });
     // 5. setup parallel sequences
-    tasks.push(
-        // TODO: assembleParallelPageSequencesの組み立て
-    );
+    tasks.push((p: {numberOfProcess: number, numberOfPages: number}) => 
+        assemblingCollectProcess(browser, p.numberOfProcess, p.numberOfPages));
     tasks.push(
         // TODO: assembleParallelPageSequencesで組み立てた逐次処理群の並列処理実行
         // データの取得
