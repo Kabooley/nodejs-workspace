@@ -1,7 +1,30 @@
+/******************************************************************
+ * `collect byKeyword` command task genearation.
+ * 
+ * `collect byKeyword` commandに基づく一連の処理を逐次処理として組み立てる。
+ * 
+ * Promiseチェーンからなる逐次処理に、
+ * あらかじめ定められているタスクを追加していく。
+ * 逐次処理のPromiseチェーンが組み立てられたらそのPromiseを返す。
+ * 
+ * task:
+ * - fill search form by keyword
+ * - navigate to keyword search result page
+ * - get its http response
+ * - parse its http response
+ * - generate collecting process
+ * - return collected data
+ * 
+ * `collect byKeyword`のオプション：
+ * - keyword: string - 検索キーワード
+ * - tas: string - 検索結果作品のタグ群に含まれていてほしいタグ
+ * - author: string - 
+ * ****************************************************************/ 
 import type puppeteer from 'puppeteer';
 import type { iSequentialAsyncTask } from '../utilities/TaskQueue';
 import { search } from './search';
 import { Navigation } from './Navigation';
+import { AssembleParallelPageSequences } from './AssembleParallelPageSequences';
 import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } from '../constants/illustManga';
 
 
@@ -60,8 +83,13 @@ export const setupCollectByKeywordTaskQueue = (
         };
         return numberOfProcess;
     });
-    // 
-    tasks.push(/* collect from result page parallel execution. */);
-    tasks.push(/* collect from artwork page parallel execution. */)
+    // 5. setup parallel sequences
+    tasks.push(
+        // TODO: assembleParallelPageSequencesの組み立て
+    );
+    tasks.push(
+        // TODO: assembleParallelPageSequencesで組み立てた逐次処理群の並列処理実行
+        // データの取得
+    )
     return tasks;
 };

@@ -7,6 +7,28 @@
  * *******************************************************/ 
 
 
+
+/***
+ * SEQUENTIAL AYSNC TASKS EXECUTION
+ * 
+ * */ 
+ export type iSequentialAsyncTask = (((a?:any) => any) | ((a?: any) => Promise<any>));
+
+ /**
+  * @param {iSequentialAsyncTask[]} tasks - task may get or may not have paremeter and can return value.
+  * 
+  * TODO: テスト済だっけ？戻り値を取得できたっけ？
+  * */ 
+ export const sequentialAsyncTasks = (
+     tasks: iSequentialAsyncTask[]
+   ) => {
+   let promise = Promise.resolve();
+   tasks.forEach(t => {
+     promise = promise.then(t);
+   });
+   return promise;
+ };
+
 /***
  * Task Queue for asynchronous tasks.
  * 
@@ -122,26 +144,6 @@
 //     await queue.execute(done);
 //   })();  
 
-
-/***
- * 
- * SEQUENTIAL AYSNC TASKS EXECUTION
- * 
- * */ 
-export type iSequentialAsyncTask = (((a?:any) => any) | ((a?: any) => Promise<any>));
-
-/**
- * @param {iSequentialAsyncTask[]} tasks - task may get or may not have paremeter and can return value.
- * */ 
-export const sequentialAsyncTasks = (
-    tasks: iSequentialAsyncTask[]
-  ) => {
-  let promise = Promise.resolve();
-  tasks.forEach(t => {
-    promise = promise.then(t);
-  });
-  return promise;
-};
 
 // // USAGE of sequentialAsyncTasks
 // {

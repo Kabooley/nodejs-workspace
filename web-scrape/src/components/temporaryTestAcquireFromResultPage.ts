@@ -4,21 +4,19 @@ import { Collect } from './Collect';
 import { Navigation} from './Navigation';
 import mustache from '../utilities/mustache';
 import { retrieveDeepProp } from '../utilities/objectModifier';
+import { AssembleParallelPageSequences } from './AssembleParallelPageSequences';
 
-import { CollectResultPage, CollectResultPage_2 } from './acquireFromResultPage';
 
 
-type iResponsesResolver<TO> = (responses: (puppeteer.HTTPResponse | any)[]) => TO | Promise<TO>;
+type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
 
-const resolver: iResponsesResolver<iIllustMangaDataElement[]> = async (responses:(puppeteer.HTTPResponse | any)[]): Promise<iIllustMangaDataElement[]> => {
-    // json() will throw if response.shift() is not parsable via json.parse()
+const resolver: iResponsesResolveCallback<iIllustMangaDataElement> = async (responses: (puppeteer.HTTPResponse | any)[]) => {
     const response = await responses.shift().json() as iBodyIncludesIllustManga;
-
-    const resolved = retrieveDeepProp<iIllustMangaDataElement[]>(["body", "illustManga", "data"], response);
-
+    const resolved: iIllustMangaDataElement[] = retrieveDeepProp<iIllustMangaDataElement[]>(["body", "illustManga", "data"], response);
     if(resolved === undefined) throw new Error("");
     return resolved;
 };
+
 
 
 
@@ -40,7 +38,7 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
         const numberOfTasks: number = 100;
         const keyword: string = "COWBOYBEBOP";
         const key: keyof iIllustMangaDataElement = "id";
-        const collectorOfResult = new CollectResultPage<iIllustMangaDataElement>(
+        const collectorOfResult = new AssembleParallelPageSequences<iIllustMangaDataElement>(
             browser, 
             concurrency,
             new Navigation(),
@@ -50,6 +48,7 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
         // Generate page instances and promise sequences
         // according to number of concurrency.
         await collectorOfResult.initialize();
+        collectorOfResult.setResponsesResolver(resolver);
 
         // generate tasks
         for(let i = 1; i <= numberOfTasks; i++) {
@@ -59,13 +58,14 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
             ) {
                 let sequence = collectorOfResult.getSequence(circulator)!;
                 const page = collectorOfResult.getPageInstance(circulator)!;
-                collectorOfResult.resetResponseFilter((res: puppeteer.HTTPResponse) => 
+                collectorOfResult.setResponseFilter((res: puppeteer.HTTPResponse) => 
                 res.status() === 200 
                 && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(keyword), i: i}));
 
+                // TODO: 一旦sequenceのプロミスを外に出しちゃっているけど、これちゃんとthis.sequencesに格納されているのかしら？
                 sequence = sequence
                 .then(() => collectorOfResult.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(keyword), i: i}))))
-                .then((responses: (puppeteer.HTTPResponse | any)[]) => collectorOfResult.responseResolver(responses))
+                .then((responses: (puppeteer.HTTPResponse | any)[]) => collectorOfResult.resolveResponses!(responses))
                 .then((data: iIllustMangaDataElement[]) => 
                 collectorOfResult.collect(data, key))
                 .then(() => {
@@ -75,67 +75,9 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
             }
         };
         await collectorOfResult.run();
-        // TODO: T[][]になっているよ
         const result = collectorOfResult.getResult();
+        console.log(`total number of collected id: ${result.length}`);
+        console.log(result);
         collectorOfResult.finally();
-    })()
-}
-
-
-// NOTE: ボツ
-// 
-// /***
-//  * Navigationインスタンスの変更はnavigationインスタンスに対して実行する
-//  * CollectResultPage2のインスタンスは呼び出さないとしてみる
-//  * 
-//  * */ 
-// (async function() {
-//     // 同時実行数上限
-//     const concurrency: number = 5;
-//     const keyword: string = "COWBOYBEBOP";
-//     const browser: puppeteer.Browser = await puppeteer.launch();
-//     const navigation = new Navigation();
-//     const collector = new Collect<iIllustMangaDataElement>();
-//     const collectorOfResultPage = new CollectResultPage_2(
-//         browser, 4, navigation, collector);
-
-//     const generateNavigationFilter = (i: number) => {
-//         return (res: puppeteer.HTTPResponse): boolean | Promise<boolean> => {
-//             return res.status() === 200 
-//             && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(keyword), i: i})
-//         }
-//     };
-
-//     let circulator: number = 0;
-//     // Generate instances: pages, sequences
-//     /*******************************************
-//      * NOTE: 勝手に理想を記述してみただけ。
-//      * 実装はまだ
-//      * *****************************************/ 
-//     await collectorOfResultPage.initialize();
-//     for(let i = 1; i < 100; i++) {
-//         circulator = i % concurrency;
-//         // Generate task 
-//         // update navigation set for new loop process.
-//         collectorOfResultPage.updateNavigationFilter(generateNavigationFilter(i));
-//         // navigation
-//         collectorOfResultPage.updateNavigationTrigger(
-//             collectorOfResultPage.getPageInstance(circulator).goto(
-//                 mustache(url, {keyword: encodeURIComponent(keyword), i: i})
-//             )
-//         );
-//         // get navigation returned value
-//         collectorOfResultPage.updateParser();
-//         // parse returned value and retrieve data from http response
-//         // run executor (something like contain data from retrieved data)
-//         collectorOfResultPage.updateExecutor();
-
-//         // タスクを一つ組み立てる
-//         // どのsequenceでどのpageインスタンスなのかをcirculatorで
-//         // 指定する
-//         collectorOfResultPage.generateTask(circulator);
-//     }
-//     await collectorOfResultPage.run();
-//     const result = collectorOfResultPage.getResult();
-//     collectorOfResultPage.finally();
-// })();
+    })();
+};

@@ -1,7 +1,14 @@
-/*******************************************************
- * 検索結果全ページから指定のデータを取得するクラス
+/***************************************************************
+ * AssembleParallelPageSequences class
  * 
- * 基本的な流れを守ればあとはほぼカスタマイズ可能な並列処理を定義できる
+ * Description:
+ * 
+ * puppeteer.Pageインスタンスの並列処理タスクを生成するためのクラス。
+ * 
+ * concurrencyプロパティの数にしたがって逐次処理を生成する。
+ * 
+ * 以下の基本的な流れで組み立てられるpromiseチェーンを一つのタスクとして、そのタスクの連続からなる逐次処理を組み立てる。
+ * 
  * sequenceの逐次処理：
  * 1. Prepare to navigate
  * 2. Navigate
@@ -9,60 +16,71 @@
  * 4. Collect data from returned value from solving http response process
  * 5. Error handling
  * 
- * 問題：
- * - Solveの段階でどんなデータをとるのかは場合に因るのでハードコーディングはできない
- * 取得できたHTTPResponseのどの深度のプロパティが必要なのかとか,
- * HTTPResponseはjson()で解決するのかtext()で解決するのかも固定できない。
+ * 逐次処理群はrun()メソッドで並列処理される。
  * 
- * - Navigateの段階でどのpageインスタンスを
- * *****************************************************/ 
+ * 各逐次処理はCollect.execute()が実行され指定のデータを取得しcollectedプロパティへ格納する。
+ * 
+ * pageの並列処理される逐次処理群を組み立てる
+ * ほとんどのメソッドはpromiseチェーンのthen()から呼び出されることを想定する。
+ * それらメソッドを組み立てるための機能を提供する。
+ * このクラスが組み立てをするのではない。組み立ては呼び出し側に任される。
+ * 
+ * Means of 「組み立てる」:
+ * 
+ * setup: 汎用的な組み立てるという意味合い
+ * put together: 寄せ集めるという意味合いが強い
+ * assemble: 複雑なものを組み立てる意味合いが強い
+ * 
+ * NOTE: `AssemblerOfParallelPageSequences`の方がいいかも...
+ * ************************************************************/ 
 import type puppeteer from 'puppeteer';
-import type { iIllustMangaDataElement, iBodyIncludesIllustManga } from '../constants/illustManga';
-import { Collect } from './Collect';
-import { Navigation} from './Navigation';
-import { retrieveDeepProp } from '../utilities/objectModifier';
-import mustache from '../utilities/mustache';
+import type { Collect } from './Collect';
+import type { Navigation } from './Navigation';
 
-
-
-type iResponsesResolver<TO> = (responses: (puppeteer.HTTPResponse | any)[]) => TO | Promise<TO>;
-
-
+type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
 
 /****
- * 
- * @type {T} - The type of `collected` variable.
+ * @class
+ * @type {T} - The type of `collected` variable. 最終的にクラスはT[keyof T][]のデータを取り出すことになる。
  * @constructor
- *  @param
- *  @param
- *  @param
- *  @param
+ *  @param {puppeteer.Browser} browser - puppeteer browser instance.
+ *  @param {number} concurrency - Mamimum number of parallel process.
+ *  @param {Navigation} navigation - Instance of Navigatoin class.
+ *  @param {Collect} collector - Instance of Collect class
  * 
- * NOTE: 要検討項目
+ * Property:
  * 
- * - puppeteer.browserはクラスが保有するべきなのか？外部から渡されてもいいのでは？
- * - 外部でsequenceのタスクを組み立てるループを回してsequenceを組み立てるけれど、
- * インスタンスの呼び出しはクラスメソッドを通じてアクセスできるよう制限する
- * circulatorの番号とループの
+ * 
+ * 
  * */ 
-// T: might be `iIllustMangaDataElement`
-export class CollectResultPage<T> {
+export class AssembleParallelPageSequences<T> {
     public sequences: Promise<void>[] = [];
     private pageInstances: puppeteer.Page[] = [];
     private collected: T[keyof T][];
-    responsesResolver: iResponsesResolver<T>;
-    private loopIterator: number;
-    private circulator: number;
+    // NOTE: 初期化する必要があるから仕方なくundefinedの可能性をつけている
+    private responsesResolver: iResponsesResolveCallback<T> | undefined;
     constructor(
         private browser: puppeteer.Browser, 
         private concurrency: number,
         public navigation: Navigation,
         public collector: Collect<T>
-        ){
+    ){
         this.collected = [];
-        this.responsesResolver = null;
-        this.loopIterator = 0;
-        this.circulator = 0;
+        this.responsesResolver = undefined;
+        // Methods binding. 
+        this._generatePageInstances = this._generatePageInstances.bind(this);
+        this._initializeSequences = this._initializeSequences.bind(this);
+        this.initialize = this.initialize.bind(this);
+        this.getPageInstance = this.getPageInstance.bind(this);
+        this.getSequence = this.getSequence.bind(this);
+        this.setResponseFilter = this.setResponseFilter.bind(this);
+        this.setResponsesResolver = this.setResponsesResolver.bind(this);
+        this.resolveResponses = this.resolveResponses.bind(this);
+        this.collect = this.collect.bind(this);
+        this.run = this.run.bind(this);
+        this.getResult = this.getResult.bind(this);
+        this.errorHandler = this.errorHandler.bind(this);
+        this.finally = this.finally.bind(this);
     };
 
     async _generatePageInstances() {
@@ -73,28 +91,22 @@ export class CollectResultPage<T> {
         return this.sequences.push(Promise.resolve());
     };
 
-
-    _resolveJson(responses: (puppeteer.HTTPResponse | any)[]) {
-        return responses.shift().json() as iBodyIncludesIllustManga;
-    };
-
-
     // -- PUBLIC METHODS --
 
     /***
      * Returns puppeteer Page instance which is indexed by iterator number.
      * 
      * */ 
-    getPageInstance(iterator: number): puppeteer.Page | undefined {
-        return this.pageInstances[iterator];
+    getPageInstance(circulator: number): puppeteer.Page | undefined {
+        return this.pageInstances[circulator];
     };
 
     /***
      * Returns specified sequence promise by index number.
      * 
      * */ 
-    getSequence(iterator: number): Promise<void> | undefined {
-        return this.sequences[iterator];
+    getSequence(circulator: number): Promise<void> | undefined {
+        return this.sequences[circulator];
     };
 
     /***
@@ -111,39 +123,32 @@ export class CollectResultPage<T> {
         };
     };
     
-
-    resetResponseFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
+    /**
+     * Set Navigation's page.waitForResponse() filter 
+     * 
+     * */ 
+    setResponseFilter(filter: (res: puppeteer.HTTPResponse) => boolean | Promise<boolean>) {
         this.navigation.resetFilter(filter);
     };
-
-    /****
+    
+    /**
+     * Set resolver for returned value from navigation process.
+     * Callback must get all parameter from previous process.
+     * So callback can be any function to suit any case.
      * 
-     * Call this method everyloop that updates sequences 
-     * to update iterator of loop.
      * 
      * */ 
-    updateIterates(i: number) {
-        this.loopIterator = i;
-    }
-    
-    
-    setResponsesResolver<T>(callback: iResponsesResolver<T>) {
+    setResponsesResolver(callback: iResponsesResolveCallback<T>) {
         this.responsesResolver = callback;
     };
-    
-    /****
-     * navigation.navigateBy()で遷移するのは固定なので引数は固定である
-     * 
-     * responses --> resolver --> ValueYouWant or error
-     * 
-     * 1: responses.shift() or response.pop()など
-     * 2: 1.json() or 1.text()など
-     * 3: どのプロパティか、どの深度かにあるプロパティを何とかして取得する
-     * 4: 取得で来たらそれを返す、または取得できなかったらエラーを返す
+
+    /***
+     * Call this.responsesResolver if it's not undefined.
      * 
      * */ 
-     resolveResponses(responses: (puppeteer.HTTPResponse | any)[]) {
-        return this.responsesResolver(responses);
+    resolveResponses(responses: any) {
+        if(this.responsesResolver) return this.responsesResolver(responses);
+        else throw new Error("");
     }
 
     collect(data: T[], key: keyof T) {
@@ -153,14 +158,27 @@ export class CollectResultPage<T> {
 
     run(): Promise<void[]> {
         return Promise.all(this.sequences);
-    }
+    };
 
-    getResult(): T[] {
-        return this.collected;
-    }
+    getResult(): T[keyof T][] {
+        return [...this.collected];
+    };
 
-    // finally() will not be invoked automatically.
-    // But this method must be called after all process is done.
+    errorHandler(e: Error) {
+        console.error(e.message);
+        throw e;
+    };
+
+    /**
+     * This method must be invoked when all tasks are done.
+     * This method is not invoked automatically. 
+     * Call this explicitly manually.
+     * 
+     * - Close all generated puppeteer page instances.
+     * - Clear all sequences promises.
+     * 
+     * Might browser close.
+     * */ 
     finally() {
         // DEBUG:
         console.log("finally(): acquireFromResultPage.ts");
@@ -169,16 +187,16 @@ export class CollectResultPage<T> {
             this.sequences = [];
         }
         if(this.pageInstances.length > 0) {
-            // NOTE: awaitで待つ必要がないのでp.close()は同期的な呼び出し
             this.pageInstances.forEach(p => p.close());
             this.pageInstances = [];
         }
-        if(this.browser !== undefined){
-            this.browser = undefined;
-        }
+        // if(this.browser !== undefined){
+        //     this.browser = undefined;
+        // }
     };
+};
 
-
+// --- LEGACY -------------
     
 // /****VER.4
 //  * 
@@ -423,7 +441,7 @@ export class CollectResultPage<T> {
     //     // TODO: FIX: retrieveDeepPropの第一引数がハードコーディングである
     //     return retrieveDeepProp<T[]>(propOrder, responseBody);
     // };
-};
+    // };
 
 
 // // -- VER.2 --
