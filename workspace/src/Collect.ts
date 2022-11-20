@@ -10,7 +10,7 @@
  * @type {T} - Type of the array element object.
  * 
  * */ 
-export class Collect<T> {
+ export class Collect<T> {
     private data: T[];
     constructor() {
         this.data = [];

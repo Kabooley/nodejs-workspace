@@ -32,6 +32,15 @@
  * assemble: 複雑なものを組み立てる意味合いが強い
  * 
  * NOTE: `AssemblerOfParallelPageSequences`の方がいいかも...
+ * 
+ * TODO: 呼び出し側でkeywordやtagやauthor情報を渡される。その時にオプショナルで実行できる処理を追加できるようにしなくてはならない
+ * 
+ * なので、...
+ * - httpresponseのbody情報の中には各artworkのtag情報は含まれているか？
+ * author情報は含まれているので取得可能
+ * 
+ * 呼出時は、iIllustMangaDataElement[]からcollector.execute()するときに
+ * フィルタリング処理を挟めばよい
  * ************************************************************/ 
 import type puppeteer from 'puppeteer';
 import type { Collect } from './Collect';

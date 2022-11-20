@@ -146,6 +146,7 @@ export const setupCollectByKeywordTaskQueue = (
     tasks.push(
         // TODO: assembleParallelPageSequencesで組み立てた逐次処理群の並列処理実行
         // データの取得
-    )
+        (assmebler: AssembleParallelPageSequences<iIllustMangaDataElement>) => assmebler.run());
+    tasks.push()
     return tasks;
 };
