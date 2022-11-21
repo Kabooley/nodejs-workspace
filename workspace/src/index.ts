@@ -4,7 +4,50 @@
  * 
  * ******************************************************/ 
 import { Collect } from './Collect';
-import type { iIllustMangaDataElement, iBodyIncludesIllustManga, iIllustManga } from '../../web-scrape/src/constants/illustManga';
+
+/*************************************************************
+ * Annotatins of result page HTTPResponse body data.
+ * 
+ * 
+ * ***********************************************************/ 
+ export interface iIllustMangaDataElement {
+    id: string;
+    title: string;
+    illustType?: number;
+    xRestrict?: number;
+    restrict?: number;
+    sl?: number;
+    url?: string;
+    description?: string;
+    tags?: any[];
+    userId?: string;
+    userName?: string;
+    width?: number;
+    height?: number;
+    pageCount?: number;
+    isBookmarkable?: boolean;
+    bookmarkData?: any;
+    alt?: string;
+    titleCaptionTranslation?: any[];
+    createDate?: string;
+    updateDate?: string;
+    isUnlisted?: boolean;
+    isMasked?: boolean;
+    profileImageUrl?: string;
+};
+
+export interface iIllustManga {
+    data: iIllustMangaDataElement[],
+    total: number
+};
+
+export interface iBodyIncludesIllustManga {
+    error: boolean;
+    body: {
+        illustManga: iIllustManga;
+    }
+};
+
 
 const dummy: iIllustMangaDataElement[] = [
     {
@@ -105,32 +148,64 @@ const dummy: iIllustMangaDataElement[] = [
     }
 ];
 
+
+/***
+ * Array includes some element of another array.
+ * 
+ * ref: https://stackoverflow.com/a/39893636
+ * 
+ * @param {any[]} compare - この配列が
+ * @param {any[]} to - この配列の要素を一つ以上含むのか
+ * @return {boolean} - 一つ以上含むならtrue
+ * */ 
+ const includesAtLeast = (compare: any[], to: any[]): boolean => {
+    return to.some(v => compare.includes(v));
+};
+
+/***
+ * Array includes all element of another array.
+ * 
+ * ref: https://stackoverflow.com/a/53606357
+ * 
+ * @param {any[]} compare - この配列が
+ * @param {any[]} to - この配列の要素をすべて含むのか
+ * @return {boolean} - すべて含むならtrue
+ * */ 
+const includesAll = (compare: any[], to: any[]): boolean => {
+    return to.every(v => compare.includes(v));
+};
+
 (async function() {
     const collector = new Collect<iIllustMangaDataElement>();
 
     const filterKey: keyof iIllustMangaDataElement = "tags";
 
     /***
-     * `tags`が含まれているのは当たり前か...
-     * TにiIllustMangaDataElementを指定するから存在するのは当たり前ということで...
-     * ほしいのはその中にほしいtag名が含まれているかどうかである
+     * Collect._filter()の引数filterLogic()は引数としてT型要素を一つだけ取得する
      * 
-     * `すべて含む`: element
-     * `いずれかを含む`
-     * のどちらで実装すればいいんだ？
+     * requiredTagsがすべて含まれていたらその要素を返す
+     * いずれかしか含まないまたは含まない場合はundefinedを返す
+     * 
+     * Array.prototype.map()の仕様に合わせるため必ず何か返さなくてはならないため
+     * 
+     * T: iIllustMangaDataEl
+     * 
+     * 配列の中に多方の配列要素すべて含まれているのか検査する
+     * https://stackoverflow.com/a/39893636
      * */ 
-    const filterLogic = <T>(element: T, requiredKey: keyof T, requiredTags: string[]) => {
-        // elementにrequiredで指定したプロパティが含まれてあればその要素を返す
-        // 含まれていなかったらundefinedを返す
-        // (Array.prototype.map()の仕様に合わせるため必ず何か返さなくてはならないため)
-
+    const filterLogic = (element:iIllustMangaDataElement):iIllustMangaDataElement | undefined => {
+        const property: keyof iIllustMangaDataElement = "tags";
+        const requirement: string[] = [
+            "R-18",
+            "東方Project",
+            "犬走椛"];
+        const e = element[property];
+        if(e !== undefined) {
+            return includesAll(e, requirement) ? element : undefined;
+        }
     };
 
-    const isArrayIncludesAll = <T>(target: T[], required: T[]) => {
-        let result: boolean = false;
-        // TODO: 配列と配列の比較
-    }
-
     collector.resetData(dummy);
-    collector._filter(filterKey, )
+    const filtered = collector._filter(filterLogic);
+    console.log(filtered);
 })();

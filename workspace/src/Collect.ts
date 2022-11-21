@@ -52,13 +52,16 @@
      * フィルタリング機能を追加する
      * 
      * 指定のプロパティが含まれていたらそのプロパティを含むオブジェクトだけを取り出す
+     * T: iIllustMangaDataElement
+     * this.data: T[]
+     * e: T
+     * requiredKey: "tags"
      * 
-     * どの深度のプロパティを対象とするの？
-     * 
+     * filterLogicへ、T型の要素一つを渡せばいいようにする
      * */ 
-    _filter(requiredKey: keyof T, filterLogic: Function) {
+    _filter(filterLogic: Function): T[keyof T][] {
         const filtered = this.data.map((e: T) => {
-            return filterLogic(requiredKey, e);
+            return filterLogic(e);
         });
         
         return filtered.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);

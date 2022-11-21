@@ -1,78 +1,176 @@
 "use strict";
-{
-    // -----------
-    function resolveAfter6Seconds(m) {
-        console.log("starting slow promise");
-        console.log(`display previous value: ${m}`);
-        return new Promise((resolve) => {
-            setTimeout(function () {
-                resolve("slow");
-                console.log("slow promise is done");
-            }, 6000);
-        });
-    }
-    function resolveAfter3Seconds(m) {
-        console.log("starting fast promise");
-        console.log(`display previous value: ${m}`);
-        return new Promise((resolve) => {
-            setTimeout(function () {
-                resolve("fast");
-                console.log("fast promise is done");
-            }, 3000);
-        });
-    }
-    function sync(m) {
-        console.log("starting sync function");
-        console.log(`display previous value: ${m}`);
-        return "sync done";
-    }
-    function sync2() {
-        console.log("starting sync2 function");
-        console.log("sync 2 would not get parameter. But returns value.");
-        return "sync2 done";
-    }
-    function sync3() {
-        console.log("starting sync3 function");
-        console.log("sync3 would not get parameter and return value.");
-        return;
-    }
-    function resolveAfter10Seconds(m) {
-        console.log("starting very slow promise");
-        console.log(`display previous value: ${m}`);
-        return new Promise((resolve) => {
-            setTimeout(function () {
-                resolve("very slow");
-                console.log("very slow promise is done");
-            }, 10000);
-        });
-    }
-    // -----------
-    let tasks = [];
-    tasks.push(resolveAfter6Seconds);
-    tasks.push(resolveAfter3Seconds);
-    tasks.push(sync);
-    tasks.push(sync2);
-    tasks.push(sync3);
-    tasks.push(resolveAfter10Seconds);
-    const sequentialAsyncTasks = (tasks) => {
-        let promise = Promise.resolve();
-        tasks.forEach((t) => {
-            promise = promise.then(t);
-        });
-        return promise;
-    };
-    // const sequentialAsyncTasks = <T>(
-    //   tasks: iSequentialAsyncTasks,
-    //   tailEnd: iGenTask<T>
-    // ): Promise<T> => {
-    //   let promise = Promise.resolve();
-    //   tasks.forEach((t) => {
-    //     promise = promise.then(t);
-    //   });
-    //   return promise.then(tailEnd);
-    // };
-    sequentialAsyncTasks(tasks).then((a) => {
-        console.log(a);
-        console.log("sequential async tasks done.");
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
-}
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+/********************************************************
+ * TEST: Collector.ts::_filter()のテスト
+ *
+ *
+ * ******************************************************/
+const Collect_1 = require("./Collect");
+;
+;
+;
+const dummy = [
+    {
+        "id": "101393474",
+        "title": "彼岸の庭渡久１２０６",
+        "illustType": 1,
+        "xRestrict": 0,
+        "restrict": 0,
+        "sl": 2,
+        "url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/22/00/05/55/101393474_p0_square1200.jpg",
+        "description": "",
+        "tags": [
+            "東方",
+            "彼岸の庭渡様",
+            "庭渡久侘歌",
+            "豪徳寺ミケ",
+            "少名針妙丸",
+            "射命丸文",
+            "リリーホワイト",
+            "リリーブラック"
+        ],
+        "userId": "9824519",
+        "userName": "人郷想幻（げんそうきょうじん）",
+        "width": 287,
+        "height": 821,
+        "pageCount": 1,
+        "isBookmarkable": true,
+        "bookmarkData": null,
+        "alt": "#東方 彼岸の庭渡久１２０６ - 人郷想幻（げんそうきょうじん）のマンガ",
+        "createDate": "2022-09-22T00:05:55+09:00",
+        "updateDate": "2022-09-22T00:05:55+09:00",
+        "isUnlisted": false,
+        "isMasked": false,
+        "profileImageUrl": "https://i.pximg.net/user-profile/img/2022/06/17/10/08/33/22889909_0d5609f386476846aa404ad4c634e38f_50.jpg"
+    },
+    {
+        "id": "101381167",
+        "title": "落書き11",
+        "illustType": 0,
+        "xRestrict": 1,
+        "restrict": 0,
+        "sl": 6,
+        "url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/21/12/18/49/101381167_p0_square1200.jpg",
+        "description": "",
+        "tags": [
+            "R-18",
+            "東方Project",
+            "犬走椛",
+            "射命丸文"
+        ],
+        "userId": "4472917",
+        "userName": "kjo",
+        "width": 960,
+        "height": 1280,
+        "pageCount": 20,
+        "isBookmarkable": true,
+        "bookmarkData": null,
+        "alt": "#東方Project 落書き11 - kjoのイラスト",
+        "createDate": "2022-09-21T12:18:49+09:00",
+        "updateDate": "2022-09-21T12:18:49+09:00",
+        "isUnlisted": false,
+        "isMasked": false,
+        "profileImageUrl": "https://i.pximg.net/user-profile/img/2020/02/22/02/55/14/17967117_9033a06b5f70d391c5cf66d4e248d847_50.jpg"
+    },
+    {
+        "id": "101380663",
+        "title": "東方二次小説（第13話）「アイドル天狗はたて」（2）～（7）",
+        "illustType": 0,
+        "xRestrict": 1,
+        "restrict": 0,
+        "sl": 6,
+        "url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/21/11/33/07/101380663_p0_square1200.jpg",
+        "description": "",
+        "tags": [
+            "R-18",
+            "姫海棠はたて",
+            "東方project",
+            "射命丸文",
+            "管牧典",
+            "二ツ岩マミゾウ",
+            "封獣ぬえ",
+            "ちんぽ",
+            "パンチラ"
+        ],
+        "userId": "52941975",
+        "userName": "美少女帝国",
+        "width": 1280,
+        "height": 720,
+        "pageCount": 6,
+        "isBookmarkable": true,
+        "bookmarkData": null,
+        "alt": "#姫海棠はたて 東方二次小説（第13話）「アイドル天狗はたて」（2）～（7） - 美少女帝国のイラスト",
+        "createDate": "2022-09-21T11:33:07+09:00",
+        "updateDate": "2022-09-21T11:33:07+09:00",
+        "isUnlisted": false,
+        "isMasked": false,
+        "profileImageUrl": "https://s.pximg.net/common/images/no_profile_s.png"
+    }
+];
+/***
+ * Array includes some element of another array.
+ *
+ * ref: https://stackoverflow.com/a/39893636
+ *
+ * @param {any[]} compare - この配列が
+ * @param {any[]} to - この配列の要素を一つ以上含むのか
+ * @return {boolean} - 一つ以上含むならtrue
+ * */
+const includesAtLeast = (compare, to) => {
+    return to.some(v => compare.includes(v));
+};
+/***
+ * Array includes all element of another array.
+ *
+ * ref: https://stackoverflow.com/a/53606357
+ *
+ * @param {any[]} compare - この配列が
+ * @param {any[]} to - この配列の要素をすべて含むのか
+ * @return {boolean} - すべて含むならtrue
+ * */
+const includesAll = (compare, to) => {
+    return to.every(v => compare.includes(v));
+};
+(function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        const collector = new Collect_1.Collect();
+        const filterKey = "tags";
+        /***
+         * Collect._filter()の引数filterLogic()は引数としてT型要素を一つだけ取得する
+         *
+         * requiredTagsがすべて含まれていたらその要素を返す
+         * いずれかしか含まないまたは含まない場合はundefinedを返す
+         *
+         * Array.prototype.map()の仕様に合わせるため必ず何か返さなくてはならないため
+         *
+         * T: iIllustMangaDataEl
+         *
+         * 配列の中に多方の配列要素すべて含まれているのか検査する
+         * https://stackoverflow.com/a/39893636
+         * */
+        const filterLogic = (element) => {
+            const property = "tags";
+            const requirement = [
+                "R-18",
+                "東方Project",
+                "犬走椛"
+            ];
+            const e = element[property];
+            if (e !== undefined) {
+                return includesAll(e, requirement) ? element : undefined;
+            }
+        };
+        collector.resetData(dummy);
+        const filtered = collector._filter(filterLogic);
+        console.log(filtered);
+    });
+})();
