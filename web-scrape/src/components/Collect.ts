@@ -6,315 +6,245 @@
  * 
  * *******************************************************************/ 
 
-/***
- * @type {T} - Type of the array element object.
- * 
- * */ 
-export class Collect<T> {
-    private data: T[];
-    constructor() {
-        this.data = [];
-    };
+ export type iFilterLogic<T> = (e: T) => T[keyof T] | undefined;
 
-    /***
-     * Collect value by specifying key name from object and return array of collection.
-     * 
-     * @param {T[]} data - Object from which the value is to be retrieved.
-     * @param {keyof T} key - Key of object that passed as first argument and to be retrieved.
-     * @return {T[keyof t][]} - Array 
-     * 
-     * */ 
-    _collector(key: keyof T): T[keyof T][] {
-        const arr = this.data.map((e: T) => {
-            if(e[key] !== undefined) return e[key];
-            else return undefined;
-        });
-        return arr.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
-    };
-
-    execute(key: keyof T): T[keyof T][] {
-        return this._collector(key);
-    };
-
-    /**
-     * Reset data.
-     * Remove reference of previous data.
-     * */ 
-    resetData(data: T[]): void {
-        this.data = [];
-        this.data.length = 0;
-        this.data = [...data];
-    };
-
-    /***
-     * NOTE: >>working in progress<<
-     * 
-     * フィルタリング機能を追加する
-     * 
-     * 指定のプロパティが含まれていたらそのプロパティを含むオブジェクトだけを取り出す
-     * 
-     * どの深度のプロパティを対象とするの？
-     * 
-     * */ 
-    _filter(requiredKey: keyof T, filterLogic: Function) {
-        const filtered = this.data.map((e: T) => {
-            return filterLogic(requiredKey, e);
-        });
-        
-        return filtered.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
-    };
-    /**
-     * const filterIncludingTag = (requiredTag: string[]) => {
-     *  
-     * }
-     * 
-     * T: iIllustMangaDataElement = [				{
-					"id": "101393474",
-					"title": "彼岸の庭渡久１２０６",
-					"illustType": 1,
-					"xRestrict": 0,
-					"restrict": 0,
-					"sl": 2,
-					"url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/22/00/05/55/101393474_p0_square1200.jpg",
-					"description": "",
-					"tags": [
-						"東方",
-						"彼岸の庭渡様",
-						"庭渡久侘歌",
-						"豪徳寺ミケ",
-						"少名針妙丸",
-						"射命丸文",
-						"リリーホワイト",
-						"リリーブラック"
-					],
-					"userId": "9824519",
-					"userName": "人郷想幻（げんそうきょうじん）",
-					"width": 287,
-					"height": 821,
-					"pageCount": 1,
-					"isBookmarkable": true,
-					"bookmarkData": null,
-					"alt": "#東方 彼岸の庭渡久１２０６ - 人郷想幻（げんそうきょうじん）のマンガ",
-					"titleCaptionTranslation": {
-						"workTitle": null,
-						"workCaption": null
-					},
-					"createDate": "2022-09-22T00:05:55+09:00",
-					"updateDate": "2022-09-22T00:05:55+09:00",
-					"isUnlisted": false,
-					"isMasked": false,
-					"profileImageUrl": "https://i.pximg.net/user-profile/img/2022/06/17/10/08/33/22889909_0d5609f386476846aa404ad4c634e38f_50.jpg"
-				},
-]
-     * 
-     * 
-     * 
-     * */ 
-};
-
-// --- USAGE ---
-// 
-// interface iData {
-//     id: number;
-//     name: string;
-// };
-
-// const data: iData[] = [
-//     {id: 1, name: "Maria", ...},
-//     {id: 2, name: "Mario", ...},
-//     {id: 3, name: "Mary", ...},
-//     {id: 4, name: "Matilda", ...},
-//     {id: 5, name: "Manda", ...},
-// ];
-// const collector = new Collect<iData>;
-// collector.resetData(data);
-// const ids = collector.execute("id");
-// console.log(ids); // 1, 2, 3, 4, ...
-
-
-// --- LEGACY ---
-// 
-// /***
-//  * Collect value by specifying key name from object and return array of collection.
-//  * 
-//  * @param {T[]} data - Object from which the value is to be retrieved.
-//  * @param {keyof T} key - Key of object that passed as first argument and to be retrieved.
-//  * @return {T[keyof t][]} - Array 
-//  * 
-//  * USAGE:
-//  * 
-//  * Example below collecting `id` and `title` value from `illustManga.data` object and make them array.
-//  * 
-//  * ```TypeScript
-//  * let ids: string[] = [];
-//  * let titles: string[] = [];
-//  * ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
-//  * titles = [...titles, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'title')];
-//  * ```
-//  * */ 
-// export const collectElementsAsArray = <T>(data: T[], key: keyof T): T[keyof T][] => {
-//     const arr = data.map((e: T) => {
-//         if(e[key] !== undefined) return e[key];
-//         else return undefined;
-//     });
-//     return arr.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
-// };
-// 
-// import type puppeteer from 'puppeteer';
-// import { selectors } from '../constants/selectors';
-// 
-// /**
-//  * Collect artwork id from thumbnails in keyword search result page.
-//  * 
-//  * If the result 
-//  * 
-//  * */ 
-// export const collectIdsFromResultPages = async (page: puppeteer.Page, keyword: string, res: puppeteer.HTTPResponse): Promise<string[]> => {
-//     console.log(`Collecting artwork id. Page: ${currentPage + 1}`);
-//     try {
-//         // Just to be safe, wait a few sec.
-//         if(currentPage > 0) await page.waitForNetworkIdle();
-//         const { illustManga } = await res.json();
-//         // NOTE: Omit validation of JSON object.
-//         // Collect ids of thumbnails
-//         if(!illustManga || !illustManga.data || !illustManga.total) throw new Error('Unexpected JSON data has been received')
-//         ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
-    
-//         // Set only once.
-//         if(currentPage === 0) {
-//             numberOfResultPages = illustManga.total/illustManga.data.length;
-//             escapedKeyword = encodeURIComponent(keyword);
-//         }
-    
-//         // Define wait functions
-//         const waitJson = page.waitForResponse(res =>
-//             res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
-//             && res.status() === 200
-//         );
-//         const loaded = page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] });
-
-//         // Transition and recursive call
-//         if(currentPage < numberOfResultPages){
-//             currentPage++;
-//             await page.click(selectors.nextPage);
-//             const r: puppeteer.HTTPResponse = await waitJson;
-//             await loaded;
-//             await collectIdsFromResultPages(page, keyword, r);
-//         }
-        
-//         // DEBUG: 再帰呼び出しだから余計なことをしていないか...
-//         console.log("collectIdsFromResultPages() just before return");
-//         return ids;
-//     }
-//     catch(e) {
-//         await page.screenshot();
-//         throw e;
-//     }
-// };
-
-
-// export const collectIdsFromResultPagesVer2 = async (page: puppeteer.Page, keyword: string, res: puppeteer.HTTPResponse): Promise<string[]> => {
-//     console.log(`Collecting artwork id. Page: ${currentPage + 1}`);
-//     try {
-//         // Just to be safe, wait a few sec.
-//         if(currentPage > 0) await page.waitForNetworkIdle();
-//         const { illustManga } = await res.json();
-//         // NOTE: Omit validation of JSON object.
-//         // Collect ids of thumbnails
-//         if(!illustManga || !illustManga.data || !illustManga.total) throw new Error('Unexpected JSON data has been received')
-//         ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(illustManga.data, 'id')];
-
-    
-//         // Set only once.
-//         if(currentPage === 0) {
-//             numberOfResultPages = illustManga.total/illustManga.data.length;
-//             escapedKeyword = encodeURIComponent(keyword);
-//         }
-    
-//         // Define wait functions
-//         const waitJson = page.waitForResponse(res =>
-//             res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${escapedKeyword}?word=${escapedKeyword}`)
-//             && res.status() === 200
-//         );
-//         const loaded = page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] });
-
-//         // Transition and recursive call
-//         if(currentPage < numberOfResultPages){
-//             currentPage++;
-//             await page.click(selectors.nextPage);
-//             const r: puppeteer.HTTPResponse = await waitJson;
-//             await loaded;
-//             await collectIdsFromResultPages(page, keyword, r);
-//         }
-        
-//         // DEBUG: 再帰呼び出しだから余計なことをしていないか...
-//         console.log("collectIdsFromResultPages() just before return");
-//         return ids;
-//     }
-//     catch(e) {
-//         await page.screenshot();
-//         throw e;
-//     }
-// };
-
-// interface iRequiredSearchResultData {
-//     error:boolean;
-//     body: {
-//         illustManga: {
-//             data: iIllustMangaElement[];
-//             total: number;
-//             bookmarkRanges?: any[];
-//         },
-//         popular?: {
-//             recent?: any[];
-//             permanent?: any[];
-//         };
-//         relatedTags?: string[];
-//         tagTransition?: any;
-//         zoneConfig?: any;
-//         extraData?: any;
-//     };
-// };
-// 
-// ver.1
-// 
-// export const collectIdsFromResultPages = async (page: puppeteer.Page, keyword: string, res: puppeteer.HTTPResponse): Promise<string[]> => {
-//     console.log(`Collecting artwork id. Page: ${currentPage + 1}`);
-//     try {
-//         // Just to be safe, wait a few sec.
-//         await page.waitForNetworkIdle();
-//         const json: iRequiredSearchResultData = await res.json();
-//         // NOTE: Omit validation of JSON object.
-//         // Collect ids of thumbnails
-//         if(!json.body.illustManga.data || !json.body.illustManga.total) throw new Error('')
-//         ids = [...ids, ...collectElementsAsArray<iIllustMangaElement>(json.body.illustManga.data, 'id')];
-
-    
-//         // Define wait functions
-//         const waitJson = page.waitForResponse(res =>
-//             res.url().includes(`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}`)
-//             && res.status() === 200
-//         );
-//         const loaded = page.waitForNavigation({ waitUntil: ["load", "domcontentloaded"] });
-
-//         // Set only once.
-//         if(currentPage === 0) numberOfResultPages = json.body.illustManga.total/json.body.illustManga.data.length;
-    
-//         // Transition and recursive call
-//         if(currentPage < numberOfResultPages){
-//             currentPage++;
-//             await page.click(selectors.nextPage);
-//             const r: puppeteer.HTTPResponse = await waitJson;
-//             await loaded;
-//             await collectIdsFromResultPages(page, keyword, r);
-//         }
-        
-//         // DEBUG: 再帰呼び出しだから余計なことをしていないか...
-//         console.log("collectIdsFromResultPages() just before return");
-//         return ids;
-//     }
-//     catch(e) {
-//         await page.screenshot();
-//         throw e;
-//     }
-// };
+ /***
+  * @type {T} - Type of the array element object.
+  * 
+  * */ 
+  export class Collect<T> {
+     private data: T[];
+     constructor() {
+         this.data = [];
+     };
+ 
+     /***
+      * Collect value by specifying key name from object and return array of collection.
+      * 
+      * @param {T[]} data - Object from which the value is to be retrieved.
+      * @param {keyof T} key - Key of object that passed as first argument and to be retrieved.
+      * @return {T[keyof t][]} - Array 
+      * 
+      * */ 
+     collect(key: keyof T): T[keyof T][] {
+         const arr = this.data.map((e: T) => {
+             if(e[key] !== undefined) return e[key];
+             else return undefined;
+         });
+         return arr.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
+     };
+ 
+     /**
+      * Reset data.
+      * Remove reference of previous data.
+      * */ 
+     resetData(data: T[]): void {
+         this.data = [];
+         this.data.length = 0;
+         this.data = [...data];
+     };
+ 
+     /***
+      * The filter function returns an array consisting 
+      * of the values of specific properties 
+      * taken from elements that passed the given test function.
+      * 
+      * In short,
+      * If `e` passed `fitlerLogic()`, `e[key]` pushed to array to be returned.
+      * */ 
+     filter(filterLogic: iFilterLogic<T>, key: keyof T): T[keyof T][] {
+         const filtered = this.data.map((e: T) => {
+             return (filterLogic(e) && e[key] !== undefined) ? e[key] : undefined;
+         });
+         
+         return filtered.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
+     };
+ };
+ 
+ // --- USAGE ---
+ // 
+ // import { Collect } from './Collect';
+ // import type { iFilterLogic } from './Collect';
+ 
+ //  export interface iIllustMangaDataElement {
+ //     id: string;
+ //     title: string;
+ //     illustType?: number;
+ //     xRestrict?: number;
+ //     restrict?: number;
+ //     sl?: number;
+ //     url?: string;
+ //     description?: string;
+ //     tags?: any[];
+ //     userId?: string;
+ //     userName?: string;
+ //     width?: number;
+ //     height?: number;
+ //     pageCount?: number;
+ //     isBookmarkable?: boolean;
+ //     bookmarkData?: any;
+ //     alt?: string;
+ //     titleCaptionTranslation?: any[];
+ //     createDate?: string;
+ //     updateDate?: string;
+ //     isUnlisted?: boolean;
+ //     isMasked?: boolean;
+ //     profileImageUrl?: string;
+ // };
+ 
+ // export interface iIllustManga {
+ //     data: iIllustMangaDataElement[],
+ //     total: number
+ // };
+ 
+ // export interface iBodyIncludesIllustManga {
+ //     error: boolean;
+ //     body: {
+ //         illustManga: iIllustManga;
+ //     }
+ // };
+ 
+ 
+ // const dummy: iIllustMangaDataElement[] = [
+ //     {
+ //         "id": "101393474",
+ //         "title": "彼岸の庭渡久１２０６",
+ //         "illustType": 1,
+ //         "xRestrict": 0,
+ //         "restrict": 0,
+ //         "sl": 2,
+ //         "url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/22/00/05/55/101393474_p0_square1200.jpg",
+ //         "description": "",
+ //         "tags": [
+ //             "東方",
+ //             "彼岸の庭渡様",
+ //             "庭渡久侘歌",
+ //             "豪徳寺ミケ",
+ //             "少名針妙丸",
+ //             "射命丸文",
+ //             "リリーホワイト",
+ //             "リリーブラック"
+ //         ],
+ //         "userId": "9824519",
+ //         "userName": "人郷想幻（げんそうきょうじん）",
+ //         "width": 287,
+ //         "height": 821,
+ //         "pageCount": 1,
+ //         "isBookmarkable": true,
+ //         "bookmarkData": null,
+ //         "alt": "#東方 彼岸の庭渡久１２０６ - 人郷想幻（げんそうきょうじん）のマンガ",
+ //         "createDate": "2022-09-22T00:05:55+09:00",
+ //         "updateDate": "2022-09-22T00:05:55+09:00",
+ //         "isUnlisted": false,
+ //         "isMasked": false,
+ //         "profileImageUrl": "https://i.pximg.net/user-profile/img/2022/06/17/10/08/33/22889909_0d5609f386476846aa404ad4c634e38f_50.jpg"
+ //     },
+ //     {
+ //         "id": "101381167",
+ //         "title": "落書き11",
+ //         "illustType": 0,
+ //         "xRestrict": 1,
+ //         "restrict": 0,
+ //         "sl": 6,
+ //         "url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/21/12/18/49/101381167_p0_square1200.jpg",
+ //         "description": "",
+ //         "tags": [
+ //             "R-18",
+ //             "東方Project",
+ //             "犬走椛",
+ //             "射命丸文"
+ //         ],
+ //         "userId": "4472917",
+ //         "userName": "kjo",
+ //         "width": 960,
+ //         "height": 1280,
+ //         "pageCount": 20,
+ //         "isBookmarkable": true,
+ //         "bookmarkData": null,
+ //         "alt": "#東方Project 落書き11 - kjoのイラスト",
+ //         "createDate": "2022-09-21T12:18:49+09:00",
+ //         "updateDate": "2022-09-21T12:18:49+09:00",
+ //         "isUnlisted": false,
+ //         "isMasked": false,
+ //         "profileImageUrl": "https://i.pximg.net/user-profile/img/2020/02/22/02/55/14/17967117_9033a06b5f70d391c5cf66d4e248d847_50.jpg"
+ //     },
+ //     {
+ //         "id": "101380663",
+ //         "title": "東方二次小説（第13話）「アイドル天狗はたて」（2）～（7）",
+ //         "illustType": 0,
+ //         "xRestrict": 1,
+ //         "restrict": 0,
+ //         "sl": 6,
+ //         "url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/21/11/33/07/101380663_p0_square1200.jpg",
+ //         "description": "",
+ //         "tags": [
+ //             "R-18",
+ //             "姫海棠はたて",
+ //             "東方project",
+ //             "射命丸文",
+ //             "管牧典",
+ //             "二ツ岩マミゾウ",
+ //             "封獣ぬえ",
+ //             "パンチラ"
+ //         ],
+ //         "userId": "52941975",
+ //         "userName": "美少女帝国",
+ //         "width": 1280,
+ //         "height": 720,
+ //         "pageCount": 6,
+ //         "isBookmarkable": true,
+ //         "bookmarkData": null,
+ //         "alt": "#姫海棠はたて 東方二次小説（第13話）「アイドル天狗はたて」（2）～（7） - 美少女帝国のイラスト",
+ //         "createDate": "2022-09-21T11:33:07+09:00",
+ //         "updateDate": "2022-09-21T11:33:07+09:00",
+ //         "isUnlisted": false,
+ //         "isMasked": false,
+ //         "profileImageUrl": "https://s.pximg.net/common/images/no_profile_s.png"
+ //     }
+ // ];
+ 
+ 
+ // /***
+ //  * Array includes some element of another array.
+ //  * 
+ //  * ref: https://stackoverflow.com/a/39893636
+ //  * 
+ //  * @param {any[]} compare - この配列が
+ //  * @param {any[]} to - この配列の要素を一つ以上含むのか
+ //  * @return {boolean} - 一つ以上含むならtrue
+ //  * */ 
+ //  const includesAtLeast = (compare: any[], to: any[]): boolean => {
+ //     return to.some(v => compare.includes(v));
+ // };
+ 
+ // /***
+ //  * Array includes all element of another array.
+ //  * 
+ //  * ref: https://stackoverflow.com/a/53606357
+ //  * 
+ //  * @param {any[]} compare - この配列が
+ //  * @param {any[]} to - この配列の要素をすべて含むのか
+ //  * @return {boolean} - すべて含むならtrue
+ //  * */ 
+ // const includesAll = (compare: any[], to: any[]): boolean => {
+ //     return to.every(v => compare.includes(v));
+ // };
+ 
+ // (async function() {
+ //     const collector = new Collect<iIllustMangaDataElement>();
+ 
+ //     const KEY: keyof iIllustMangaDataElement = "tags";
+ 
+ //     const filterLogic: iFilterLogic<iIllustMangaDataElement> = (element) => {
+ //         const property: keyof iIllustMangaDataElement = KEY;
+ //         const requirement: string[] = ["射命丸文"];
+ //         const e = element[property];
+ //         if(e !== undefined) {
+ //             return includesAll(e, requirement) ? element : undefined;
+ //         }
+ //     };
+ 
+ //     collector.resetData(dummy);
+ //     const filtered = collector.filter(filterLogic, "id");
+ //     console.log(filtered);
+ // })();

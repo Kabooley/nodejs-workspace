@@ -4,12 +4,8 @@
  * 
  * ******************************************************/ 
 import { Collect } from './Collect';
+import type { iFilterLogic } from './Collect';
 
-/*************************************************************
- * Annotatins of result page HTTPResponse body data.
- * 
- * 
- * ***********************************************************/ 
  export interface iIllustMangaDataElement {
     id: string;
     title: string;
@@ -129,7 +125,6 @@ const dummy: iIllustMangaDataElement[] = [
             "管牧典",
             "二ツ岩マミゾウ",
             "封獣ぬえ",
-            "ちんぽ",
             "パンチラ"
         ],
         "userId": "52941975",
@@ -178,27 +173,11 @@ const includesAll = (compare: any[], to: any[]): boolean => {
 (async function() {
     const collector = new Collect<iIllustMangaDataElement>();
 
-    const filterKey: keyof iIllustMangaDataElement = "tags";
+    const KEY: keyof iIllustMangaDataElement = "tags";
 
-    /***
-     * Collect._filter()の引数filterLogic()は引数としてT型要素を一つだけ取得する
-     * 
-     * requiredTagsがすべて含まれていたらその要素を返す
-     * いずれかしか含まないまたは含まない場合はundefinedを返す
-     * 
-     * Array.prototype.map()の仕様に合わせるため必ず何か返さなくてはならないため
-     * 
-     * T: iIllustMangaDataEl
-     * 
-     * 配列の中に多方の配列要素すべて含まれているのか検査する
-     * https://stackoverflow.com/a/39893636
-     * */ 
-    const filterLogic = (element:iIllustMangaDataElement):iIllustMangaDataElement | undefined => {
-        const property: keyof iIllustMangaDataElement = "tags";
-        const requirement: string[] = [
-            "R-18",
-            "東方Project",
-            "犬走椛"];
+    const filterLogic: iFilterLogic<iIllustMangaDataElement> = (element) => {
+        const property: keyof iIllustMangaDataElement = KEY;
+        const requirement: string[] = ["射命丸文"];
         const e = element[property];
         if(e !== undefined) {
             return includesAll(e, requirement) ? element : undefined;
@@ -206,6 +185,6 @@ const includesAll = (compare: any[], to: any[]): boolean => {
     };
 
     collector.resetData(dummy);
-    const filtered = collector._filter(filterLogic);
+    const filtered = collector.filter(filterLogic, "id");
     console.log(filtered);
 })();

@@ -23,12 +23,14 @@
 import type puppeteer from 'puppeteer';
 import type { iSequentialAsyncTask } from '../utilities/TaskQueue';
 import type { iIllustMangaDataElement, iIllustManga, iBodyIncludesIllustManga } from '../constants/illustManga';
+import type { iFilterLogic  } from './Collect';
 import { search } from './search';
 import { Navigation } from './Navigation';
 import { Collect } from './Collect';
 import { AssembleParallelPageSequences } from './AssembleParallelPageSequences';
-import mustache from '../utilities/mustache';
 import { retrieveDeepProp } from '../utilities/objectModifier';
+import array from '../utilities/array';
+import mustache from '../utilities/mustache';
 
 let tasks: iSequentialAsyncTask[] = [];
 const url: string = "https://www.pixiv.net/tags/{{keyword}}/artworks?p={{i}}&s_mode=s_tag";
@@ -41,6 +43,12 @@ const resolver: iResponsesResolveCallback<iIllustMangaDataElement> = async (resp
     const resolved: iIllustMangaDataElement[] = retrieveDeepProp<iIllustMangaDataElement[]>(["body", "illustManga", "data"], response);
     if(resolved === undefined) throw new Error("");
     return resolved;
+};
+
+const generateFilterLogic = <T>(key: keyof T, requirement: string[]): iFilterLogic<T> => {
+    return function filterLogic(element) {
+        if(element[key] !== undefined) return array.includesAll(element[key], requirement) ? element : undefined;
+    }
 };
 
 
@@ -93,7 +101,6 @@ export const setupCollectByKeywordTaskQueue = (
     browser: puppeteer.Browser,
     page: puppeteer.Page, 
     options: iOptions
-    // options: {[x: string]: unknown}
     ) => {
     const { keyword, tag, author } = options;
 

@@ -43,7 +43,7 @@
  * フィルタリング処理を挟めばよい
  * ************************************************************/ 
 import type puppeteer from 'puppeteer';
-import type { Collect } from './Collect';
+import type { Collect, iFilterLogic } from './Collect';
 import type { Navigation } from './Navigation';
 
 type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
@@ -86,6 +86,7 @@ export class AssembleParallelPageSequences<T> {
         this.setResponsesResolver = this.setResponsesResolver.bind(this);
         this.resolveResponses = this.resolveResponses.bind(this);
         this.collect = this.collect.bind(this);
+        this.filter = this.filter.bind(this);
         this.run = this.run.bind(this);
         this.getResult = this.getResult.bind(this);
         this.errorHandler = this.errorHandler.bind(this);
@@ -99,8 +100,6 @@ export class AssembleParallelPageSequences<T> {
     _initializeSequences() {
         return this.sequences.push(Promise.resolve());
     };
-
-    // -- PUBLIC METHODS --
 
     /***
      * Returns puppeteer Page instance which is indexed by iterator number.
@@ -162,7 +161,12 @@ export class AssembleParallelPageSequences<T> {
 
     collect(data: T[], key: keyof T) {
         this.collector.resetData(data);
-        this.collected = [...this.collected, ...this.collector.execute(key)]
+        this.collected = [...this.collected, ...this.collector.collect(key)];
+    };
+
+    filter(data: T[], key: keyof T, filterLogic: iFilterLogic<T>) {
+        this.collector.resetData(data);
+        this.collected = [...this.collected, ...this.collector.filter(filterLogic, key)];
     };
 
     run(): Promise<void[]> {

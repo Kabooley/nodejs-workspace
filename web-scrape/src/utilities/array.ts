@@ -30,6 +30,8 @@ const includesAll = (compare: any[], to: any[]): boolean => {
 };
 
 
-export default {
+const array = {
     includesAll, includesAtLeast
 };
+
+export default array;

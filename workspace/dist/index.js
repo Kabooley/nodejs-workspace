@@ -143,7 +143,7 @@ const includesAll = (compare, to) => {
 (function () {
     return __awaiter(this, void 0, void 0, function* () {
         const collector = new Collect_1.Collect();
-        const filterKey = "tags";
+        const KEY = "tags";
         /***
          * Collect._filter()の引数filterLogic()は引数としてT型要素を一つだけ取得する
          *
@@ -158,19 +158,15 @@ const includesAll = (compare, to) => {
          * https://stackoverflow.com/a/39893636
          * */
         const filterLogic = (element) => {
-            const property = "tags";
-            const requirement = [
-                "R-18",
-                "東方Project",
-                "犬走椛"
-            ];
+            const property = KEY;
+            const requirement = ["射命丸文"];
             const e = element[property];
             if (e !== undefined) {
                 return includesAll(e, requirement) ? element : undefined;
             }
         };
         collector.resetData(dummy);
-        const filtered = collector._filter(filterLogic);
+        const filtered = collector.filter(filterLogic, "id");
         console.log(filtered);
     });
 })();
