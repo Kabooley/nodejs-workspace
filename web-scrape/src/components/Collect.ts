@@ -6,7 +6,9 @@
  * 
  * *******************************************************************/ 
 
- export type iFilterLogic<T> = (e: T) => T[keyof T] | undefined;
+// TODO: iFilterLogicは要素を返すのではなくてbooleanを返した方がいいのでは？
+//  export type iFilterLogic<T> = (e: T) => T[keyof T] | undefined;
+ export type iFilterLogic<T> = (e: T) => boolean;
 
  /***
   * @type {T} - Type of the array element object.

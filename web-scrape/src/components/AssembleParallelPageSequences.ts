@@ -112,6 +112,7 @@ export class AssembleParallelPageSequences<T> {
     /***
      * Returns specified sequence promise by index number.
      * 
+     * TODO: 要素を一つ返すしようじゃなくて配列を返す仕様にする
      * */ 
     getSequence(circulator: number): Promise<void> | undefined {
         return this.sequences[circulator];
