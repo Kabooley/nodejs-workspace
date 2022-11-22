@@ -43,6 +43,24 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
 
 type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
 
+/***
+ * Command `collectbyKeyword`'s options will be stored.
+ * 
+ * */ 
+const optionsProxy = (function() {
+    let options: iOptions = {} as iOptions;
+    return {
+        set: function(v: iOptions) {
+            options = {
+                ...options, ...v
+            };
+        },
+        get: function() {
+            return {...options};
+        }
+    };
+})();
+
 
 /***
  * 
@@ -57,20 +75,30 @@ const resolver: iResponsesResolveCallback<iIllustMangaDataElement> = async (resp
 
 /***
  * 
- * ほんまにクロージャでええんか?
+ * case key === "tags":
+ *      requirement: ["COWBOYBEBOP", "Ein", "cute"]
+ *      対象の要素がrequirementを「すべて含む」のか検査する
+ * 
+ * case key === "author":
+ *      requirement: "K-SUWABE"
  * */
 const generateFilterLogic = (
-    e: iIllustMangaDataElement,
     key: keyof iIllustMangaDataElement,
     requirement: string[]
     ): iFilterLogic<iIllustMangaDataElement> => {
-    return function filterLogic() {
+
+    switch(key) {
+        case "tags": break;
+        case "userName": break;
+        default: 
+    }
+    return function filterLogic(e: iIllustMangaDataElement) {
         if(e[key] !== undefined){
             return array.includesAll(e[key], requirement);
         }
         else return false;
     }
-}
+};
 
 
 
@@ -91,22 +119,18 @@ const assemblingCollectProcess = async (
 
         for(let page = 1; page <= numberOfPages; page++) {
             const circulator: number = page % numberOfProcess;
-            if(assembler.getSequence(circulator) !== undefined
+            if(assembler.getSequences()[circulator] !== undefined
                 && assembler.getPageInstance(circulator) !== undefined
             ) {
-                let sequence = assembler.getSequence(circulator)!;
                 const page = assembler.getPageInstance(circulator)!;
                 assembler.setResponseFilter((res: puppeteer.HTTPResponse) => 
                 res.status() === 200 
-                && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(keyword), i: page}));
+                && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: page}));
 
-                // TODO: getSequence()を、要素を一つ返すしようじゃなくて配列を返す仕様にする
-                // sequenceを外に出してしまっているのでこれだとassemblerのsequenceに上書きできてないかもしれない
-                sequence = sequence
+                assembler.getSequences()[circulator] = assembler.getSequences()[circulator]!
                 .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(keyword), i:page}))))
                 .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
-                // TODO: tagやauthorを指定されているときに、assembler.collect()の段階でフィルタリングを設けなくてはならない
-                .then((data: iIllustMangaDataElement[]) => assembler.filter(data, key, filterLogic))
+                .then((data: iIllustMangaDataElement[]) => assembler.filter(data, key, generateFilterLogic(key, )))
                 .catch((e) => assembler.errorHandler(e))
             }
         };
@@ -148,8 +172,8 @@ const decideNumberOfProcess = (illustManga: iIllustManga) => {
 
 interface iOptions {
     keyword: string;
-    tag?: string;
-    author?: string;
+    tags?: string[];
+    userName?: string[];
 };
 
 
@@ -163,12 +187,12 @@ export const setupCollectByKeywordTaskQueue = (
     page: puppeteer.Page, 
     options: iOptions
     ) => {
-    const { keyword, tag, author } = options;
+    optionsProxy.set(options);
 
     // setting up task queue.
     // 
     // 1. fill search form with keyword.
-    tasks.push(() => search(page, keyword));
+    tasks.push(() => search(page, optionsProxy.get().keyword));
     // 2. Navigate to keyword search result page.
     tasks.push(() => {
         const navigation = new Navigation();
