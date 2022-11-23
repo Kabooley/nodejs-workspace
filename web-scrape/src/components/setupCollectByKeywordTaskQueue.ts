@@ -21,6 +21,7 @@
  *  
  * 
  * TODO:
+ * - エラーハンドリング
  * - `then(() => foo().then(() => bar()))`という使い型は問題がないかのか検証
  * - 機能の分割（1ファイル1機能を守る）
  * 
@@ -100,17 +101,18 @@ const filterLogic: iFilterLogic<iIllustMangaDataElement> = (e: iIllustMangaDataE
 
 
 /***
- * 
+ * Generate AssembleParallelPageSequences<iIllustMangaDataElement> instance.
  * 
  * */ 
 const assemblingCollectProcess = async (
     browser: puppeteer.Browser, numberOfProcess: number, numberOfPages: number
-    ): Promise<AssembleParallelPageSequences<iIllustMangaDataElement> | undefined> => {
-    try {
-        const assembler = new AssembleParallelPageSequences<iIllustMangaDataElement>(
-            browser, numberOfProcess, new Navigation(), new Collect<iIllustMangaDataElement>()
-        );
+    ): Promise<AssembleParallelPageSequences<iIllustMangaDataElement>> => {
 
+    // NOTE: Code outside of try block is for catch block to scope instance.
+    const assembler = new AssembleParallelPageSequences<iIllustMangaDataElement>(
+        browser, numberOfProcess, new Navigation(), new Collect<iIllustMangaDataElement>()
+    );
+    try {
         await assembler.initialize();
         assembler.setResponsesResolver(resolver);
 
@@ -125,7 +127,7 @@ const assemblingCollectProcess = async (
                 && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: page}));
 
                 assembler.getSequences()[circulator] = assembler.getSequences()[circulator]!
-                .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(optionsProxy.get().keyword), i:page}))))
+                .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(optionsProxy.get().keyword), i:page}), { waitUntil: ["load", "networkidle2"]})))
                 .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
                 .then((data: iIllustMangaDataElement[]) => assembler.filter(data, key, filterLogic))
                 .catch((e) => assembler.errorHandler(e))
@@ -134,6 +136,8 @@ const assemblingCollectProcess = async (
         return assembler;
     }
     catch(e) {
+        assembler.finally();
+        throw new Error("Error: something went wrong. @assemblingCollectProcess");
     }
 };
 
@@ -191,6 +195,7 @@ export const setupCollectByKeywordTaskQueue = (
             res.status() === 200 
             && res.url() === mustache("https://www.pixiv.net/ajax/search/artworks/${{eyword}}?word=${{eyword}}", {keyword: encodeURIComponent(optionsProxy.get().keyword)})
         );
+        navigation.resetWaitForOptions({waitUntil: ["load", "networkidle2"]});
         return navigation.navigateBy(page, page.keyboard.press('Enter'))
     });
     // 3. Check the response includes required data.
@@ -209,9 +214,10 @@ export const setupCollectByKeywordTaskQueue = (
     // 6. run assembled sequences.
     // tasks.push((assembler: AssembleParallelPageSequences<iIllustMangaDataElement>) => assembler.run());
     tasks.push((assembler: AssembleParallelPageSequences<iIllustMangaDataElement>) => assembler.run().then(() => assembler.getResult()));
-    // 7. 実行結果の取得
-    // TODO: assemblerへのアクセスが必要であるがスコープ外である
+    // TODO: 7. 実行結果の取得
+    //  assemblerへのアクセスが必要であるがスコープ外である
     // 検証１：.then(() => assembler.run().getResult())は大丈夫か？
-    // tasks.push(())
+    // TODO: 8. エラーハンドリング
+    // 検証: tasksのどこでエラーが発生してもここでキャッチできるのか？
     return tasks;
 };

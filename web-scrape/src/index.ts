@@ -18,7 +18,6 @@ import type { iCollectOptions } from './commandParser/commandModules/collectComm
 // import { login } from './components/login';
 
 
-
 // 
 // -- GLOBALS --
 // 
@@ -49,13 +48,13 @@ const instances = (function() {
             if(browser !== undefined) {
                 return browser;
             }
-            else throw new Error("Error: puppeteer instances are not instantiated yet.");
+            else throw new Error("Error: puppeteer Browser instance is not instantiated yet.");
         },
         getPage: function(): puppeteer.Page {
             if(page !== undefined) {
                 return page;
             }
-            else throw new Error("Error: puppeteer instances are not instantiated yet.");
+            else throw new Error("Error: puppeteer page instance is not instantiated yet.");
         },
         closeAll: async function() {
             if(browser !== undefined) {
@@ -73,7 +72,7 @@ const instances = (function() {
 
 const setupTaskQueue = (order: iOrders) => {
     const { commands, options } = order;
-    switch(commands.join()) {
+    switch(commands.join('')) {
         case 'collectbyKeyword':
             // DEBUG:
             // 

@@ -590,3 +590,6 @@ export class AssembleParallelPageSequences<T> {
 //     // finallyで必ず新規作成したpageインスタンスをcloseすること
 //     // となるとclassにしたほうがいいかも
 // };
+
+
+// 

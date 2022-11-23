@@ -20,11 +20,12 @@
 
 [Promiseチェーンで任意の場所でエラーハンドリング](#Promiseチェーンで任意の場所でエラーハンドリング)
 
-[実験Promiseチェーン](#実験Promiseチェーン)
+[Promiseチェーン](#Promiseチェーン)
+
+[promise 入れ子](#promise 入れ子)
 
 [逐次処理](#逐次処理)
 
-[promisify](#promisify)
 
 ## for...in vs for...of
 
@@ -350,35 +351,6 @@ https://qiita.com/legokichi/items/b14bf7dbb0cf041955d6
 https://stackoverflow.com/questions/33445415/javascript-promises-reject-vs-throw
 
 
-#### 非同期関数はPromiseのコールバックにするな
-
-```JavaScript
-let promise = Promise.resolve();
-
-// Promiseチェーンのコールバックには同期関数を呼び出そう
-promise = promise.then(() => {}); 
-// これはダメ
-// 予期しない結果をもたらす
-promise = promise.then(async () => {}); 
-
-// これはPromiseチェーンとしてはOKだけど、asyncFunction()は非同期に呼び出されることになるので、
-// 当然asyncFunction()の完了を待たない
-pormise = promise.then(() => asyncFunction());
-// 次は上記と同じ
-// pormise = promise.then(() => {return asyncFunction()});
-
-
-// 次はダメなことはわかっている
-promise = promise.then(asyncFunction);
-// 次もダメっぽい
-// TypeScriptだとproperty asyncFunctionはPromise<void>に存在しませんと出る
-promise = promise.asyncFunction;
-
-```
-
-async関数はPromiseチェーンに含めることができない?
-
-promise.then(() => return asyncFunction())は有効？
 
 ## 配列の中には他の配列の何かが含まれているのか検査する
 
@@ -508,9 +480,28 @@ console.log(isIncludesAllOf(expected, target3));    // false
 
 https://stackoverflow.com/a/43079803
 
-## 実験Promiseチェーン
+まず知っておくこと：
+
+- [promise入れ子](#promise入れ子)
+- [catch()は非同期関数内部のエラーは補足しない](#catch()は非同期関数内部のエラーは補足しない)
+
+## Promiseチェーン
 
 いろいろいじってプロミスチェーンを理解する。
+
+#### まず結論
+
+- `promise.then(() => async関数)`は可能。
+
+    async関数の処理が完了してから次のプロミスチェーンに移る。
+
+- `promise.then(() => 非同期関数)`は正しいが、`promise.then(() => {非同期関数()})`は正しくない。
+
+    `promise.then(() => 非同期関数)`の非同期関数がエラーをthrowしても補足されない。
+    `promise.then(同期関数)`の同期関数がエラーをthrowしたら補足される。
+    `promise.then(() => 非同期関数)`の非同期関数がreject()したら補足される。
+
+- then()のなかではpromiseを返すようにすること、またはthen()のハンドラは同期関数であること。
 
 ```TypeScript
   // return 非同期関数
@@ -927,8 +918,41 @@ async3: invoked
 async3: wait 15 sec. 
 done 
 ```
+#### promise入れ子
 
+https://developer.mozilla.org/ja/docs/Web/JavaScript/Guide/Using_promises#%E5%85%A5%E3%82%8C%E5%AD%90
 
+**正しくないわけではないが、原則Promiseチェーンは入れ子にしない方がよい**
+
+> 単純なプロミス連鎖は、不注意な構成の結果として入れ子が発生することがあるので、入れ子にせずに平らに保つのがベストです。
+
+ただし、
+
+> 正しく使用すれば、エラー回復の精度が高まります。
+
+```JavaScript
+doSomethingCritical()
+  .then((result) =>
+    doSomethingOptional(result)
+      .then((optionalResult) => doSomethingExtraNice(optionalResult))
+      .catch((e) => {})
+  ) // オプションの処理が失敗すれば無視して進める
+  .then(() => moreCriticalStuff())
+  .catch((e) => console.error("Critical failure: " + e.message));
+```
+
+> 内側の catch 文は doSomethingOptional() と doSomethingExtraNice() からの失敗だけを捕捉し、捕捉したあと moreCriticalStuff() へと処理が続きます
+
+ここで発生する問題は、
+
+- 入れ子のチェーンはスコープが限られる
+- 入れ子のチェーンの結果に関わらず外側のチェーンは続けて実行される
+
+である。
+
+なので入れ子のほうでエラーを補足したら、そくざに外側のチェーンも停止したい
+
+なんていうのを実現したいなら大変な実装をしなくてはいけなくなるであろう。
 
 ## 逐次処理
 
@@ -1286,12 +1310,3 @@ sequentialAsyncTasks(tasks).then((a) => {
 }
 ```
 
-## promisify
-
-Node.js Design Patternでは、コールバックAPIをプロミス化するための方法を教えてくれた。
-
-ふと思ったのが、
-
-同期関数をpromiseでラップすることができたら、
-
-その同期関数はイベントループへ追加されることになるのか、である。
