@@ -6,9 +6,9 @@ type iCommandBuild<T> = {
 
 export interface iCollectOptions {
     keyword: string;
-    tag: string;
-    bookmarkOver: number;
-    author: string;
+    tags?: string[];
+    bookmarkOver?: number;
+    userName?: string;
 };
 
 
@@ -27,13 +27,13 @@ const builder: iCommandBuild<iCollectOptions> = {
         demandOption: false,
         type: "number"
     },
-    tag: {
+    tags: {
         describe: "Specify tag name must be included",
         demandOption: false,
         type: "string"
     },
-    author: {
-        describe: "Specify author name that msut be included",
+    userName: {
+        describe: "Specify author user name must be included",
         demandOption: false,
         type: "string"
     }

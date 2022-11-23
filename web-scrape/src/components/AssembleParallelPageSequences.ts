@@ -81,7 +81,7 @@ export class AssembleParallelPageSequences<T> {
         this._initializeSequences = this._initializeSequences.bind(this);
         this.initialize = this.initialize.bind(this);
         this.getPageInstance = this.getPageInstance.bind(this);
-        this.getSequence = this.getSequence.bind(this);
+        this.getSequences = this.getSequences.bind(this);
         this.setResponseFilter = this.setResponseFilter.bind(this);
         this.setResponsesResolver = this.setResponsesResolver.bind(this);
         this.resolveResponses = this.resolveResponses.bind(this);
@@ -112,11 +112,7 @@ export class AssembleParallelPageSequences<T> {
     /***
      * Returns specified sequence promise by index number.
      * 
-     * TODO: 要素を一つ返すしようじゃなくて配列を返す仕様にする
      * */ 
-    // getSequence(circulator: number): Promise<void> | undefined {
-    //     return this.sequences[circulator];
-    // };
     getSequences(): Promise<void>[] {
         return this.sequences;
     };
@@ -168,6 +164,11 @@ export class AssembleParallelPageSequences<T> {
         this.collected = [...this.collected, ...this.collector.collect(key)];
     };
 
+    /***
+     * @param {T[]} data - 
+     * @param {keyof T} key - The property name of data parameter.
+     * @param {iFilterLogic} filterLogic - Filter logic that is required by Collect.filter().
+     * */ 
     filter(data: T[], key: keyof T, filterLogic: iFilterLogic<T>) {
         this.collector.resetData(data);
         this.collected = [...this.collected, ...this.collector.filter(filterLogic, key)];

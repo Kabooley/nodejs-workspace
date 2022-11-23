@@ -20,8 +20,8 @@
  
 export interface iBookmarkOptions {
      bookmarkOver?: number;
-     tag?: string;
-     author?: string;
+     tags?: string[];
+     userName?: string;
  };
  
  type iCommandBuild<T> = {
@@ -29,7 +29,6 @@ export interface iBookmarkOptions {
  };
  
  const command = "bookmark";
- 
  const description = "Bookmark artwork if it satifies given command options.";
  
  const bookmarkCommandBuilder: iCommandBuild<iBookmarkOptions> = {
@@ -38,12 +37,12 @@ export interface iBookmarkOptions {
          demandOption: true,
          type: "number"
      },
-     tag: {
+     tags: {
          describe: "Specify tag name must be included",
          demandOption: false,
          type: "string"
      },
-     author: {
+     userName: {
          describe: "Specify author name that msut be included",
          demandOption: false,
          type: "string"

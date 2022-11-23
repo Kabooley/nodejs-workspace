@@ -53,6 +53,8 @@
       * 
       * In short,
       * If `e` passed `fitlerLogic()`, `e[key]` pushed to array to be returned.
+      * 
+      * ここの引数のkeyはcollect()の引数keyと同じ意味。
       * */ 
      filter(filterLogic: iFilterLogic<T>, key: keyof T): T[keyof T][] {
          const filtered = this.data.map((e: T) => {
