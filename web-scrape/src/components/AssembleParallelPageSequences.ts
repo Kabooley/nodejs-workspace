@@ -184,6 +184,7 @@ export class AssembleParallelPageSequences<T> {
 
     errorHandler(e: Error) {
         console.error(e.message);
+        this.finally();
         throw e;
     };
 

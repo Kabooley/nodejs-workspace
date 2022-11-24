@@ -23,6 +23,8 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 [検証:検索結果ページはpage.goto(url)で移動・取得できるか](#検証:検索結果ページはpage.goto(url)で移動・取得できるか)
 [](#)
 
+[promiseチェーンで任意にエラーを補足する](#promiseチェーンで任意にエラーを補足する)
+
 ## TODOS
 
 - TODO: artworkページからの収集ロジックの実装
@@ -1929,4 +1931,151 @@ for(let i = 1; i < upTo; i++) {
     );
     collectFrom
 }
+```
+
+## promiseチェーンで任意にエラーを補足する
+
+現状の問題:
+
+```JavaScript
+let finallPromise = Promise.resolve();
+finallPromise = finallPromise
+.then(() => search())		// search() is async function
+.then(() => function() {return navigation.navigateBy()})
+.then((r) => function(r) {return r.shift().json()})		// json() returns promise
+.then((r) => function() {return resolved;})		// Sync function
+.then((r) => function() {return numberOfProcess;})		// Sync function
+.then((p) => function() {return assemblingCollectProcess})	// Async function
+.then((a) => a.run().then(() => a.getResult()));	// **1**
+
+// **1**は実際には次のとおりである
+
+.then((a) => {
+	return Promise.all(a.sequences)		// **2**
+		.then(() => a.getResult());
+})
+
+// **2**はさらに次のとおりである
+
+
+// **3**
+// この呼び出し方も大丈夫なのか？
+const result = await finallPromise.catch(e => handleError);
+```
+
+検証：
+
+- `promise = promise.then(() => async function(){}())`のasync関数内部でtry...catchしているときに、catch()がエラースローしたらどうなるのか。ちゃんとプロミスチェーンのcatch()が補足してくれるのか？
+
+
+- AssembelParallelPageSequences.tsのインスタンスのスコープが限られているので、finallyの呼び出しが好きなところでできない
+- 
+
+必要なこと：
+
+- index.tsのcatch()までエラーを投げられるようにすること
+- task queueは必ず`then(() => task)`になること。`then(asyncFunction)`としないこと
+- 全てのタスクが完了してもassemblerのfinally()を呼び出すこと
+
+ヒント１：catch()の後にthenが続くならそれはそのままthen()へ処理が移る。
+
+```JavaScript
+new Promise((resolve, reject) => {
+  console.log("Initial");
+
+  resolve();
+})
+  .then(() => {
+    throw new Error("Something failed");
+
+    console.log("Do this");
+  })
+  .catch(() => {
+    console.error("Do that");
+  })
+  .then(() => {
+    console.log("Do this, no matter what happened before");
+  });
+// Initial
+// Do that
+// Do this, no matter what happened before
+```
+
+なのでcatch以降を停止したいなら停止するための処理が必要である。
+
+逐次処理であるがゆえに`promise = promise.then(() => 追加したい処理)`で処理を追加していくので
+
+Promiseチェーン上のcatch()場所によってはそこで処理が中断されない可能性がある。
+
+なのでcatch()が必ずエラーを再スローするようにすれば解決するだろうか。
+
+
+```JavaScript
+new Promise((resolve, reject) => {
+  console.log("Initial");
+
+  resolve();
+})
+  .then(() => {
+    throw new Error("Something failed");
+
+    console.log("Do this");
+  })
+  .catch(() => {
+    console.error("Do that");
+	// TODO: このcatch()に続くすべてのthen()をすっ飛ばして次のcatch()へ伝番するのか検証する必要がある。
+	throw new Error("Error: New Error thrown");
+  })
+  .then(() => {
+    console.log("Do this, no matter what happened before");
+  })
+  .catch((e) => {
+	console.log("Last error catcher");
+	console.log(e);
+  })
+// Initial
+// Do that
+// Do this, no matter what happened before
+```
+
+ヒント２：Promise.all()は内部で**一つでもプロミスが拒否されると他の処理も中断**する
+
+プロミスが拒否されたという状態になればいいはずである。
+
+ではcatch()の後にthen()が続くようなpromiseはいつ拒否されたと判断されるのだろうか。
+
+```JavaScript
+let promise1 = Promise.resolve();
+promise1 = promise1
+.then(() => {/* do something */})
+.then(() => {/* do something */})
+.catch((e) => {/* handles error */})
+.then(() => {/* do something */})
+.then(() => {/* do something */})
+.catch((e) => {/* handles error */})
+.then(() => {/* do something */})
+.then(() => {/* do something */})
+.catch((e) => {/* handles error */});
+
+// 同様のpromiseがあと2つあるとして
+Promise.all([promise, promise2, promise3]);
+```
+上記の時、変数promiseでエラーが発生したら一番近くのcatch()で補足されてそのまま次のthen()へ処理が続くのだろうか？
+
+それともPromise.all()がプロミスが拒否されたと判断してすべて中断してくれるのだろうか？
+
+promiseチェーンの一番最後のcatch()が最終的に補足してくれればプロミスが拒否されたとなるのだろうか？
+
+たぶんそう。
+
+なので`then().catch().then().catch()...`とつづくPromiseチェーンは最後のcatch()に届くようにエラーを再スローする必要があるかも...
+
+
+
+検証用コード：
+
+
+```TypeScript
+// test error handling in parallelly executed sequences.
+
 ```

@@ -137,7 +137,7 @@ const assemblingCollectProcess = async (
     }
     catch(e) {
         assembler.finally();
-        throw new Error("Error: something went wrong. @assemblingCollectProcess");
+        throw e;
     }
 };
 
@@ -201,6 +201,10 @@ export const setupCollectByKeywordTaskQueue = (
     // 3. Check the response includes required data.
     tasks.push((res: (puppeteer.HTTPResponse | any)[]) => res.shift().json() as iBodyIncludesIllustManga);
     // 4. Resolve HTTPResponse body to specific type.
+    /***
+     * errorをスローしているけれど、then()ハンドラは同期関数なのでOK
+     * 
+     * */ 
     tasks.push((responseBody: iBodyIncludesIllustManga): iIllustManga => {
         const resolved = retrieveDeepProp<iIllustManga>(["body", "illustManga"], responseBody);
         if(resolved === undefined) throw new Error("");
