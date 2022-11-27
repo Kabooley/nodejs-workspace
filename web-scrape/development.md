@@ -25,6 +25,8 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 
 [promiseチェーンで任意にエラーを補足する](#promiseチェーンで任意にエラーを補足する)
 
+[taskQueue生成処理の実装](#taskQueue生成処理の実装)
+
 ## TODOS
 
 - TODO: artworkページからの収集ロジックの実装
@@ -1933,149 +1935,82 @@ for(let i = 1; i < upTo; i++) {
 }
 ```
 
-## promiseチェーンで任意にエラーを補足する
 
-現状の問題:
+## taskQueue生成処理の実装
 
-```JavaScript
-let finallPromise = Promise.resolve();
-finallPromise = finallPromise
-.then(() => search())		// search() is async function
-.then(() => function() {return navigation.navigateBy()})
-.then((r) => function(r) {return r.shift().json()})		// json() returns promise
-.then((r) => function() {return resolved;})		// Sync function
-.then((r) => function() {return numberOfProcess;})		// Sync function
-.then((p) => function() {return assemblingCollectProcess})	// Async function
-.then((a) => a.run().then(() => a.getResult()));	// **1**
+課題：
 
-// **1**は実際には次のとおりである
+- 逐次処理(Promiseチェーン)の内のthen()ハンドラの一つが並列処理を返しても問題ではないか？
+- assemblerでエラー発生したときのエラーハンドリング、スコープ、エラー伝番の問題
 
-.then((a) => {
-	return Promise.all(a.sequences)		// **2**
-		.then(() => a.getResult());
-})
+#### 逐次処理(Promiseチェーン)の内のthen()ハンドラの一つが並列処理を返しても問題ではないか？
 
-// **2**はさらに次のとおりである
+`./workspace/promise-parallel-sequential`で詳しく検証した。
 
+ということで実装方法に気を付ければ実現可能である。
 
-// **3**
-// この呼び出し方も大丈夫なのか？
-const result = await finallPromise.catch(e => handleError);
-```
+エラーハンドリングも期待通りに動作するようだ。
 
-検証：
+早速実装してみる。
 
-- `promise = promise.then(() => async function(){}())`のasync関数内部でtry...catchしているときに、catch()がエラースローしたらどうなるのか。ちゃんとプロミスチェーンのcatch()が補足してくれるのか？
-
-
-- AssembelParallelPageSequences.tsのインスタンスのスコープが限られているので、finallyの呼び出しが好きなところでできない
-- 
-
-必要なこと：
-
-- index.tsのcatch()までエラーを投げられるようにすること
-- task queueは必ず`then(() => task)`になること。`then(asyncFunction)`としないこと
-- 全てのタスクが完了してもassemblerのfinally()を呼び出すこと
-
-ヒント１：catch()の後にthenが続くならそれはそのままthen()へ処理が移る。
+並列処理を返すthen()ハンドラは次の通りにしなくてはならない。
 
 ```JavaScript
-new Promise((resolve, reject) => {
-  console.log("Initial");
+const generateParallelPromise = () => {
+	// この関数の中で並列処理されるpromiseを生成する
+	return promisesAboutToExecutedParallelly;
+};
 
-  resolve();
-})
-  .then(() => {
-    throw new Error("Something failed");
-
-    console.log("Do this");
-  })
-  .catch(() => {
-    console.error("Do that");
-  })
-  .then(() => {
-    console.log("Do this, no matter what happened before");
-  });
-// Initial
-// Do that
-// Do this, no matter what happened before
+const promise = Promise.resolve()
+.then(() => task1())
+.then(() => task2())
+.then(() => task3())
+.then(() => Promise.all(generateParallelPromise()))
+.then(() => task4())
 ```
+つまり、generateParallelPromise()が呼び出されて初めて並列処理されるPromise群を生成するのである。
 
-なのでcatch以降を停止したいなら停止するための処理が必要である。
+こうすれば上記のPromiseチェーンの順番通りにPromise.all()の中身が実行される。
 
-逐次処理であるがゆえに`promise = promise.then(() => 追加したい処理)`で処理を追加していくので
-
-Promiseチェーン上のcatch()場所によってはそこで処理が中断されない可能性がある。
-
-なのでcatch()が必ずエラーを再スローするようにすれば解決するだろうか。
-
-
-```JavaScript
-new Promise((resolve, reject) => {
-  console.log("Initial");
-
-  resolve();
-})
-  .then(() => {
-    throw new Error("Something failed");
-
-    console.log("Do this");
-  })
-  .catch(() => {
-    console.error("Do that");
-	// TODO: このcatch()に続くすべてのthen()をすっ飛ばして次のcatch()へ伝番するのか検証する必要がある。
-	throw new Error("Error: New Error thrown");
-  })
-  .then(() => {
-    console.log("Do this, no matter what happened before");
-  })
-  .catch((e) => {
-	console.log("Last error catcher");
-	console.log(e);
-  })
-// Initial
-// Do that
-// Do this, no matter what happened before
-```
-
-ヒント２：Promise.all()は内部で**一つでもプロミスが拒否されると他の処理も中断**する
-
-プロミスが拒否されたという状態になればいいはずである。
-
-ではcatch()の後にthen()が続くようなpromiseはいつ拒否されたと判断されるのだろうか。
-
-```JavaScript
-let promise1 = Promise.resolve();
-promise1 = promise1
-.then(() => {/* do something */})
-.then(() => {/* do something */})
-.catch((e) => {/* handles error */})
-.then(() => {/* do something */})
-.then(() => {/* do something */})
-.catch((e) => {/* handles error */})
-.then(() => {/* do something */})
-.then(() => {/* do something */})
-.catch((e) => {/* handles error */});
-
-// 同様のpromiseがあと2つあるとして
-Promise.all([promise, promise2, promise3]);
-```
-上記の時、変数promiseでエラーが発生したら一番近くのcatch()で補足されてそのまま次のthen()へ処理が続くのだろうか？
-
-それともPromise.all()がプロミスが拒否されたと判断してすべて中断してくれるのだろうか？
-
-promiseチェーンの一番最後のcatch()が最終的に補足してくれればプロミスが拒否されたとなるのだろうか？
-
-たぶんそう。
-
-なので`then().catch().then().catch()...`とつづくPromiseチェーンは最後のcatch()に届くようにエラーを再スローする必要があるかも...
-
-
-
-検証用コード：
-
+現状：
 
 ```TypeScript
-// test error handling in parallelly executed sequences.
+// index.ts
 
+// setupCollectByKeywordTaskQueue()は逐次処理されることになる関数からなる配列を返す
+taskQueue = [
+	...setupCollectByKeywordTaskQueue(
+		instances.getBrowser(), 
+		instances.getPage(), 
+		{...options} as iCollectOptions)
+];
+
+// NOTE: ここで初めてすべて実行してほしい。
+// taskQueueの実行
+await sequentialAsyncTasks(taskQueue);
+
+// setupCollectByKeywordTaskQueue.ts
+let tasks: iSequentialAsyncTask[] = [];
+tasks.push(() => search());
+tasks.push(() => NAVIGATIONPROCESS());
+tasks.push(() => RESOLVINGPROCESS());
+tasks.push(() => DEFINENUMBEROFPROCESS());
+tasks.push(() => () => {
+	/* ここでPromise.all()させる逐次処理群を生成している */ 
+	return assembler;
+});
+tasks.push((assembler) => {
+	/* ここでPromise.all()している */ 
+	return assembler.run().catch(e => assembeler.errorHandler(e)).finally(() => assembler.finally());
+})
 ```
+
+ということで、
+
+並列処理の生成段階と実行段階が別々になっている。
+
+これは大丈夫なのか？assembler.sequencesは既にassembler.run()する前に実行し始めていないか？
+
+確認する必要がある。
+
+TODO: テスト。

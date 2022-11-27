@@ -200,7 +200,7 @@ export class AssembleParallelPageSequences<T> {
      * */ 
     finally() {
         // DEBUG:
-        console.log("finally(): acquireFromResultPage.ts");
+        console.log("Closing all instances of acquireFromResultPage.ts...");
 
         if(this.sequences.length > 0) {
             this.sequences = [];

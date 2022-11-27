@@ -102,7 +102,7 @@ const setupTaskQueue = (order: iOrders) => {
         
         await page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]});
         setupTaskQueue(orders);
-        const result = sequentialAsyncTasks(taskQueue);
+        const result = await sequentialAsyncTasks(taskQueue);
 
         // DEBUG:
         console.log(result);

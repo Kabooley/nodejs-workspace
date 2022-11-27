@@ -41,8 +41,8 @@ import { retrieveDeepProp } from '../utilities/objectModifier';
 import array from '../utilities/array';
 import mustache from '../utilities/mustache';
 
-const key: keyof iIllustMangaDataElement = "id";
 let tasks: iSequentialAsyncTask[] = [];
+const key: keyof iIllustMangaDataElement = "id";
 const url: string = "https://www.pixiv.net/tags/{{keyword}}/artworks?p={{i}}&s_mode=s_tag";
 const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}}?word={{keyword}}&order=date_d&mode=all&p={{i}}&s_mode=s_tag&type=all&lang=ja";
 
@@ -116,6 +116,9 @@ const assemblingCollectProcess = async (
         await assembler.initialize();
         assembler.setResponsesResolver(resolver);
 
+        // DEBUG:
+        console.log("generating assembler parallel process...");
+
         for(let page = 1; page <= numberOfPages; page++) {
             const circulator: number = page % numberOfProcess;
             if(assembler.getSequences()[circulator] !== undefined
@@ -133,6 +136,11 @@ const assemblingCollectProcess = async (
                 .catch((e) => assembler.errorHandler(e))
             }
         };
+
+        
+        // DEBUG:
+        console.log("generating has been done.");
+
         return assembler;
     }
     catch(e) {
@@ -216,12 +224,22 @@ export const setupCollectByKeywordTaskQueue = (
     tasks.push((p: {numberOfProcess: number, numberOfPages: number}) => 
         assemblingCollectProcess(browser, p.numberOfProcess, p.numberOfPages));
     // 6. run assembled sequences.
-    // tasks.push((assembler: AssembleParallelPageSequences<iIllustMangaDataElement>) => assembler.run());
-    tasks.push((assembler: AssembleParallelPageSequences<iIllustMangaDataElement>) => assembler.run().then(() => assembler.getResult()));
-    // TODO: 7. 実行結果の取得
-    //  assemblerへのアクセスが必要であるがスコープ外である
-    // 検証１：.then(() => assembler.run().getResult())は大丈夫か？
-    // TODO: 8. エラーハンドリング
-    // 検証: tasksのどこでエラーが発生してもここでキャッチできるのか？
+    tasks.push(
+        (assembler: AssembleParallelPageSequences<iIllustMangaDataElement>) => {
+            // DEBUG:
+            console.log("START COLLECTING PROCESS...");
+
+            return assembler.run()
+            // TODO: finally呼出しているからこのthen()呼出は意味ないかも...
+            .then(() => assembler.getResult())
+            .catch(e => assembler.errorHandler(e))
+            .finally(() => {
+                
+                // DEBUG:
+                console.log("END COLLECTING PROCESS...");
+
+                assembler.finally();
+            })}
+    );
     return tasks;
 };
