@@ -108,6 +108,11 @@ const assemblingCollectProcess = async (
     browser: puppeteer.Browser, numberOfProcess: number, numberOfPages: number
     ): Promise<AssembleParallelPageSequences<iIllustMangaDataElement>> => {
 
+                
+        // DEBUG:
+        console.log("assemblingCollectProcess()");
+
+
     // NOTE: Code outside of try block is for catch block to scope instance.
     const assembler = new AssembleParallelPageSequences<iIllustMangaDataElement>(
         browser, numberOfProcess, new Navigation(), new Collect<iIllustMangaDataElement>()
@@ -154,6 +159,10 @@ const assemblingCollectProcess = async (
  * 
  * */
 const decideNumberOfProcess = (illustManga: iIllustManga) => {
+            
+        // DEBUG:
+        console.log("Decide number of process...");
+
     const { data, total } = illustManga;
     // 検索結果の全ページ数
     const numberOfPages: number = Math.floor(total / data.length);
@@ -171,6 +180,10 @@ const decideNumberOfProcess = (illustManga: iIllustManga) => {
     else {
         numberOfProcess = 1;
     };
+
+    
+        // DEBUG:
+        console.log(`number of process: ${numberOfProcess}, number of pages: ${numberOfPages}`);
 
     return {
         numberOfProcess: numberOfProcess, 
@@ -190,6 +203,9 @@ export const setupCollectByKeywordTaskQueue = (
     page: puppeteer.Page, 
     options: iCollectOptions
     ) => {
+    // DEBUG:
+    console.log("setupCollectByKeywordTaskQueue()");
+
     optionsProxy.set(options);
 
     // setting up task queue.
@@ -198,10 +214,18 @@ export const setupCollectByKeywordTaskQueue = (
     tasks.push(() => search(page, optionsProxy.get().keyword));
     // 2. Navigate to keyword search result page.
     tasks.push(() => {
+
+        // DEBUG:
+        console.log("Navigate to search result page...");
+
         const navigation = new Navigation();
         navigation.resetFilter((res: puppeteer.HTTPResponse) => 
             res.status() === 200 
-            && res.url() === mustache("https://www.pixiv.net/ajax/search/artworks/${{eyword}}?word=${{eyword}}", {keyword: encodeURIComponent(optionsProxy.get().keyword)})
+            // 
+            // TODO: どうやらこのＵＲＬは無効みたいだ...
+            // 
+            // && res.url() === mustache("https://www.pixiv.net/ajax/search/artworks/${{keyword}}?word=${{keyword}}", {keyword: encodeURIComponent(optionsProxy.get().keyword)})
+            && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: 1})
         );
         navigation.resetWaitForOptions({waitUntil: ["load", "networkidle2"]});
         return navigation.navigateBy(page, page.keyboard.press('Enter'))
@@ -214,6 +238,10 @@ export const setupCollectByKeywordTaskQueue = (
      * 
      * */ 
     tasks.push((responseBody: iBodyIncludesIllustManga): iIllustManga => {
+                
+        // DEBUG:
+        console.log("Resolving navigation http response body...");
+
         const resolved = retrieveDeepProp<iIllustManga>(["body", "illustManga"], responseBody);
         if(resolved === undefined) throw new Error("");
         return resolved;

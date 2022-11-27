@@ -13,6 +13,7 @@ import { initialize } from './helper/initialize';
 import { orders, iOrders } from './commandParser/index';
 import type { iSequentialAsyncTask } from './utilities/TaskQueue';
 import { sequentialAsyncTasks } from './utilities/TaskQueue';
+import { Navigation } from './components/Navigation';
 import { setupCollectByKeywordTaskQueue } from './components/setupCollectByKeywordTaskQueue';
 import type { iCollectOptions } from './commandParser/commandModules/collectCommand';
 // import { login } from './components/login';
@@ -94,13 +95,21 @@ const setupTaskQueue = (order: iOrders) => {
 
 (async function() {
     try {
+        // DEBUG:
+        console.log("Let's begin.");
+        console.log(orders);
+
         await instances.initialize();
         const page = instances.getPage();
+        const navigation = new Navigation();
         
         // Incase need to login.
         // await login(page, { username: username, password: password});
         
-        await page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]});
+        const navigateResult: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(page, page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]}));
+        const response: puppeteer.HTTPResponse = navigateResult.pop();
+        if(response.status() !== 200) throw new Error("Error: Failed to navigate to 'https://www.pixiv.net/'");
+
         setupTaskQueue(orders);
         const result = await sequentialAsyncTasks(taskQueue);
 
