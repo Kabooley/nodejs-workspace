@@ -100,13 +100,15 @@ const filterLogic: iFilterLogic<iIllustMangaDataElement> = (e: iIllustMangaDataE
 };
 
 
+
 /***
  * Generate AssembleParallelPageSequences<iIllustMangaDataElement> instance.
  * 
  * */ 
 const assemblingCollectProcess = async (
     browser: puppeteer.Browser, numberOfProcess: number, numberOfPages: number
-    ): Promise<AssembleParallelPageSequences<iIllustMangaDataElement>> => {
+    // ): Promise<AssembleParallelPageSequences<iIllustMangaDataElement>> => {
+    ) => {
 
                 
         // DEBUG:
@@ -123,32 +125,42 @@ const assemblingCollectProcess = async (
 
         // DEBUG:
         console.log("generating assembler parallel process...");
-
+        
         for(let currentPage = 1; currentPage <= numberOfPages; currentPage++) {
             const circulator: number = currentPage % numberOfProcess;
             if(assembler.getSequences()[circulator] !== undefined
                 && assembler.getPageInstance(circulator) !== undefined
             ) {
-                // TODO: FIX `page` 変数名が被っている   
-                // 修正したけど治っているか確認
                 const page = assembler.getPageInstance(circulator)!;
-                assembler.setResponseFilter((res: puppeteer.HTTPResponse) => 
-                res.status() === 200 
-                && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: currentPage}));
+                assembler.setResponseFilter(
+                    (res: puppeteer.HTTPResponse) => 
+                        res.status() === 200 
+                        && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: currentPage})
+                );
 
                 assembler.getSequences()[circulator] = assembler.getSequences()[circulator]!
+
+                // DEBUG:
+                .then(() => console.log(`Running Instance and Sequence: ${circulator} currentPage: ${currentPage}`))
+
                 .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(optionsProxy.get().keyword), i:currentPage}), { waitUntil: ["load", "networkidle2"]})))
                 .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
                 .then((data: iIllustMangaDataElement[]) => assembler.filter(data, key, filterLogic))
                 .catch((e) => assembler.errorHandler(e))
             }
         };
-
         
         // DEBUG:
         console.log("generating has been done.");
 
-        return assembler;
+
+        // assemblerを外に出すのが面倒なのでここですべて必要なプロミスチェーンを呼び出す。
+        // NOTE: プロミスの入れ子は外のプロミスチェーンのエラーを捕捉しないのでfinally()が必要な時に発火しない可能性がある
+        // 
+        // TYPE of this retuned value is 
+        // (keyof iIllustaMangaDataElement: illustaMangaDataElement[keyof iIllustaMangaDataElement])[]
+        return assembler.run().then(() => assembler.getResult()).catch(e => assembler.errorHandler(e)).finally(() => assembler.finally());
+
     }
     catch(e) {
         assembler.finally();
@@ -251,25 +263,30 @@ export const setupCollectByKeywordTaskQueue = (
     // 5. Define numberOfProcess according to number of result. 
     tasks.push(decideNumberOfProcess);
     // 5. setup collect process according to number of process.
+    // 
+    // NOTE: 11/28 Also collect process will be run in this handler
     tasks.push((p: {numberOfProcess: number, numberOfPages: number}) => 
         assemblingCollectProcess(browser, p.numberOfProcess, p.numberOfPages));
     // 6. run assembled sequences.
-    tasks.push(
-        (assembler: AssembleParallelPageSequences<iIllustMangaDataElement>) => {
-            // DEBUG:
-            console.log("START COLLECTING PROCESS...");
 
-            return assembler.run()
-            // TODO: finally呼出しているからこのthen()呼出は意味ないかも...
-            .then(() => assembler.getResult())
-            .catch(e => assembler.errorHandler(e))
-            .finally(() => {
+    // NOTE: 11/28 修正内容のテストの為コメントアウト
+    // tasks.push(
+    //     (assembler: AssembleParallelPageSequences<iIllustMangaDataElement>) => {
+    //         // DEBUG:
+    //         console.log("START COLLECTING PROCESS...");
+
+    //         return assembler.run()
+    //         // TODO: finally呼出しているからこのthen()呼出は意味ないかも...
+    //         .then(() => assembler.getResult())
+    //         .catch(e => assembler.errorHandler(e))
+    //         .finally(() => {
                 
-                // DEBUG:
-                console.log("END COLLECTING PROCESS...");
+    //             // DEBUG:
+    //             console.log("END COLLECTING PROCESS...");
 
-                assembler.finally();
-            })}
-    );
+    //             assembler.finally();
+    //         })}
+    // );
+
     return tasks;
 };

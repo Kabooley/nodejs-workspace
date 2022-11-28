@@ -113,6 +113,7 @@ const setupTaskQueue = (order: iOrders) => {
         setupTaskQueue(orders);
         const result = await sequentialAsyncTasks(taskQueue);
 
+        // TODO: 型が(iIllustMangaDataElement[keyof iIllustMangaDataElement])[]みたいなものになる...ように型情報の修正
         // DEBUG:
         console.log(result);
     }

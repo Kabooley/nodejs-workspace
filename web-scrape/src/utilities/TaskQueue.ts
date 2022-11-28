@@ -17,7 +17,6 @@
  /**
   * @param {iSequentialAsyncTask[]} tasks - task may get or may not have paremeter and can return value.
   * 
-  * TODO: テスト済だっけ？戻り値を取得できたっけ？
   * */ 
  export const sequentialAsyncTasks = (
      tasks: iSequentialAsyncTask[]
