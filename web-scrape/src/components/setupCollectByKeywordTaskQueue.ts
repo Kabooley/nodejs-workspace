@@ -124,18 +124,20 @@ const assemblingCollectProcess = async (
         // DEBUG:
         console.log("generating assembler parallel process...");
 
-        for(let page = 1; page <= numberOfPages; page++) {
-            const circulator: number = page % numberOfProcess;
+        for(let currentPage = 1; currentPage <= numberOfPages; currentPage++) {
+            const circulator: number = currentPage % numberOfProcess;
             if(assembler.getSequences()[circulator] !== undefined
                 && assembler.getPageInstance(circulator) !== undefined
             ) {
+                // TODO: FIX `page` 変数名が被っている   
+                // 修正したけど治っているか確認
                 const page = assembler.getPageInstance(circulator)!;
                 assembler.setResponseFilter((res: puppeteer.HTTPResponse) => 
                 res.status() === 200 
-                && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: page}));
+                && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: currentPage}));
 
                 assembler.getSequences()[circulator] = assembler.getSequences()[circulator]!
-                .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(optionsProxy.get().keyword), i:page}), { waitUntil: ["load", "networkidle2"]})))
+                .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(optionsProxy.get().keyword), i:currentPage}), { waitUntil: ["load", "networkidle2"]})))
                 .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
                 .then((data: iIllustMangaDataElement[]) => assembler.filter(data, key, filterLogic))
                 .catch((e) => assembler.errorHandler(e))
