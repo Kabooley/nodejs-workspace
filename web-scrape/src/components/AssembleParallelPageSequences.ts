@@ -46,7 +46,7 @@ import type puppeteer from 'puppeteer';
 import type { Collect, iFilterLogic } from './Collect';
 import type { Navigation } from './Navigation';
 
-type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
+export type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
 
 /****
  * @class
