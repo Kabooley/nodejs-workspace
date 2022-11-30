@@ -116,14 +116,19 @@ const artworkPageUrl: string = "https://www.pixiv.net/artworks/{{id}}";
  * 
  * ということで2つの配列の比較
  * 
- * @param {T} options - T type Object. Not array.
- * @param {(keyof T)[]} validProperties - Array concist of property name of T.
- * */ 
-const optionFilter = <T>(options: T, validProperties: (keyof T)[]): {[Property in keyof T]?: T[Property]} => {
-    // TODO: 要実装
-    // 実装で来たらassembler.filter()で必須の引数を渡せるように
-}
+  * 参考：
+  * https://stackoverflow.com/a/39333479
+  * 
+  * @param {T} options - T type Object. Not array.
+  * 比較する元のプロパティ名は関数内部にハードコーディング
+  * 
+  * */ 
+ const commandOptionFilter = (options: iCollectOptions): {[Property in keyof iCollectOptions]?: iCollectOptions[Property]} => {
 
+    // TODO: 型の整合性を合わせる
+    // JavaScriptとしてはこれでいいのだけれど
+    return (({bookmarkOver}: {[Property in keyof iCollectOptions]?: iCollectOptions[Property]}) => ({bookmarkOver}))(options);
+ };
 
 /***
  * HTTPResponse resolver.
