@@ -106,15 +106,12 @@ const artworkPageUrl: string = "https://www.pixiv.net/artworks/{{id}}";
 })();
 
 /***
- * options > 何らかのフィルタ 
- * > artworkページで通用するoptionsのプロパティだけのオブジェクト
- * という抽出を行う
+ * Compate options with array which is concist of name of the property strings.
+ * Returns object concisting with matched properties that from array of property names string. 
  * 
- * optionsとvalidPropertiesを比較して、
- * 後者のプロパティ名が前者に含まれていたら、
- * そのプロパティのペアだけをオブジェクトとして返す
- * 
- * ということで2つの配列の比較
+ * Object: iCollectOptions 
+ * --> filtering with [preset array concist of property name of iCollectOptions]
+ * --> returns filtered Object
  * 
   * 参考：
   * https://stackoverflow.com/a/39333479
@@ -122,13 +119,40 @@ const artworkPageUrl: string = "https://www.pixiv.net/artworks/{{id}}";
   * @param {T} options - T type Object. Not array.
   * 比較する元のプロパティ名は関数内部にハードコーディング
   * 
+  * 問題：
+  * 
+  * - 現状だと戻り値のオブジェクトにundefinedが含まれる可能性がある（tagsがそもそもoptionsに含まれていないときなど）
+  * - (({a, c}) => ({a, c}))というようにa, cがハードコーディングである
+  * 
+  * TODO: 
+  * - (({a, c}) => ({a, c}))の部分を引数としてとれるようにしたい(主にTypeScriptと格闘することになる)
+  * - undefinedとの折り合いの付け方
   * */ 
- const commandOptionFilter = (options: iCollectOptions): {[Property in keyof iCollectOptions]?: iCollectOptions[Property]} => {
+// ver.1
+const commandOptionFilter = (options: iCollectOptions): {[Property in keyof iCollectOptions]?: iCollectOptions[Property]} => {
 
-    // TODO: 型の整合性を合わせる
-    // JavaScriptとしてはこれでいいのだけれど
-    return (({bookmarkOver}: {[Property in keyof iCollectOptions]?: iCollectOptions[Property]}) => ({bookmarkOver}))(options);
- };
+    return (({bookmarkOver, tags}: {[Property in keyof iCollectOptions]?: iCollectOptions[Property]}) => ({bookmarkOver, tags}))(options);
+};
+// Ver.2
+/**
+ * これなら、
+ * validPropertiesが引数として渡せる
+ * 再利用性がある
+ * 
+ * 参考： https://stackoverflow.com/a/51193091
+ * 
+ * TODO: 要テスト
+ * */ 
+const commandOptionFilterVer2 = <T>(
+    options: T,
+    validProperties: (keyof T)[]
+    ): {[Property in keyof T]?: T[Property]} => {
+    let filtered = {} as {[Property in keyof T]?: T[Property]};
+    validProperties.forEach((propName: (keyof T)) => {
+        if(options[propName] !== undefined) filtered = {...filtered, ...(options[propName] as {[Property in keyof T]?: T[Property]})};
+    });
+    return filtered;
+};
 
 /***
  * HTTPResponse resolver.
