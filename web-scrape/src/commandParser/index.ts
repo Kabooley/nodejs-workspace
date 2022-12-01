@@ -3,6 +3,8 @@
  * If correct return as command and option object.
  * 
  * NOTE: yargs is not able to handle multi commands.
+ * 
+ * TODO: Implement error handling.
  * **********************************************************/ 
  import yargs from 'yargs/yargs';
  import type { Argv } from 'yargs'

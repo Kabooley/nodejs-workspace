@@ -118,7 +118,9 @@ const validOptions: (keyof iCollectOptions)[] = ["keyword", "bookmarkOver"];
  * - iResponsesResolveCallbackは引数を一つしか取れない(あとから引数を増やすという手段をとりたくない)
  * 
  * */ 
-const resolver: iResponsesResolveCallback<iIllustData> = async (responses: (puppeteer.HTTPResponse | any)[]) => {
+const resolver: iResponsesResolveCallback<iIllustData> = async (
+    responses: (puppeteer.HTTPResponse | any)[]
+    ) => {
     // Pop out first element of responses.
     const response: puppeteer.HTTPResponse = responses.shift();
     // Check if the response is valid.
@@ -146,6 +148,9 @@ const resolver: iResponsesResolveCallback<iIllustData> = async (responses: (pupp
     return [metaPreloadData.illust[id]];
 };
 
+/**
+ * 
+ * */ 
 const httpResponseFilter = (id: string) => {
     return function(response: puppeteer.HTTPResponse) {
         return response.status() === 200 
@@ -158,7 +163,7 @@ const httpResponseFilter = (id: string) => {
  * 
  * 
  * */ 
-const assemblingCollectProcess = async (
+export const assemblingCollectProcess = async (
     browser: puppeteer.Browser,
     numberOfProcess: number,
     idTable: string[],
@@ -186,10 +191,11 @@ const assemblingCollectProcess = async (
             const circulator = counter % numberOfProcess;
             const url = mustache(artworkPageUrl, {id: id});
             const page: puppeteer.Page = assembler.getPageInstance(circulator)!;
+
             if(page !== undefined && assembler.getSequences()[circulator] !== undefined) {
                 assembler.getSequences()[circulator]
                 = assembler.getSequences()[circulator]!
-                // 1. Navigate to the url + id
+                // 1. Navigate to the url
                 .then(() => {
                     assembler.setResponseFilter(httpResponseFilter(id));
                     return assembler.navigation.navigateBy(
@@ -199,7 +205,23 @@ const assemblingCollectProcess = async (
                 .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
                 // 3. 
                 .then((resolved: iIllustData[]) => {
-                    // TODO: pass id to assembler.filter callback
+                    // TODO: そもそも何をするのか
+                    /**
+                     * command `collect byKeyword`, `collect fromBookmark`: そのartworkの情報を収集する 
+                     *      option `tags`: 収集条件のひとつ。tagsに含まれるtagをそのartworkが含んでいるならば収集する
+                     *      options `bookmarkOver`: 収集条件の一つ。artworkのブックマーク数がその数以上なら収集する
+                     *      options `userName`: 収集条件の一つ。artworkのuserNameが一致するなら収集する。
+                     * うち、
+                     * tagsとuserNameはここでは扱わない
+                     * なので（今のところ）`bookmarkOver`のみである
+                     * 
+                     * なのでfilter条件はbookmarkOver
+                     * 集める情報は実は特に考えていないけどこれまでの通り、iIllustDataである
+                     * 
+                     * なのでassembler.filterとassembler.collectはそのままだと使えない
+                     * 
+                     * 機能の分割をさらにすすめなくてはいかん...
+                     * */ 
                     return assembler.filter(resolved, )
                 })
                 .catch(e => assembler.errorHandler(e))
