@@ -26,13 +26,14 @@
  *      promises[circulator] = promises[circulator]
  *      .then(() => sequential process detail )
  * *******************************************************/ 
+import * as jsdom from 'jsdom';
 import type puppeteer from 'puppeteer';
 import type { iResponsesResolveCallback } from './AssembleParallelPageSequences';
 import type { iCollectOptions } from '../commandParser/commandModules/collectCommand';
-import * as jsdom from 'jsdom';
 import { Navigation } from './Navigation';
 import { Collect } from './Collect';
 import { AssembleParallelPageSequences } from './AssembleParallelPageSequences';
+import { filterOnlyMatchedKey } from '../utilities/Filter';
 import { retrieveDeepProp } from '../utilities/objectModifier';
 import array from '../utilities/array';
 import mustache from '../utilities/mustache';
@@ -78,18 +79,11 @@ interface iIllustData {
 // GLOBAL
 const { JSDOM } = jsdom;
 const artworkPageUrl: string = "https://www.pixiv.net/artworks/{{id}}";
+const validOptions: (keyof iCollectOptions)[] = ["keyword", "bookmarkOver"];
 
 /***
- * Command `collectbyKeyword`'s options will be stored.
- * 
- * TODO: optionsの内、artworkページで取得するときに使うプロパティだけ取得するようにする
- * 
- * 検索結果ページで取得できるのはtagsとuserNameで、bookmarkは取得できない
- * 
- * options > 何らかのフィルタ > artworkページで通用するoptionsのプロパティだけのオブジェクト
- * 
- * とできればいい。
- * 
+ * Contains `keyword` and necessary properties in this module from options.
+ * Unnecessary properties in options are excluded.
  * */ 
  const optionsProxy = (function() {
     let options = {} as iCollectOptions;
@@ -99,60 +93,12 @@ const artworkPageUrl: string = "https://www.pixiv.net/artworks/{{id}}";
                 ...options, ...v
             };
         },
-        get: function() {
+        get: function(): iCollectOptions {
             return options;
         }
     };
 })();
 
-/***
- * Compate options with array which is concist of name of the property strings.
- * Returns object concisting with matched properties that from array of property names string. 
- * 
- * Object: iCollectOptions 
- * --> filtering with [preset array concist of property name of iCollectOptions]
- * --> returns filtered Object
- * 
-  * 参考：
-  * https://stackoverflow.com/a/39333479
-  * 
-  * @param {T} options - T type Object. Not array.
-  * 比較する元のプロパティ名は関数内部にハードコーディング
-  * 
-  * 問題：
-  * 
-  * - 現状だと戻り値のオブジェクトにundefinedが含まれる可能性がある（tagsがそもそもoptionsに含まれていないときなど）
-  * - (({a, c}) => ({a, c}))というようにa, cがハードコーディングである
-  * 
-  * TODO: 
-  * - (({a, c}) => ({a, c}))の部分を引数としてとれるようにしたい(主にTypeScriptと格闘することになる)
-  * - undefinedとの折り合いの付け方
-  * */ 
-// ver.1
-const commandOptionFilter = (options: iCollectOptions): {[Property in keyof iCollectOptions]?: iCollectOptions[Property]} => {
-
-    return (({bookmarkOver, tags}: {[Property in keyof iCollectOptions]?: iCollectOptions[Property]}) => ({bookmarkOver, tags}))(options);
-};
-// Ver.2
-/**
- * これなら、
- * validPropertiesが引数として渡せる
- * 再利用性がある
- * 
- * 参考： https://stackoverflow.com/a/51193091
- * 
- * TODO: 要テスト
- * */ 
-const commandOptionFilterVer2 = <T>(
-    options: T,
-    validProperties: (keyof T)[]
-    ): {[Property in keyof T]?: T[Property]} => {
-    let filtered = {} as {[Property in keyof T]?: T[Property]};
-    validProperties.forEach((propName: (keyof T)) => {
-        if(options[propName] !== undefined) filtered = {...filtered, ...(options[propName] as {[Property in keyof T]?: T[Property]})};
-    });
-    return filtered;
-};
 
 /***
  * HTTPResponse resolver.
@@ -208,13 +154,20 @@ const httpResponseFilter = (id: string) => {
 };
 
 
+/***
+ * 
+ * 
+ * */ 
 const assemblingCollectProcess = async (
     browser: puppeteer.Browser,
     numberOfProcess: number,
     idTable: string[],
     options: iCollectOptions
 ) => {
-    optionsProxy.set(options);
+    optionsProxy.set({
+        ...filterOnlyMatchedKey<iCollectOptions>(options, validOptions), 
+        ...({keyword: options.keyword})
+    });
     const assembler = new AssembleParallelPageSequences<iIllustData>(
         browser, numberOfProcess, 
         new Navigation(), new Collect<iIllustData>()
@@ -250,7 +203,6 @@ const assemblingCollectProcess = async (
                     return assembler.filter(resolved, )
                 })
                 .catch(e => assembler.errorHandler(e))
-
             }
             else {
                 console.error("Error: Page instance or sequence promise does not exist. Or the index accesses out range of array");

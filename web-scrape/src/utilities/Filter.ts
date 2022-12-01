@@ -1,17 +1,12 @@
-/*****************************************************
- * TEST: 
- * 
- * **************************************************/ 
-  
 /***
  * Filters that return only the values that match the necessity keys.
  * 
  * @param {T} target - Target object to be fitlered.
  * @param {(keyof T)[]} necessity - Property names which going to retrieve from target.
  * @return {{[Property in keyof T]?: T[Property]}} - Filtered object concist of properties which matched with nessecity.
- * If no properties are matched, then return empty object.
+ * If no properties are matched, return empty object.
  * */   
-const filterOnlyMatchedKey = <T>(
+export const filterOnlyMatchedKey = <T>(
     target: T,
     necessity: (keyof T)[]
     ): {[Property in keyof T]?: T[Property]} => {

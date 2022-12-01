@@ -168,6 +168,16 @@ export class AssembleParallelPageSequences<T> {
      * @param {T[]} data - 
      * @param {keyof T} key - The property name of data parameter.
      * @param {iFilterLogic} filterLogic - Filter logic that is required by Collect.filter().
+     * 
+     * T: {id: number, name: string, age: number}
+     * data: [
+     *  {id: 123, name: "Jango", age: 25},
+     *  {id: 456, name: "Junko", age: 24},
+     *  {id: 789, name: "Jaguar", age: 23},
+     *  ...
+     * ]
+     * key: 'id'
+     * filterLogic:
      * */ 
     filter(data: T[], key: keyof T, filterLogic: iFilterLogic<T>) {
         this.collector.resetData(data);
