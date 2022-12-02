@@ -1,615 +1,257 @@
-/*********************************************************
- * 逐次処理と並列処理とPromiseの実験
- * *******************************************************/
-
-// 逐次処理させたい関数の型
-type iSequentialAsyncTask = ((a?: any) => any) | ((a?: any) => Promise<any>);
-
-// 逐次処理生成関数。then()ハンドラは引数をとることができる。
-const sequentialAsyncTasks = (
-tasks: iSequentialAsyncTask[]
-) => {
-let promise = Promise.resolve();
-tasks.forEach((t) => {
-    // console.log(`Added: ${t}`);
-    promise = promise.then(t);
-});
-return promise;
-};
-
-/*********************************************************************
- * 実験その１：
+/********************************************************************
+ * Collects value by specified key from array consist of data typed T
  * 
- * **Promiseはthen()呼出で直ぐ実行される**
- * 
- * promise.then()は定義ではなくてそのまま処理の呼び出しである。
- * なのですぐさまthen()ハンドラが実行される。
- * 
- * 以下では逐次処理を変数`p`へ格納しているが
- * これはこの呼出で既に実行されている。
- * 
- * つまり、
- * 逐次処理を定義するときはそれを定義するときに
- * すぐに実行してもいい内容でなくてはならないということになる。
+ * 与えられたT型オブジェクトからなる配列から、
+ * 指定のT型のプロパティに一致する値を取り出して配列で返す。
  * 
  * *******************************************************************/ 
-// {
-//   function task1(taskNumber: number) {
-//     console.log(`${taskNumber}: task1`);
-//     return new Promise((resolve) => {
-//       setTimeout(function () {
-//         resolve("Solved: task1");
-//         console.log("task1 is done");
-//       }, 3000);
-//     });
-// };
-  
-//   function task2(taskNumber: number, m: string) {
-//     console.log(`${taskNumber}: task2`);
-//     console.log(`${taskNumber}: task2 prev: ${m}`);
-//     return new Promise((resolve) => {
-//       setTimeout(function () {
-//         resolve(`${taskNumber}: Solved: task2`);
-//         console.log(`${taskNumber}: task2 is done`);
-//       }, 3000);
-//     });
-//   }
-  
 
-//   function task3(taskNumber: number, m: string) {
-//     console.log(`${taskNumber}: task3`);
-//     console.log(`${taskNumber}: task3 prev: ${m}`);
-//     return new Promise((resolve, reject) => {
-//       setTimeout(function () {
-//         resolve(`${taskNumber}: Solved: task3`);
-//         console.log(`${taskNumber}: task3 is done`);
-//       }, 3000);
-//     });
-//   }
-  
+// TODO: iFilterLogicは要素を返すのではなくてbooleanを返した方がいいのでは？
+//  export type iFilterLogic<T> = (e: T) => T[keyof T] | undefined;
+export type iFilterLogic<T> = (e: T) => boolean;
 
-//   function task4(taskNumber: number, m: string) {
-//     console.log(`${taskNumber}: task4`);
-//     console.log(`${taskNumber}: task4 prev: ${m}`);
-//     return new Promise((resolve) => {
-//       setTimeout(function () {
-//         resolve(`${taskNumber}: Solved: task4`);
-//         console.log(`${taskNumber}: task4 is done`);
-//       }, 3000);
-//     });
-//   }
-
-//   function task5(taskNumber: number, m: string) {
-//     console.log(`${taskNumber}: task5`);
-//     console.log(`${taskNumber}: task5 prev: ${m}`);
-//     return new Promise((resolve) => {
-//       setTimeout(function () {
-//         resolve(`${taskNumber}: Solved: task5`);
-//         console.log(`${taskNumber}: task5 is done`);
-//       }, 3000);
-//     });
-//   }
-
-//   const i = 0;
-//   const p = Promise.resolve().then(() => task1(i))
-//   .then((m) => task2(i, m as string))
-//   .then((m) => task3(i, m as string))
-//   .then((m) => task4(i, m as string))
-//   .then((m) => task5(i, m as string))
-//   .catch(e => {
-//       console.error(`Error @sequence: ${i}`);
-//       console.error(e);
-//       throw e;
-//   });
-// }
-
-
-// /*********************************************************************
-//  * 実験その２：
-//  * 
-//  * **Promise.all(...promises)のpromisesの一つでエラーが起こっても、他のpromisesはそのまま実行されて中断されることはない**
-//  * 
-//  * Promise.all()は確かに中断される。
-//  * 
-//  * その意味は、
-//  * - エラーが発生したときにPromise.all().catch()がすぐさま実行されるが、Promise.all().then()は実行されない
-//  * という意味。
-//  * 
-//  * Promise.all()以降の処理は異常系に移動するけど、
-//  * Promise.all()でエラーを起こさなかった他のpromisesはそのまま最後まで走り続ける
-//  * 
-//  * 
-//  * ということでall()させているpromisesは一度走り出したら他でエラーが起こっても、
-//  * 自身でエラーでも発生しない限り止まらないのである。
-//  * 
-//  * 
-//  * 例：
-//  * 
-//  * Promiseチェーンからなるpromiseの配列をPromise.all()させるとする。
-//  * promise配列の一つがエラーを起こしても、他の配列要素であるpromiseは
-//  * 最後まで実行し続けることが確認できる。
-//  * 
-//  * NOTE: 「実験その１」の方で触れた通り、以下のPromise.all()はあまり意味がないけどエラーの伝番を理解するためこんなコードである。
-//  * 
-//  * 
-//  * Promiseはキャンセル可能なのか？:
-//  * 
-//  * できない。
-//  * 
-//  * Stackoverflowによるとキャンセルはできないという投稿の指示が高い。
-//  * 参考：https://stackoverflow.com/a/30235261
-//  * 
-//  * しない方がいいまである。
-//  * *******************************************************************/ 
-// {
-//     function task1(taskNumber: number) {
-//       console.log(`${taskNumber}: task1`);
-//       return new Promise((resolve) => {
-//         setTimeout(function () {
-//           resolve(`${taskNumber}: Solved: task1`);
-//           console.log(`${taskNumber}: task1 is done`);
-//         }, 3000);
-//       });
-//   };
-    
-//     function task2(taskNumber: number, m: string) {
-//       console.log(`${taskNumber}: task2`);
-//       console.log(`${taskNumber}: task2 prev: ${m}`);
-//       return new Promise((resolve) => {
-//         setTimeout(function () {
-//           resolve(`${taskNumber}: Solved: task2`);
-//           console.log(`${taskNumber}: task2 is done`);
-//         }, 3000);
-//       });
-//     }
-    
-
-//     function task3(taskNumber: number, m: string) {
-//       console.log(`${taskNumber}: task3`);
-//       console.log(`${taskNumber}: task3 prev: ${m}`);
-//       return new Promise((resolve, reject) => {
-//         setTimeout(function () {
-//           // Errorをわざと起こす
-//           if(taskNumber === 1) reject(`Error @task3 @sequence${taskNumber}`);
-//           else resolve(`${taskNumber}: Solved: task3`);
-//           console.log(`${taskNumber}: task3 is done`);
-//         }, 3000);
-//       });
-//     }
-    
-
-//     function task4(taskNumber: number, m: string) {
-//       console.log(`${taskNumber}: task4`);
-//       console.log(`${taskNumber}: task4 prev: ${m}`);
-//       return new Promise((resolve) => {
-//         setTimeout(function () {
-//           resolve(`${taskNumber}: Solved: task4`);
-//           console.log(`${taskNumber}: task4 is done`);
-//         }, 3000);
-//       });
-//     }
-
-//     function task5(taskNumber: number, m: string) {
-//       console.log(`${taskNumber}: task5`);
-//       console.log(`${taskNumber}: task5 prev: ${m}`);
-//       return new Promise((resolve) => {
-//         setTimeout(function () {
-//           resolve(`${taskNumber}: Solved: task5`);
-//           console.log(`${taskNumber}: task5 is done`);
-//         }, 3000);
-//       });
-//     }
-
-
-//   const sequences: Promise<any>[] = [Promise.resolve(), Promise.resolve(), Promise.resolve()];
-//   for(let i = 0; i < sequences.length; i++) {
-//       sequences[i] = sequences[i]
-//       .then(() => task1(i))
-//       .then((m) => task2(i, m as string))
-//       .then((m) => task3(i, m as string))
-//       .then((m) => task4(i, m as string))
-//       .then((m) => task5(i, m as string))
-//       .catch(e => {
-//           console.error(`Error @sequence: ${i}`);
-//           console.error(e);
-//           throw e;
-//       });
-//   };
-
-//   Promise.all(sequences)
-//   .then((r) => {
-//       console.log("All done.");
-//       console.log(r);})
-//   .catch(e => {
-//       console.error("Last error catcher.");
-//       console.error(e);
-//   });
-//   /*
-//     実行結果：
-//     ```
-//     0: task1
-//     1: task1
-//     2: task1
-//     0: task1 is done
-//     0: task2
-//     0: task2 prev: 0: Solved: task1
-//     1: task1 is done
-//     1: task2
-//     1: task2 prev: 1: Solved: task1
-//     2: task1 is done
-//     2: task2
-//     2: task2 prev: 2: Solved: task1
-//     0: task2 is done
-//     0: task3
-//     0: task3 prev: 0: Solved: task2
-//     1: task2 is done
-//     1: task3
-//     1: task3 prev: 1: Solved: task2
-//     2: task2 is done
-//     2: task3
-//     2: task3 prev: 2: Solved: task2
-//     0: task3 is done
-//     0: task4
-//     0: task4 prev: 0: Solved: task3
-//     1: task3 is done
-//     Error @sequence: 1
-//     Error @task3 @sequence1
-//     Last error catcher.
-//     Error @task3 @sequence1
-//     2: task3 is done
-//     2: task4
-//     2: task4 prev: 2: Solved: task3
-//     0: task4 is done
-//     0: task5
-//     0: task5 prev: 0: Solved: task4
-//     2: task4 is done
-//     2: task5
-//     2: task5 prev: 2: Solved: task4
-//     0: task5 is done
-//     2: task5 is done
-//     ```
-
-//     わかったこと：
-
-//     sequence[1]で発生したエラーがsequences[1]のcatch()から再スローされて、
-//     Promise.all().catch()まで伝番している。
-
-//     Pormise.all()は内部でエラーが発生したのでPromise.all().then()は実行されない。
-
-//     他のsequencesは最後まで実行されていることがわかる。
-//   */ 
-// }
-
-/*********************************************************************
- * 実験その３：
- * 逐次処理のタスクの一つが並列処理を呼出したらどうなるか？
+/***
+ * @type {T} - Type of the array element object.
  * 
- * ここまでの話より：
- * - 逐次処理はその生成段階ですでに走り出す
- * - Promise.all()の一部でエラーが発生しても他のpromiseは中断されない
- * 
- * `generateParallelProc()`という関数で並列処理の生成をラッピングした。
- * 
- * 並列処理の生成を関数でラップして、
- * その関数を呼び出すことでその場で並列処理を生成するようにすれば
- * 配列`seqs`の順番通りに並列処理を実行させることができた。
- * 
- * 
- * 実験その４：
- * この状態で並列処理でエラーが起こったらどうなるのか？
- * 
- * 並列処理番号1番(seuqnces[1])のtask3でエラーが発生する。
- * sequences[1]のcatch()でエラー補足、
- * sequentialAsyncTasks.catch()でエラー補足
- * でエラーはちゃんと伝番できている。
- * 
- * ただし、先の実験の通り、並列処理のエラーを起こさなかったPromiseは最後まで走り続け中断されることはない。
- * sequentialAsyncTasks()の処理はエラーが起こった段階でcatch()へ処理が移行するのでそこで中断される。
- * 
- * 並列処理を呼び出すthen()ハンドラは次のどちらの呼び出しでも同じエラーハンドリングになる。
- * ```
- * () => {
-      console.log("START: Parallel Process.");
-      return Promise.all(generateParallelProc())
-      // NOTE: この呼出方法も同じ結果になるのでアリ。
-      // return Promise.all(generateParallelProc()).catch(e => {throw e});
-    },
- * ```
- *
- * なので並列処理で特別エラーが起こった時に実施しておきたい内容は、
- * Promise.all().catch()にその処理を盛り込むとよい。
- * *******************************************************************/ 
-{
-
-  // --- tasks : Executed in parallel process --
-
-  function task1(taskNumber: number) {
-    console.log(`${taskNumber}: task1`);
-    return new Promise((resolve) => {
-      setTimeout(function () {
-        resolve(`${taskNumber}: Solved: task1`);
-        console.log(`${taskNumber}: task1 is done`);
-      }, 3000);
-    });
-};
-  
-  function task2(taskNumber: number, m: string) {
-    console.log(`${taskNumber}: task2`);
-    console.log(`${taskNumber}: task2 prev: ${m}`);
-    return new Promise((resolve) => {
-      setTimeout(function () {
-        resolve(`${taskNumber}: Solved: task2`);
-        console.log(`${taskNumber}: task2 is done`);
-      }, 3000);
-    });
-  }
-  
-
-  function task3(taskNumber: number, m: string) {
-    console.log(`${taskNumber}: task3`);
-    console.log(`${taskNumber}: task3 prev: ${m}`);
-    return new Promise((resolve, reject) => {
-      setTimeout(function () {
-        // Errorをわざと起こす
-        if(taskNumber === 1) reject(`Error @task3 @sequence${taskNumber}`);
-        else resolve(`${taskNumber}: Solved: task3`);
-        // resolve(`${taskNumber}: Solved: task3`);
-        console.log(`${taskNumber}: task3 is done`);
-      }, 3000);
-    });
-  }
-  
-
-  function task4(taskNumber: number, m: string) {
-    console.log(`${taskNumber}: task4`);
-    console.log(`${taskNumber}: task4 prev: ${m}`);
-    return new Promise((resolve) => {
-      setTimeout(function () {
-        resolve(`${taskNumber}: Solved: task4`);
-        console.log(`${taskNumber}: task4 is done`);
-      }, 3000);
-    });
-  }
-
-  function task5(taskNumber: number, m: string) {
-    console.log(`${taskNumber}: task5`);
-    console.log(`${taskNumber}: task5 prev: ${m}`);
-    return new Promise((resolve) => {
-      setTimeout(function () {
-        resolve(`${taskNumber}: Solved: task5`);
-        console.log(`${taskNumber}: task5 is done`);
-      }, 3000);
-    });
-  }
-
-  // --- seq : Executed by sequential ---
-
-  function seq1(m: string) {
-    console.log(`seq1`);
-    console.log(`seq1: prev result: ${m}`)
-    return new Promise((resolve) => {
-      setTimeout(function () {
-        resolve(`Solved: seq1`);
-        console.log(`seq1 is done`);
-      }, 3000);
-    });
-  };
-
-  function seq2(m: string) {
-    console.log(`seq2`);
-    console.log(`seq2: prev result: ${m}`)
-    return new Promise((resolve) => {
-      setTimeout(function () {
-        resolve(`Solved: seq2`);
-        console.log(`seq2 is done`);
-      }, 3000);
-    });
-  };
-
-  function seq3(m: string) {
-    console.log(`seq3`);
-    console.log(`seq3: prev result: ${m}`)
-    return new Promise((resolve) => {
-      setTimeout(function () {
-        resolve(`Solved: seq3`);
-        console.log(`seq3 is done`);
-      }, 3000);
-    });
-  };
-
-  function seq4(m: string) {
-    console.log(`seq4`);
-    console.log(`seq1: prev result: ${m}`)
-    return new Promise((resolve) => {
-      setTimeout(function () {
-        resolve(`Solved: seq4`);
-        console.log(`seq4 is done`);
-      }, 3000);
-    });
-  };
-
-  function seq5(m: string) {
-    console.log(`seq5`);
-    console.log(`seq5: prev result: ${m}`)
-    return new Promise((resolve) => {
-      setTimeout(function () {
-        resolve(`Solved: seq5`);
-        console.log(`seq5 is done`);
-      }, 3000);
-    });
-  };
-  
-
-  // Generator of parallel process 
-
-  /***
-   * 並列処理を関数でラップする。
-   * この関数を呼び出したときに並列処理が生成されるので、
-   * 勝手に走り出すことはない。
-   * 
-   * */ 
-  const generateParallelProc = (): Promise<any>[] => {
-    const sequences: Promise<any>[] = [
-      Promise.resolve(), Promise.resolve(), Promise.resolve()
-    ];
-    for(let i = 0; i < 3; i++) {
-      sequences[i] = sequences[i]
-      .then(() => task1(i))
-      .then((m) => task2(i, m as string))
-      .then((m) => task3(i, m as string))
-      .then((m) => task4(i, m as string))
-      .then((m) => task5(i, m as string))
-      .catch(e => {
-        console.error(`Error while parallel sequences ${i}`);
-        console.error(e);
-        throw e;
-      });
+ * */ 
+ export class Collect<T> {
+    private data: T[];
+    constructor() {
+        this.data = [];
     };
-    return sequences;
-  }
 
-  
-  // Sequential process with parallel Construction
-  
-  const seqs: iSequentialAsyncTask[] = [
-    seq1, seq2, seq3, 
-    () => {
-      console.log("START: Parallel Process.");
-      return Promise.all(generateParallelProc())
-      // NOTE: この呼出方法も同じ結果になるのでアリ。
-      // return Promise.all(generateParallelProc()).catch(e => {throw e});
+    /***
+     * Collect value by specifying key name from object and return array of collection.
+     * 
+     * @param {T[]} data - Object from which the value is to be retrieved.
+     * @param {keyof T} key - Key of object that passed as first argument and to be retrieved.
+     * @return {T[keyof t][]} - Array 
+     * 
+     * */ 
+    collect(key: keyof T): T[keyof T][] {
+        const arr = this.data.map((e: T) => {
+            if(e[key] !== undefined) return e[key];
+            else return undefined;
+        });
+        return arr.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
+    };
+
+    /**
+     * Reset data.
+     * Remove reference of previous data.
+     * */ 
+    resetData(data: T[]): void {
+        this.data = [];
+        this.data.length = 0;
+        this.data = [...data];
+    };
+
+    /***
+     * The filter function returns an array consisting 
+     * of the values of specific properties 
+     * taken from elements that passed the given test function.
+     * 
+     * In short,
+     * If `e` passed `fitlerLogic()`, `e[key]` pushed to array to be returned.
+     * 
+     * ここの引数のkeyはcollect()の引数keyと同じ意味。
+     * */ 
+    filter(filterLogic: iFilterLogic<T>, key: keyof T): T[keyof T][] {
+        const filtered = this.data.map((e: T) => {
+            return (filterLogic(e) && e[key] !== undefined) ? e[key] : undefined;
+        });
+        
+        return filtered.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
+    };
+
+    filterVer2(filterLogic: iFilterLogic<T>): T[] {
+      return this.data.filter((e: T) => filterLogic(e));
+    };
+};
+
+// --- USAGE ---
+ export interface iIllustMangaDataElement {
+    id: string;
+    title: string;
+    illustType?: number;
+    xRestrict?: number;
+    restrict?: number;
+    sl?: number;
+    url?: string;
+    description?: string;
+    tags?: any[];
+    userId?: string;
+    userName?: string;
+    width?: number;
+    height?: number;
+    pageCount?: number;
+    isBookmarkable?: boolean;
+    bookmarkData?: any;
+    alt?: string;
+    titleCaptionTranslation?: any[];
+    createDate?: string;
+    updateDate?: string;
+    isUnlisted?: boolean;
+    isMasked?: boolean;
+    profileImageUrl?: string;
+};
+
+export interface iIllustManga {
+    data: iIllustMangaDataElement[],
+    total: number
+};
+
+export interface iBodyIncludesIllustManga {
+    error: boolean;
+    body: {
+        illustManga: iIllustManga;
+    }
+};
+
+
+const dummy: iIllustMangaDataElement[] = [
+    {
+        "id": "101393474",
+        "title": "彼岸の庭渡久１２０６",
+        "illustType": 1,
+        "xRestrict": 0,
+        "restrict": 0,
+        "sl": 2,
+        "url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/22/00/05/55/101393474_p0_square1200.jpg",
+        "description": "",
+        "tags": [
+            "東方",
+            "彼岸の庭渡様",
+            "庭渡久侘歌",
+            "豪徳寺ミケ",
+            "少名針妙丸",
+            "射命丸文",
+            "リリーホワイト",
+            "リリーブラック"
+        ],
+        "userId": "9824519",
+        "userName": "人郷想幻（げんそうきょうじん）",
+        "width": 287,
+        "height": 821,
+        "pageCount": 1,
+        "isBookmarkable": true,
+        "bookmarkData": null,
+        "alt": "#東方 彼岸の庭渡久１２０６ - 人郷想幻（げんそうきょうじん）のマンガ",
+        "createDate": "2022-09-22T00:05:55+09:00",
+        "updateDate": "2022-09-22T00:05:55+09:00",
+        "isUnlisted": false,
+        "isMasked": false,
+        "profileImageUrl": "https://i.pximg.net/user-profile/img/2022/06/17/10/08/33/22889909_0d5609f386476846aa404ad4c634e38f_50.jpg"
     },
-    seq4, seq5];
+    {
+        "id": "101381167",
+        "title": "落書き11",
+        "illustType": 0,
+        "xRestrict": 1,
+        "restrict": 0,
+        "sl": 6,
+        "url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/21/12/18/49/101381167_p0_square1200.jpg",
+        "description": "",
+        "tags": [
+            "R-18",
+            "東方Project",
+            "犬走椛",
+            "射命丸文"
+        ],
+        "userId": "4472917",
+        "userName": "kjo",
+        "width": 960,
+        "height": 1280,
+        "pageCount": 20,
+        "isBookmarkable": true,
+        "bookmarkData": null,
+        "alt": "#東方Project 落書き11 - kjoのイラスト",
+        "createDate": "2022-09-21T12:18:49+09:00",
+        "updateDate": "2022-09-21T12:18:49+09:00",
+        "isUnlisted": false,
+        "isMasked": false,
+        "profileImageUrl": "https://i.pximg.net/user-profile/img/2020/02/22/02/55/14/17967117_9033a06b5f70d391c5cf66d4e248d847_50.jpg"
+    },
+    {
+        "id": "101380663",
+        "title": "東方二次小説（第13話）「アイドル天狗はたて」（2）～（7）",
+        "illustType": 0,
+        "xRestrict": 1,
+        "restrict": 0,
+        "sl": 6,
+        "url": "https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/09/21/11/33/07/101380663_p0_square1200.jpg",
+        "description": "",
+        "tags": [
+            "R-18",
+            "姫海棠はたて",
+            "東方project",
+            "射命丸文",
+            "管牧典",
+            "二ツ岩マミゾウ",
+            "封獣ぬえ",
+            "パンチラ"
+        ],
+        "userId": "52941975",
+        "userName": "美少女帝国",
+        "width": 1280,
+        "height": 720,
+        "pageCount": 6,
+        "isBookmarkable": true,
+        "bookmarkData": null,
+        "alt": "#姫海棠はたて 東方二次小説（第13話）「アイドル天狗はたて」（2）～（7） - 美少女帝国のイラスト",
+        "createDate": "2022-09-21T11:33:07+09:00",
+        "updateDate": "2022-09-21T11:33:07+09:00",
+        "isUnlisted": false,
+        "isMasked": false,
+        "profileImageUrl": "https://s.pximg.net/common/images/no_profile_s.png"
+    }
+];
 
-  (async function() {
-    sequentialAsyncTasks(seqs)
-    .then(result => {
-      console.log("All done.");
-      console.log(result);
-    })
-    .catch(e => {
-      console.error("Last Error Handler");
-      console.error(e);
-    })
-  })();
 
-  /*
-    実験その３の結果：
-    ```
-    seq1
-    seq1: prev result: undefined
-    seq1 is done
-    seq2
-    seq2: prev result: Solved: seq1
-    seq2 is done
-    seq3
-    seq3: prev result: Solved: seq2
-    seq3 is done
-    START: Parallel Process.
-    0: task1
-    1: task1
-    2: task1
-    0: task1 is done
-    0: task2
-    0: task2 prev: 0: Solved: task1
-    1: task1 is done
-    1: task2
-    1: task2 prev: 1: Solved: task1
-    2: task1 is done
-    2: task2
-    2: task2 prev: 2: Solved: task1
-    0: task2 is done
-    0: task3
-    0: task3 prev: 0: Solved: task2
-    1: task2 is done
-    1: task3
-    1: task3 prev: 1: Solved: task2
-    2: task2 is done
-    2: task3
-    2: task3 prev: 2: Solved: task2
-    0: task3 is done
-    0: task4
-    0: task4 prev: 0: Solved: task3
-    1: task3 is done
-    1: task4
-    1: task4 prev: 1: Solved: task3
-    2: task3 is done
-    2: task4
-    2: task4 prev: 2: Solved: task3
-    0: task4 is done
-    0: task5
-    0: task5 prev: 0: Solved: task4
-    1: task4 is done
-    1: task5
-    1: task5 prev: 1: Solved: task4
-    2: task4 is done
-    2: task5
-    2: task5 prev: 2: Solved: task4
-    0: task5 is done
-    1: task5 is done
-    2: task5 is done
-    seq4
-    seq1: prev result: 0: Solved: task5,1: Solved: task5,2: Solved: task5
-    seq4 is done
-    seq5
-    seq5: prev result: Solved: seq4
-    seq5 is done
-    All done.
-    Solved: seq5
-    ```
+/***
+ * Array includes some element of another array.
+ * 
+ * ref: https://stackoverflow.com/a/39893636
+ * 
+ * @param {any[]} compare - この配列が
+ * @param {any[]} to - この配列の要素を一つ以上含むのか
+ * @return {boolean} - 一つ以上含むならtrue
+ * */ 
+ const includesAtLeast = (compare: any[], to: any[]): boolean => {
+    return to.some(v => compare.includes(v));
+};
 
-    実験其の4の結果：
-    ```
-    seq1
-    seq1: prev result: undefined
-    seq1 is done
-    seq2
-    seq2: prev result: Solved: seq1
-    seq2 is done
-    seq3
-    seq3: prev result: Solved: seq2
-    seq3 is done
-    START: Parallel Process.
-    0: task1
-    1: task1
-    2: task1
-    0: task1 is done
-    0: task2
-    0: task2 prev: 0: Solved: task1
-    1: task1 is done
-    1: task2
-    1: task2 prev: 1: Solved: task1
-    2: task1 is done
-    2: task2
-    2: task2 prev: 2: Solved: task1
-    0: task2 is done
-    0: task3
-    0: task3 prev: 0: Solved: task2
-    1: task2 is done
-    1: task3
-    1: task3 prev: 1: Solved: task2
-    2: task2 is done
-    2: task3
-    2: task3 prev: 2: Solved: task2
-    0: task3 is done
-    0: task4
-    0: task4 prev: 0: Solved: task3
-    1: task3 is done
-    Error while parallel sequences 1
-    Error @task3 @sequence1
-    Last Error Handler
-    Error @task3 @sequence1
-    2: task3 is done
-    2: task4
-    2: task4 prev: 2: Solved: task3
-    0: task4 is done
-    0: task5
-    0: task5 prev: 0: Solved: task4
-    2: task4 is done
-    2: task5
-    2: task5 prev: 2: Solved: task4
-    0: task5 is done
-    2: task5 is done
-    ```
-  */ 
-}
+/***
+ * Array includes all element of another array.
+ * 
+ * ref: https://stackoverflow.com/a/53606357
+ * 
+ * @param {any[]} compare - この配列が
+ * @param {any[]} to - この配列の要素をすべて含むのか
+ * @return {boolean} - すべて含むならtrue
+ * */ 
+const includesAll = (compare: any[], to: any[]): boolean => {
+    return to.every(v => compare.includes(v));
+};
+
+(async function() {
+    const collector = new Collect<iIllustMangaDataElement>();
+
+    const KEY: keyof iIllustMangaDataElement = "tags";
+
+    const filterLogic: iFilterLogic<iIllustMangaDataElement> = (element) => {
+        const property: keyof iIllustMangaDataElement = KEY;
+        const requirement: string[] = ["射命丸文"];
+        const e = element[property];
+        if(e !== undefined) {
+            return includesAll(e, requirement) ? true : false;
+        }
+        else return false;
+    };
+
+    collector.resetData(dummy);
+    // const filtered = collector.filter(filterLogic, "id");
+    collector.resetData(collector.filterVer2(filterLogic));
+    const result = collector.collect("id");
+    console.log(result);
+})();

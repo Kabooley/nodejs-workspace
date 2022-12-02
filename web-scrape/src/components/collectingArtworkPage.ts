@@ -29,6 +29,7 @@
 import * as jsdom from 'jsdom';
 import type puppeteer from 'puppeteer';
 import type { iResponsesResolveCallback } from './AssembleParallelPageSequences';
+import type { iFilterLogic } from './Collect';
 import type { iCollectOptions } from '../commandParser/commandModules/collectCommand';
 import { Navigation } from './Navigation';
 import { Collect } from './Collect';
@@ -160,6 +161,27 @@ const httpResponseFilter = (id: string) => {
 
 
 /***
+ * @param {iIllustData[]} data - 
+ * @return {boolean}
+ * 
+ * すべての条件を満たしたらtrue
+ * */
+const filterLogic: iFilterLogic<iIllustData> = (data) => {
+    // ハードコーディングですわ...
+    let result: boolean = true;
+    const { bookmarkOver } = optionsProxy.get();
+    const { bookmarkCount } = data;
+    if(bookmarkOver !== undefined) {
+        result = result && (bookmarkCount >= bookmarkOver)
+    }
+    // 
+    // 後から追加可能
+    // resultとの比較をすること
+    // 
+    return result;
+}
+
+/***
  * 
  * 
  * */ 
@@ -187,6 +209,7 @@ export const assemblingCollectProcess = async (
         // Generate sequential process as same as number of idTable.
 
         let counter: number = 0;
+        let collected: iIllustData[] = [];
         for(const id of idTable) {
             const circulator = counter % numberOfProcess;
             const url = mustache(artworkPageUrl, {id: id});
@@ -203,26 +226,21 @@ export const assemblingCollectProcess = async (
                 })
                 // 2. Resolve HTTP Response which from HTTPResponse filter
                 .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
-                // 3. 
-                .then((resolved: iIllustData[]) => {
-                    // TODO: そもそも何をするのか
-                    /**
-                     * command `collect byKeyword`, `collect fromBookmark`: そのartworkの情報を収集する 
-                     *      option `tags`: 収集条件のひとつ。tagsに含まれるtagをそのartworkが含んでいるならば収集する
-                     *      options `bookmarkOver`: 収集条件の一つ。artworkのブックマーク数がその数以上なら収集する
-                     *      options `userName`: 収集条件の一つ。artworkのuserNameが一致するなら収集する。
-                     * うち、
-                     * tagsとuserNameはここでは扱わない
-                     * なので（今のところ）`bookmarkOver`のみである
-                     * 
-                     * なのでfilter条件はbookmarkOver
-                     * 集める情報は実は特に考えていないけどこれまでの通り、iIllustDataである
-                     * 
-                     * なのでassembler.filterとassembler.collectはそのままだと使えない
-                     * 
-                     * 機能の分割をさらにすすめなくてはいかん...
-                     * */ 
-                    return assembler.filter(resolved, )
+                // 3. Collect data only matched to requirement
+                .then((resolved: iIllustData[]) => { 
+                    // 
+                    // TODO: Collect.collect()にkeyは必須にするか？
+                    // 現状だと、assembler.getResult()と矛盾する
+                    // assembler.collectedにデータが格納されていないからである
+                    // なのでassembler.collectedにデータを突っ込めるようにしなくてはならない
+                    // Collect.collect()のほかにCollect.collectProperty()みたいなメソッドを追加しようか...
+                    collected = [...collected, ...assembler.filter(resolved, filterLogic)];
+                })
+                // 4. In case commad was `bookmark`
+                .then(() => {
+                    // TODO: DOM 操作というかアクション的処理はここで実行する
+                    // たとえばそのartworkをブックマークするなど
+                    // TODO: assembler.setAction()みたいなメソッドの追加
                 })
                 .catch(e => assembler.errorHandler(e))
             }

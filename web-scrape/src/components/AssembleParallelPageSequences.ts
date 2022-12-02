@@ -179,9 +179,16 @@ export class AssembleParallelPageSequences<T> {
      * key: 'id'
      * filterLogic:
      * */ 
-    filter(data: T[], key: keyof T, filterLogic: iFilterLogic<T>) {
+    // filter(data: T[], key: keyof T, filterLogic: iFilterLogic<T>) {
+    //     this.collector.resetData(data);
+    //     this.collected = [...this.collected, ...this.collector.filter(filterLogic, key)];
+    // };
+
+    // ver.2
+    // TODO: Collectインスタンスをprivateにしよう
+    filter(data: T[], filterLogic: iFilterLogic<T>) {
         this.collector.resetData(data);
-        this.collected = [...this.collected, ...this.collector.filter(filterLogic, key)];
+        return this.collector.filter(filterLogic);
     };
 
     run(): Promise<void[]> {

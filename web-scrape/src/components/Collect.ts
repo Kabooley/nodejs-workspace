@@ -56,13 +56,19 @@
       * 
       * ここの引数のkeyはcollect()の引数keyと同じ意味。
       * */ 
-     filter(filterLogic: iFilterLogic<T>, key: keyof T): T[keyof T][] {
-         const filtered = this.data.map((e: T) => {
-             return (filterLogic(e) && e[key] !== undefined) ? e[key] : undefined;
-         });
+    //  filter(filterLogic: iFilterLogic<T>, key: keyof T): T[keyof T][] {
+    //      const filtered = this.data.map((e: T) => {
+    //          return (filterLogic(e) && e[key] !== undefined) ? e[key] : undefined;
+    //      });
          
-         return filtered.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
-     };
+    //      return filtered.filter((v): v is Exclude<typeof v, undefined> => v !== undefined);
+    //  };
+
+    // ver.2
+    filter(filterLogic: iFilterLogic<T>): T[] {
+        return this.data.filter((e: T) => filterLogic(e));
+      };
+  
  };
  
  // --- USAGE ---

@@ -145,7 +145,12 @@ const assemblingCollectProcess = async (
 
                 .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(optionsProxy.get().keyword), i:currentPage}), { waitUntil: ["load", "networkidle2"]})))
                 .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
-                .then((data: iIllustMangaDataElement[]) => assembler.filter(data, key, filterLogic))
+                // DEBUG: 12/02 refactored.
+                // 
+                // .then((data: iIllustMangaDataElement[]) => assembler.filter(data, key, filterLogic))
+                .then(
+                    (data: iIllustMangaDataElement[]) => assembler.collect(assembler.filter(data, filterLogic), key)
+                )
                 .catch((e) => assembler.errorHandler(e))
             }
         };
