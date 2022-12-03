@@ -4,36 +4,24 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 
 ## 目次
 
-[TODOS](#TODOS)
-[メモリリーク監視](#メモリリーク監視)
-[パフォーマンス](#パフォーマンス)
-[決定版：ページ遷移とレスポンス取得の両立](#決定版：ページ遷移とレスポンス取得の両立)
-[セッションの維持](#セッションの維持)
-[キーワード検索結果を収集する方法の模索]](#キーワード検索結果を収集する方法の模索)
-[artworkページでの収集](#artworkページでの収集)
-[ダウンロードロジックの実装](#ダウンロードロジックの実装)
-[デザインパターンの導入](#デザインパターンの導入)
-[puppeteerマルチpageインスタンス](#puppeteerマルチpageインスタンス)
-[セレクタ調査](#セレクタ調査)
-[自習](#自習)
-[ログインすべきかしなくていいか区別する](#ログインすべきかしなくていいか区別する)
-[機能：ブックマーク機能の追加](#機能：ブックマーク機能の追加)
-[設計の考察](#設計の考察)
-[コマンドラインからの命令に従って実行処理をセットアップする](#コマンドラインからの命令に従って実行処理をセットアップする)
-[検証:検索結果ページはpage.goto(url)で移動・取得できるか](#検証:検索結果ページはpage.goto(url)で移動・取得できるか)
-[](#)
+- [Chromium](#Chromium)
+- [メモリリーク監視](#メモリリーク監視)
+- [パフォーマンス](#パフォーマンス)
+- [CLIとの連携](#CLIとの連携)
+- [ナビゲーション](#ナビゲーション)
+- [セッションの維持](#セッションの維持)
+- [キーワード検索]](#キーワード検索)
+- [artworkページでの収集](#artworkページでの収集)
+- [ダウンロードロジック](#ダウンロードロジック)
+- [デザインパターンの導入](#デザインパターンの導入)
+- [puppeteerマルチpageインスタンス](#puppeteerマルチpageインスタンス)
+- [セレクタ調査](#セレクタ調査)
+- [自習](#自習)
 
-[promiseチェーンで任意にエラーを補足する](#promiseチェーンで任意にエラーを補足する)
 
-[taskQueue生成処理の実装](#taskQueue生成処理の実装)
+## Chromium
 
-## TODOS
-
-- TODO: artworkページからの収集ロジックの実装
-- TODO: メモリリーク対策項目の続きをしてchild processを理解する
-- TODO: (低優先)puppeteerマルチpageインスタンス
-
-## chromium起動できない問題
+#### chromium起動できないとき
 
 puppeteerインストール直後、サンプルプログラムを動かして正常動作するか確認しようとしたところ...
 
@@ -74,15 +62,75 @@ sudo apt update && sudo apt install -y gconf-service libgbm-dev libasound2 libat
 
 結果サンプルプログラムは正常に実行できた。
 
-## yargsの使い方まとめと導入
+## CLIとの連携
+
+アプリケーションは実行時のコマンドとオプションを読み取って実行する処理を決定するという仕組みとする。
+
+#### yargsの使い方まとめと導入
 
 `../yargs.md`に詳細
 
-実行コマンド
 
-```bash
-$ node ./dist/index.js COMMAND --option1 STRING --option2 STRING
-```
+#### 実装予定のコマンド
+
+コマンド: 動作を指定する。マルチコマンドを受け付ける。
+
+オプション：条件を指定する
+
+
+
+動作:
+
+- `collect byKeyword`: キーワード検索をしてオプションの条件指定を満たす作品のメタデータを収集する(JSONファイルで保存する)
+- `collect fromBookmark`: ブックマークからオプションの条件指定を満たす作品のメタデータを収集する(JSONファイルで保存する)
+- `bookmark`: (キーワード検索をして)オプションの条件指定を満たす作品をブックマークする
+- `download fromBookmark`: ブックマークから条件指定に一致する作品をダウンロードする
+- `download byKeyword`: キーワード検索から条件指定に一致する作品をダウンロードする
+
+オプション:
+
+条件指定
+    検索条件
+    - keyword: 検索キーワード
+    収集条件
+    - tags: 指定のタグがすべて含まれていること
+    - userName: 指定の作者であること
+    - bookmarkOver: 指定のブックマーク数を誇ること
+
+
+#### `collect byKeyword`
+
+処理の流れ：
+
+1. キーワード検索で指定キーワード検索
+2. 検索結果ページでの収集
+	> page.goto(各検索結果ページのURL)
+	> 収集時に条件指定に一致するartworkのURLのIDだけ収集させる ... 1
+3. artworkページでの収集
+	> page.goto(各artwork作品id)
+	> 収集時に条件指定に一致する作品だけメタデータを収集させる ... 2
+
+
+取得できる情報は...
+
+1:
+- tags: 可
+- userName: 可
+- bookmarkOver: 不可
+
+2: 
+全て可
+
+#### `collect fromBookmark`
+
+処理の流れ：
+
+1. アカウントのブックマークページへ移動(URL or puppeteerの操作によって)
+2. あとは`collect byKeyword`と同じになる
+
+部屋掃除
+廊下掃除
+ステッカー作り
 
 ## メモリリーク監視
 
@@ -111,95 +159,27 @@ https://stackoverflow.com/a/31015360
 
 ## パフォーマンス
 
-#### pageインスタンスを複数生成して並列処理させる
+たとえばキーワード検索してヒットした作品が1000件あるとして、
+検索結果ページが200ページとかだった場合、
+puppeteer.Pageインスタンスが一つだと大変な時間がかかる。
 
-もちろんRAMを監視してメモリがあほほど使われないか見張るよ。
+そんな時にPageインスタンスが複数あって分担すればかかる時間が減るはず。
 
-pageインスタンスを増やす場面：
+ということで並列処理を導入する。
 
-- 検索結果情報収集時
-- artworkページ情報収集時
+#### 並列処理と逐次処理
 
-導入してみた:
+`src/components/AssemblerParallelPageSequences.ts`
 
-`components/collectArtworkFromPage.ts`
+マルチPageインスタンス、
+逐次処理を実行するPromiseチェーンからなるマルチPromiseチェーン、
+収集するデータを処理するCollectインスタンス
+ナビゲーションを担当するNavigationインスタンス
+これらのセットであるclass。
 
-受け取ったデータ量に応じてsequencesという逐次処理の数を増やして、
+一つのPromiseチェーンが実行する逐次処理の内容を定義すれば、
 
-sequencesをPromise.all()させることで並列処理させる。
-
-TODO: 要動作確認。
-
-```TypeScript
- export const collectArtworkData = async (
-    browser: puppeteer.Browser, 
-    page: puppeteer.Page, 
-    ids: string[], 
-    requirement?: (keyof iIllustData)[])
-    : Promise<iIllustData[]> => {
-
-    let pageInstances: puppeteer.Page[] = [];
-    let collected: iIllustData[] = [];
-    let sequences: Promise<void>[] = [];
-    let concurrency: number = 1;
-        
-    try {
-         // データ量が50以下なら処理プロセス２つを並列処理
-         if(ids.length > 10 && ids.length <= 50) {
-             concurrency = 2;
-         }
-         // データ量が50を超えるなら処理プロセス４つを並列処理
-         else if(ids.length > 50) {
-             concurrency = 4;
-         }
-
-         // DEBUG:
-         console.log(`concurrency: ${concurrency}`);
- 
-         pageInstances.push(page);
-         for(let i = 1; i < concurrency; i++) {
-			// DEBUG:
-			console.log("Create Page instance and new sequence Promise.");
-
-             pageInstances.push(await browser.newPage());
-             sequences.push(Promise.resolve());
-         };
-         ids.forEach((id: string, index: number) => {
-            // 順番にidsの添え字を生成する
-            // 0~(concurrency-1)の範囲でcirculatorは循環する
-            // なので添え字アクセスは範囲内に収まる
-             const circulator: number = index % concurrency;
-
-             // DEBUG:
-             console.log(`circulator: ${circulator}`);
-
-             if(sequences[circulator] !== undefined && pageInstances[circulator] !== undefined) {
-
-                // DEBUG:
-                console.log("sequence");
-                
-                sequences[circulator] = sequences[circulator]!.then(() => executor(pageInstances[circulator]!, id, collected, requirement));
-             }
-         });
- 
-         await Promise.all([...sequences]);
-         return collected;
-     }
-     catch(e) {
-         await page.screenshot({type: 'png', path: './dist/errorWhileCollectingArtworkData.png'});
-         throw e;
-     }
-     finally {
-         // Close all generated instances in this function except those passed as argument.
-         if(pageInstances.length > 1) {
-            pageInstances.forEach((p: puppeteer.Page, index: number) => {
-                if(index > 0) p.close();
-            });
-         };
-     }
- };
-
-```
+並列処理して集めるデータを格納してくれる。
 
 ## セレクタ調査
 
@@ -220,58 +200,9 @@ username:
 `button[type="submit"].sc-bdnxRM.jvCTkj.sc-dlnjwi.pKCsX.sc-2o1uwj-7.fguACh.sc-2o1uwj-7.fguACh`
 
 
-次のページセレクタ:
+## ナビゲーション
 
-```html
-<div class="sc-l7cibp-3 gCRmsl">
-<nav class="sc-xhhh7v-0 kYtoqc">
-    <a aria-disabled="false" class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component Vhbyn" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=6&amp;s_mode=s_tag"><svg viewBox="0 0 10 8" width="16" height="16"><polyline class="_2PQx_mZ _3mXeVRO" stroke-width="2" points="1,2 5,6 9,2" transform="rotate(90 5 4)"></polyline></svg></a>
-    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?s_mode=s_tag"><span>1</span></a><button type="button" disabled="" class="sc-xhhh7v-1 sc-xhhh7v-3 hqFKax iiDpnk"><svg viewBox="0 0 24 24" size="24" class="sc-11csm01-0 fivNSm"><path d="M5 14C6.10457 14 7 13.1046 7 12C7 10.8954 6.10457 10 5 10C3.89543 10 3 10.8954 3 12C3 13.1046 3.89543 14 5 14ZM12 14C13.1046 14 14 13.1046 14 12C14 10.8954 13.1046 10 12 10C10.8954 10 10 10.8954 10 12C10 13.1046 10.8954 14 12 14ZM21 12C21 13.1046 20.1046 14 19 14C17.8954 14 17 13.1046 17 12C17 10.8954 17.8954 10 19 10C20.1046 10 21 10.8954 21 12Z"></path></svg></button>
-    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=6&amp;s_mode=s_tag"><span>6</span></a><button type="button" aria-current="true" class="sc-xhhh7v-1 hqFKax"><span>7</span></button>
-    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=8&amp;s_mode=s_tag"><span>8</span></a>
-    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=9&amp;s_mode=s_tag"><span>9</span></a>
-    <a class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=10&amp;s_mode=s_tag"><span>10</span></a>
-    <a aria-disabled="false" class="sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component Vhbyn" href="/tags/%E5%A4%95%E7%84%BC%E3%81%91/artworks?p=8&amp;s_mode=s_tag"><svg viewBox="0 0 10 8" width="16" height="16"><polyline class="_2PQx_mZ _3mXeVRO" stroke-width="2" points="1,2 5,6 9,2" transform="rotate(-90 5 4)"></polyline></svg></a></nav>
-
-</div>
-```
-
-- sc-d98f2c-0 sc-xhhh7v-2 cCkJiq sc-xhhh7v-1-filterProps-Styled-Component QiMtm
-- div.sc-l7cibp-3.gCRmsl nav.sc-xhhh7v-0.kYtoqc a:last-child
-
-## ページ遷移が成功したのか調べる
-
-`page.waitForNavigation()`の戻り値のHTTPResponseのステータスをチェックすればいい。
-
-```TypeScript
-const [navigationRes] = await Promise.all([
-    page.waitForNavigation(options),
-    page.click(selector)
-]);
-if(!navigationRes) throw new Error('Navigation due to History API');
-if(navigationRes.status() !== 200) throw new Error('Server response status code was not 200');
-```
-
-## 検索結果ページ複数になる時の次のページへ行くトリガー
-
-検索結果ページのページ数のとこの
-
-```
-< 1 2 3 4 5 6 7 >
-```
-
-`>`だけクリックしていけば1ページずつ移動してくれる
-
-
-## オブジェクト validation
-
-取得した`puppeteer.HTTPResponse`を`.json()`したときに欲しいデータを持っているか検査したい。
-
-そんなとき。
-
-
-
-## 決定版：ページ遷移とレスポンス取得の両立
+#### ページ遷移とレスポンス取得の両立
 
 puppeteerにおいて`navigation`という単語が意味するところは詰まるところ「ページ遷移」である。
 
@@ -302,6 +233,21 @@ puppeteerの主なページ遷移をトリガーするメソッドが以下の3�
 - `page.keyboard.press`: navigation機能はない。
 
 navigation機能が搭載されているか否かでページ遷移定義方法が異なるので、二通りとなる。
+
+
+#### ページ遷移が成功したのか調べる
+
+`page.waitForNavigation()`の戻り値のHTTPResponseのステータスをチェックすればいい。
+
+```TypeScript
+const [navigationRes] = await Promise.all([
+    page.waitForNavigation(options),
+    page.click(selector)
+]);
+if(!navigationRes) throw new Error('Navigation due to History API');
+if(navigationRes.status() !== 200) throw new Error('Server response status code was not 200');
+```
+
 
 #### `page.goto()`とページ遷移
 
@@ -425,90 +371,7 @@ await waiter;
 
 #### クラスにしてみた
 
-正常動作確認済。
-
-```TypeScript
-import type puppeteer from 'puppeteer';
-
-// Default settings for page.waitFor methods
-const defaultOptions: puppeteer.WaitForOptions = { waitUntil: ["load", "domcontentloaded"]};
-const defaultWaitForResponseCallback = function(res: puppeteer.HTTPResponse) { return res.status() === 200;};
-
-/****
- * Navigation class
- * 
- * @constructor
- * @param {puppeteer.Page} page - puppeteer page instance.
- * @param {() => Promise<any>} trigger - Asychronous function taht triggers navigation.
- * @param {puppeteer.WaitForOptions} [options] - Options for page.waitForNavigation.
- * 
- * 
- * Usage:
- * ```
- * navigate.resetWaitForResponse(page.waitForResponse(...));
- * navigate.resetWaitForNavigation(page.waitForNavigation(...));
- * navigate.push([...taskPromises]);
- * const [responses] = await navigate(function() {return page.click(".button");});
- * const [responses] = await navigateBy(function() {return page.click(".button");});
- * const [responses] = await navigateBy(function() {return page.keyboard.press("Enter");});
- * // Page transition has been completed...
- * ```
- * 
- * */ 
-export class Navigation {
-    private tasks: Promise<any>[];
-    private waitForNavigation: Promise<puppeteer.HTTPResponse | null>;
-    private waitForResponse: Promise<puppeteer.HTTPResponse>;
-    constructor(
-        page: puppeteer.Page
-        ) {
-            this.waitForNavigation = page.waitForNavigation(defaultOptions);
-            this.waitForResponse = page.waitForResponse(defaultWaitForResponseCallback);
-            this.tasks = [];
-            this.push = this.push.bind(this);
-            this.navigateBy = this.navigateBy.bind(this);
-            this.navigate = this.navigate.bind(this);
-    };
-
-    push(task: Promise<any>): void {
-        this.tasks.push(task);
-    };
-
-    resetWaitForResponseCallback(cb: Promise<puppeteer.HTTPResponse>): void {
-        this.waitForResponse = cb;
-    };
-
-    resetWaitForNavigation(p: Promise<puppeteer.HTTPResponse | null>): void {
-        this.waitForNavigation = p;
-    };
-
-    /******
-     * Navigate by trigger and execute tasks.
-     * 
-     * 
-     * */ 
-    async navigate(trigger: () => Promise<void>): Promise<(puppeteer.HTTPResponse | any)[]> {
-        return await Promise.all([
-            ...this.tasks,
-            this.waitForResponse,
-            this.waitForNavigation,
-            trigger()
-        ]);
-    };
-
-    /***
-     * Bit faster than navigate()
-     * navigate()とほぼ変わらないし影響もしないからいらないかも。
-     * */ 
-    async navigateBy(trigger: () => Promise<void>): Promise<(puppeteer.HTTPResponse | any)[]> {
-        return await Promise.all([
-            this.waitForResponse,
-            this.waitForNavigation,
-            trigger()
-        ]);
-    };
-};
-```
+`src/components/Navigation.ts`
 
 ## セッションの維持
 
@@ -618,9 +481,17 @@ CacheやSession Storageなどのディレクトリが追加されていた。
 
 暇ならね...そこはメインじゃないから...
 
-## キーワード検索結果を収集する方法の模索
+## キーワード検索
 
-search()で次のリクエストが成功したら、
+検索フォームのDOMにキーワードを入力して、
+
+`page.keyboard.press('Enter')`する。
+
+または検索結果ページで次のページへ行くために
+
+`page.goto(URL)`する。(URLは次のページを反映したURL)
+
+次のリクエストのレスポンスを取得することで検索結果情報を収集する。
 
 ```JSON
 {
@@ -644,7 +515,7 @@ search()で次のリクエストが成功したら、
 }
 ```
 
-レスポンスに次のようなbodyがつく。
+レスポンスには次のようなbodyがつく。
 
 ```JSON
 {
@@ -977,13 +848,21 @@ search()で次のリクエストが成功したら、
 }
 ```
 
-ここから取得したいのは...
+この型情報の定義は`src/constants/illustManga.ts`。
 
-- `illustManga.data[]`は検索結果サムネイル情報。artworkページidを取得するため
-- `illustManga.total`は検索結果ヒット数。検索結果ページが何ページになるのか知るため
-- `illustManga.data.length`は検索結果サムネイル一覧が一ページに何枚になるのか知るため
+ということで、
 
-## illustManga.dataに挟まれる広告要素
+page.waitForResponse()で指定のURLのレスポンスを取得する
+レスポンスを解決する
+
+```TypeScript
+const specifiedUrl: string = "/* specified url */";
+const response: puppeteer.HTTPResponse = page.waitForResponse((r: puppeteer.HTTPResponse) => r.status() === 200 && r.url() === specifiedUrl);
+const body = await response.json();
+// 以降、bodyを分解して指定データが入っていることを調べる
+```
+
+#### illustManga.dataに挟まれる広告要素
 
 ```JSON
 {
@@ -992,6 +871,35 @@ search()で次のリクエストが成功したら、
     },
 }
 ```
+これは排除することを忘れないように。
+
+
+#### 検証:検索結果ページはpage.goto(url)で移動・取得できるか
+
+URL: https://www.pixiv.net/tags/%E5%8E%9F%E7%A5%9E/artworks?p=7&s_mode=s_tag
+
+`artworks?p=${pagenumber}`でいけそう
+
+pagenumberは1でも通用するみたい
+
+あとは欲しい情報がHTTPResponseで取得できるのかである
+
+
+取得できた時のリクエストURL
+
+https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%A5%9E&order=date_d&mode=all&p=2&s_mode=s_tag&type=all&lang=ja
+
+https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%A5%9E&order=date_d&mode=all&p=10&s_mode=s_tag&type=all&lang=ja
+
+https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%A5%9E&order=date_d&mode=all&p=100&s_mode=s_tag&type=all&lang=ja
+
+ということで、
+
+`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}&order=date_d&mode=all&p={pagenumber}&s_mode=s_tag&type=all&lang=ja`
+
+で取得している
+
+あとはこれがwaitForResponse()で取得できるかどうかである
 
 
 ## artworkページでの収集
@@ -1140,9 +1048,6 @@ interface iIllustData {
 };
 ```
 
-ということで、
-
-あとはHTMLをパースする方法。
 
 #### HTML文字列をDOMとして扱う方法 in Node.js
 
@@ -1152,7 +1057,7 @@ https://stackoverflow.com/questions/7977945/html-parser-on-node-js
 
 https://stackoverflow.com/a/10585079/13891684
 
-結論： Node.jsはDOM操作できない。
+結論： **Node.jsはDOM操作できない**
 
 じゃぁ文字列のまま特定の文字列を取得しよう！としても
 
@@ -1164,209 +1069,30 @@ https://stackoverflow.com/a/10585079/13891684
 
 jsdomが人気みたい。
 
-
-
-
 ```TypeScript
+// これはNode.jsではできない
 const response: puppeteer.HTMLResponse
 const htmlString: string = await response.text();
 
 const html = document.createElement('html');
 html.innerHTML = body;
 const metaPreloadData: iMetaPrelaodData = JSON.parse(document.getElementById('meta-preload-data').getAttribute('content'));
-
 ```
-
-
-
-
-#### どうやってダウンロードする？
-
-`requirement`は、`iArtworkData`のプロパティが指定の値を持つかどうかのフィルタである
-
-このタグが含まれているとか、ブックマーク数とか。
-
-ほしい情報をinterfaceにすると...
 
 ```TypeScript
-interface iArtworks{
-	url: string;	// そのページのURL
-	title: string;	// そのartworkページのタイトル
-	author: string;	// 作者
-	type: string;	// artworkのタイプ　画像なのかうごイラなのか
-	bookmarks: number;	// ブックマーク数
-	origin: string;		// オリジナルURL(拡張子含む)
-	amount: number;		// 画像枚数	
-}
+// JSDOMなら可能になる
+import * as jsdom from 'jsdom';
+
+const response: puppeteer.HTTPResponse;
+
+const { JSDOM } = jsdom;
+// puppeteer.HTTPResponse.text()から解決できるHTML文字列からDOMを取得する
+// jsdomを使うとDOMが取得できる
+const { document } = new JSDOM(await response.text()).window;
+// あとはJavaScript同様DOMを操作すればよい
+const json = document.querySelector('#meta-preload-data')!.getAttribute("content");
 ```
 
-ベース：
-
-```TypeScript
-
-const artworkUrl: string = `https://www.pixiv.net/artworks/`;
-
-const cb = (res: puppeteer.HTTPResponse): boolean => {
-	return res.status() === 200 && res.url().inlcudes(/* specify url */)
-}
-
-const removeFromResponse = async <T>(res: puppeteer.HTTPResponse): Promise<T> => {
-	// とにかく指定のHTTPResponseのbodyを返す。.json()までする。
-};
-
-const isFulfillRequirement = (body: iArtworkData, requirement): boolean => {
-	// とにかくrequirementを満たすかどうかチェックする
-	// 満たすならtrue、そうじゃないならfalse
-	return result;
-};
-
-function collectArtworksData = async(page, passedIds, requirement?) {
-
-	// Set up navigation.
-	const navigate = new Navigation(page);
-	navigate.resetWaitForResponseCallback(cb);
-
-	let res: (puppeteer.HTTPResponse | any)[] = [];
-	let collected: iArtworkData[] = [];
-	let pushBodyQueue: Promise<void> = Promise.resolve();
-
-	for(const id of passedIds) {
-		// -- ここの囲った部分は終わるまで ---------------------
-		// 次のナビゲーション(ループ)に行くことは許されない
-		res = await navigate.navigationBy(page.goto(artworkUrl + id));
-		// bodyとはHTTPResponse.body.bodyである
-		const body: iArtworkData = await removeFromResponse<iArtworkData>(res);
-		// --------------------------------
-
-		// -- ここの条件分岐は非同期にして次のページ遷移に行っちゃっていい --
-		// なのでプロミスで囲ってあとで終わればOKにすればいいかも。
-		// 
-		// !requirement.length --> bodyをそのまま納める
-		// requirement.length --> 次を検査する
-		// isFullfillRequirement() --> bodyを納める
-		// !isFullfillRequirement() --> bodyは納めない
-		promise = promise.then(() => {
-			if(requirement.length) {
-				if(!isFulfillRequirement(body)) collected.push(body);
-			}
-			else {
-				collected.push(body);
-			}
-		});
-		// ---------------------------------------------------
-	};
-
-	await promise;
-	return data;
-};
-
-```
-
-case１：アートワークページからそのままダウンロードを実行する場合
-
-`collected.push(body)`のところがダウンロードプロセスに代わる。
-
-ダウンロードプロセス中に他のartworkページへ移動すると困るので、
-
-`promise = promise.then()`のラップを解除してpeageがそのURLにいるときにhttp.request()を送る
-
-
-
-- HTTPS requestを送って、ストリーム処理させる。
-- 画像枚数をチェック
-- fsとの連携（名前の付け方、保存ディレクトリの確認）
-- 保存先がWSL上のUbuntu環境だと保存しても困るだけなので、ストレージサービスを利用する
-
-```TypeScript
-
-const artworkUrl: string = `https://www.pixiv.net/artworks/`;
-
-const cb = (res: puppeteer.HTTPResponse): boolean => {
-	return res.status() === 200 && res.url().inlcudes(/* specify url */)
-}
-
-const removeFromResponse = async <T>(res: puppeteer.HTTPResponse): Promise<T> => {
-	// とにかく指定のHTTPResponseのbodyを返す。.json()までする。
-};
-
-const isFulfillRequirement = (body: iArtworkData, requirement): boolean => {
-	// とにかくrequirementを満たすかどうかチェックする
-	// 満たすならtrue、そうじゃないならfalse
-	return result;
-};
-
-function collectArtworksData = async(page, passedIds, requirement?) {
-
-	// Set up navigation.
-	const navigate = new Navigation(page);
-	navigate.resetWaitForResponseCallback(cb);
-
-	let res: (puppeteer.HTTPResponse | any)[] = [];
-	let collected: iArtworkData[] = [];
-	let pushBodyQueue: Promise<void> = Promise.resolve();
-
-	for(const id of passedIds) {
-		res = await navigate.navigationBy(page.goto(artworkUrl + id));
-		const body: iArtworkData = await removeFromResponse<iArtworkData>(res);
-		promise = promise.then(() => {
-			if(requirement.length) {
-				if(!isFulfillRequirement(body)) collected.push(body);
-			}
-			else {
-				collected.push(body);
-			}
-		});
-	};
-
-	await promise;
-	return data;
-};
-```
-
-iArtworkdataにはbookmark数が載っていない可能性？
-
-並列処理は可能なの？
-
-Pageインスタンスを増やす方法。
-
-#### 必要なHTTPResponse 
-
-```JSON
-{
-	"GET": {
-		"scheme": "https",
-		"host": "www.pixiv.net",
-		"filename": "/ajax/illust/101589247",
-		"query": {
-			"ref": "https://www.pixiv.net/",
-			"lang": "ja"
-		},
-		"remote": {
-			"アドレス": "172.64.151.90:443"
-		}
-	}
-}
-```
-
-## ダウンロードロジックの実装
-
-ダウンロードロジックのインターフェイスはどう定義するべき？
-画像枚数が複数の時何をすればいい？
-ダウンロードロジックには何を渡せばいい？
-書き込む先の情報は何が必要で何をすればいい？
-
-まず、puppeteerではリクエストを送信する手段がない(と思ったけど)
-
-TODO: check `page.setRequestInterception`と入力して出力されるインテリセンスを調査すること。
-
-
-- case1: artworkページにアクセスして、GETリクエストを傍受してレスポンスを取得してダウンロードする場合
-
-```TypeScript
-const responseWhatYOuGot: puppeteer.HTTPResponse = {/* ... */};
-
-
-```
 
 ## デザインパターンの導入
 
@@ -1401,8 +1127,9 @@ page毎は同時実行数制限の並列処理で収集する。
 
 もしも「タブが増えるだけ」ならこの方法をとれば膨大なデータを効率的に収集できるかも。
 
+## ダウンロードロジック
 
-## puppeteerでダウンロードするには？Github Issue
+#### puppeteerでダウンロードするには？Github Issue
 
 明快な回答はない模様。
 
@@ -1485,532 +1212,4 @@ https://stackoverflow.com/a/49385769
 puppeteerにはリクエストを送信する機能はなくて、リクエストを送信されたことをインターセプトすることならできる。
 
 
-## 機能実装
 
-#### ブックマーク機能の追加
-
-bookmarkを自動で行ってくれる機能の追加
-
-- yargsで新たなコマンドを受け付けるようにする
-- コマンドが複数だった時のアプリケーションの挙動を変更できるようにする
-- 処理を追加する機能の追加
-
-## 設計の考察
-
-設計について学ばないといけない？
-
-DomainDD, EventDD
-
-
-## コマンドラインからの命令に従って実行処理をセットアップする
-
-- yargsからコマンドとオプションのオブジェクトを取得する
-- コマンド内容から、taskQueueに実行する処理単位をプッシュする
-- taskQueueを実行する
-
-ということで各処理単位を細かく単一の実行単位に砕く
-
-各処理単位をpromisifyでラップしてつなげることができるようにする
-
-## TODOs
-
-TODO: 次の通りの設計に作り直す
-
-コマンドラインからコマンドを受け取る
-コマンドごとにtaskキューを形成する
-taskキューを順番に実行する
-
-という設計に作り直す
-
-TODO: taskキューはpromiseを使った逐次処理にするが、各thenで適切にエラーハンドリングできるようにする
-
-TODO: taskキューに突っ込むのはthen()ハンドラにすること。プロミス事態にしないこと。
-
-理由は各then()で密接にかかわるので引数と戻り値と順番が重要だから。
-
-TODO: エラーハンドリングは最終的にpuppeteerインスタンスをcloseできるように。
-
-## 各処理単位は細かく分離できるか？
-
-```TypeScript
-import { orders } from './commandModules/index';
-
-interface iOrders {
-    commands: string[];
-    options: object;
-};
-
-
-const setupTaskQueue = (orders: iOrders) => {
-    const { commands, options } = orders;
-    switch(commands.join()) {
-        case 'collectbyKeyword':
-            break;
-        default:
-    }
-}
-```
-- キーワード検索処理
-
-```TypeScript
-// SEQUENTIAL
-
-const tasksPromise = Promise.resolve();
-
-// Core task
-const letKeywordSearch = (page: puppeteer.Page, keyword: string) => {
-	return page.type(selectors.searchBox, keyword, { delay: 100 });
-};
-
-tasksPromise = tasksPromise
-// do keyword search part
-.then(() => {
-	return letKeywordSearch(page, "keyword")
-		.catch(err => {
-			// handling for letKeywordSearch() error
-		})
-})
-// trigger navigation part 
-.then(() => {
-	const navigation = new Navigation();
-	setupNavigation(); // setup navigation class
-
-	// これでnavigateBy()の戻り値を次のthenで取得できたっけ？
-	return navigation.navigateBy(page, page.keyoard.press('Enter'))
-		.catch(err => {
-			// error handling for navigation.navigateBy()
-		});
-})
-// check res is valid part
-// res is returned value of navigation.navigateBy()
-.then((res: (puppeteer.HTTPResponse | any)[]) => {
-	// resを検査するパート
-	
-    const response: puppeteer.HTTPResponse = res.shift();
-	return response.json()
-		.catch(err => {
-			// error handling for response.json()
-		});
-})
-.catch(err => {
-})
-.finally(() => {
-	// もしもエラーフラグなどが立っていれば終了処理を実施するとか
-});
-
-return tasksPromise;
-```
-
-上記のプロミスチェーが実現できるならば、
-
-チェーンの各プロミスはいったん配列に突っ込んで
-
-forループとかでpromiseのthenへpushし続ければいいのかも
-
-- resultページで情報収集する処理
-
-```TypeScript
-// PARALLELPOSSIBLE 
-
-// global variable
-const page: puppeteer.Page;
-const browser: puppeteer.Browser;
-
-// from previous process
-const jsonData = {/* got from previous process */};
-
-const tasksPromise = Promise.resolve();
-// Contains result id
-let resultIds: string[] = [];
-// Result pages
-let lastPage: number = 1;
-// Current page of result pages
-let currentPage: number = 1; 
-
-// Relatives of parallel process.
-let concurrency: number = 1;
-let pageInstances: puppeteer.Page[] = [];
-let sequences: Promise<void>[] = [];
-
-
-const setupParallelExecution = (processUpTo: number) => {
-	pageInstances.push(page);
-	concurrency = processUpTo;
-
-	for(let i = 1; i < concurrency; i++) {
-		pageInstances.push(await browser.newPage());
-		sequences.push(Promise.resolve());
-	};
-
-	// NOTE: そういえば検索結果ページだとURLへgotoしているわけではなく、>をクリックして移動しているだけだから...この並行処理は通用しないかも
-	// 
-	// TODO: 検索結果ページでもURLのGOTOで通用するのかチェック
-	for(let i = 1; i < lastPage; i++) {
-		const circulator: number = i % concurrency;
-		if(sequences[circulator] !== undefined && pageInstances[circulator] !== undefined) {
-			sequences[circulator] = sequences[circulator]!.then(() => {
-				// NOTE: executor未定義。上記のTODOの検証結果次第。
-				executor(pageInstances[circulator]!);
-			});
-		}
-	};
-
-	return Promise.all(sequences);
-}
-
-
-// SETUP: 検索結果が多かったら並行処理を準備する
-// HTTPResponseを解釈する
-// HTTPResponseから情報を取得する
-// 次のページへ移動する
-tasksPromise = tasksPromise
-// Retrieve data from http response json data part.
-.then(() => {
-	return retrieveDeepProp<iIllustManga>(["body", "illustManga"], jsonData);
-})
-// Set up parallel process according to number of total result part.
-// 
-// この部分はのちに再利用できるかも
-.then((props) => {
-	const { data, total } = props;
-	lastPage = Math.floor(total / data.length);
-	let numberOfProcess: number = 1;
-	
-	if(lastPage >= 20 && lastPage < 50) {
-		numberOfProcess = 2;
-	}
-	else if(lastPage >= 50 && lastPage < 100) {
-		numberOfProcess = 5;	
-	}
-	else if(lastPage >= 100) {
-		numberOfProcess = 10;
-	}
-	else {
-		numberOfProcess = 1;
-	};
-
-	return {
-		data: data,
-		total: total,
-		numberOfProcess: numberOfProcess
-	};
-})
-.then((props) => {
-	const { numberOfProcess } = props;
-	return setupParallelExecution(numberOfProcess)
-		.catch(err => {
-			// handle 
-		});
-})
-.then(collected => {
-	// handle collected informantion.
-})
-.catch(() => {
-	// 
-})
-.finally(() => {
-	// Delete all extra page instances.
-});
-
-return tasksPromise;
-```
-
-検索結果ページの移動はpage.goto()でイケるのか検証
-executorの定義
-
-- artworkページで何かする
-
-```TypeScript
-// NOTE: ここの処理が今回の変更を適用する部分
-// artworkページでブックマークするのか等の処理を追加できるようにする
-// tasksPromiseへ追加することにはならず、setupParallelExecutionを変更することになる
-
-// data from previous process
-const ids: string[];
-const browser: puppeteer.Browser;
-const page: puppeteer.Page;
-
-
-const tasksPromise = Promise.resolve();
-let pageInstances: puppeteer.Page[] = [];
-let collected: iIllustData[] = [];
-let sequences: Promise<void>[] = [];
-let concurrency: number = 1;
-
-
-tasksPromise = tasksPromise
-.then(() => {
-	if(ids.length >= 20 && ids.length < 50) {
-		numberOfProcess = 2;
-	}
-	else if(ids.length >= 50 && ids.length < 100) {
-		numberOfProcess = 5;	
-	}
-	else if(ids.length >= 100) {
-		numberOfProcess = 10;
-	}
-	else {
-		numberOfProcess = 1;
-	};
-	return numberOfProcess;
-})
-.then(numberOfProcess => {
-	return setupParallelExecution(numberOfProcess)
-		.catch(err => {
-			// handler
-		})
-})
-.then(collected => {
-
-})
-.catch(err => {
-
-})
-.finally(() => {
-
-});
-
-return tasksPromise;
-```
-
-#### acquireFromResultPage.ts
-
-検索結果ページ全てから検索結果作品すべての情報を取得する処理。
-
-大まかな流れ
-
-- 検索結果件数評価
-- 評価結果から並列処理数を決定する
-- 並列処理準備
-	- 
-- 並列処理実行
-- 収集情報を返す
-
-
-
-## 検証:検索結果ページはpage.goto(url)で移動・取得できるか
-
-URL: https://www.pixiv.net/tags/%E5%8E%9F%E7%A5%9E/artworks?p=7&s_mode=s_tag
-
-`artworks?p=${pagenumber}`でいけそう
-
-pagenumberは1でも通用するみたい
-
-あとは欲しい情報がHTTPResponseで取得できるのかである
-
-
-取得できた時のリクエストURL
-
-https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%A5%9E&order=date_d&mode=all&p=2&s_mode=s_tag&type=all&lang=ja
-
-https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%A5%9E&order=date_d&mode=all&p=10&s_mode=s_tag&type=all&lang=ja
-
-https://www.pixiv.net/ajax/search/artworks/%E5%8E%9F%E7%A5%9E?word=%E5%8E%9F%E7%A5%9E&order=date_d&mode=all&p=100&s_mode=s_tag&type=all&lang=ja
-
-ということで、
-
-`https://www.pixiv.net/ajax/search/artworks/${keyword}?word=${keyword}&order=date_d&mode=all&p={pagenumber}&s_mode=s_tag&type=all&lang=ja`
-
-で取得している
-
-あとはこれがwaitForResponse()で取得できるかどうかである
-
-
-## temporary
-
-
-Collect<>: 与えられたオブジェクト配列から指定プロパティに一致する値を取り出して配列で返す。
-
-```JavaScript
-const data = [
-    {id: 1, name: "Maria", ...},
-    {id: 2, name: "Mario", ...},
-    {id: 3, name: "Mary", ...},
-    {id: 4, name: "Matilda", ...},
-    {id: 5, name: "Manda", ...},
-];
-// ids: number[]
-const ids = collector.execute(id);
-```
-
-Navigate: 与えられたpageインスタンスにおいて、与えられた関数をトリガーにナビゲーションを実行する
-
-CollectFromResultPage: 
-
-- 逐次処理sequenceを必要なだけ生成する
-- Collectの振る舞いに責任を負わない
-- Navigationのふるまいに責任を負わない
-
-```JavaScript
-class CollectFromResultPage {
-    private sequences: Promise<void>[];
-    constructor(
-        private navigation: Navigation,
-        private collector: Collector,
-        private concurrency: number
-    )
-    {
-        this.sequences = [];
-    }
-
-    getNavigation() {
-        return this.navigation;
-    };
-
-    getCollector() {
-        return this.collector;
-    };
-
-    setNavigationTrigger(trigger: Promise<any>) {
-        this.navigationTrigger = trigger;
-    };
-
-    // 受け取るデータから取得することになるデータは、
-    // 最終的にcollector.execute()できるデータ型でなくてはならない
-    setResolveResponses(resolver){
-        this.responsesResolver = resolver;
-    };
-
-    generateSequences() {
-        for(let i = 0; i < this.concurrency; i++) {
-            this.sequences.push(Promise.resolve());
-        }
-    };
-
-    generateTasks(upto: number) {
-        for(let i = 1; i < upto; i++) {
-            let circulator: number = i % this.concurrency;
-            this.sequences[circulator] = this.sequences[circulator]!
-            .then(() => this.navigation.navigateBy(
-                /* TODO: ここでpageインスタンスが必要 */
-                // setNavigationTrigger()を追加した
-                // しかしまだ、ここではpageインスタンスが必要で
-                // インスタンスはクラスが所有していないので
-                // 外部から取得するほかない
-                // なので
-                // pageインスタンスを所有すべきか検討しなくてはならない
-                , 
-                this.navigationTrigger
-            ))
-            .then((response) => this.responsesResolver)
-            .then((data: T) => this.collector.execute)
-            .then(() => {/* 何か後片付け */})
-            .catch(this.errorHandler);
-        }
-    };
-
-    generateTask(circulator: number) {
-        if(this.sequences[circulator] === undefined) return;
-        this.sequences[circulator] = this.sequences[circulator]!
-        .then(() => this.navigation.navigateBy(
-            /* TODO: ここでpageインスタンスが必要 */
-        ))
-        .then((response) => this.resolveResponses)
-        .then((data: T) => this.collector.execute)
-        .then(() => {/* 何か後片付け */})
-        .catch(this.errorHandler);
-    }
-};
-
-// --- USAGE ---
-
-const keyword = "COWBOYBEBOP";
-const browser: pupeteer.Browser;
-const concurrency: number = 3;
-const collectFromResultPages = new CollectFromResultPages(
-    new Collect<iIllustMangaDataElement[]>(), new Navigation(), concurrency
-);
-const pageInstances: puppeteer.Page[] = []:
-for(let i = 0; i < concurrency; i++) {
-    pageInstances.push(await browser.newPage());
-};
-const upTo:number = 100;
-
-for(let i = 1; i < upTo; i++) {
-    const circulator: number = concurrency % upTo;
-    collectFromResultPages.getNavigation().resetFilter(
-        (r: puppeteer.HTTPResponse) => r.status() === 200 && r.url() === mustache(filterUrl, {keyword: encodingURIComponent(keyword), i: }) 
-    );
-    collectFrom
-}
-```
-
-
-## taskQueue生成処理の実装
-
-課題：
-
-- 逐次処理(Promiseチェーン)の内のthen()ハンドラの一つが並列処理を返しても問題ではないか？
-- assemblerでエラー発生したときのエラーハンドリング、スコープ、エラー伝番の問題
-
-#### 逐次処理(Promiseチェーン)の内のthen()ハンドラの一つが並列処理を返しても問題ではないか？
-
-`./workspace/promise-parallel-sequential`で詳しく検証した。
-
-ということで実装方法に気を付ければ実現可能である。
-
-エラーハンドリングも期待通りに動作するようだ。
-
-早速実装してみる。
-
-並列処理を返すthen()ハンドラは次の通りにしなくてはならない。
-
-```JavaScript
-const generateParallelPromise = () => {
-	// この関数の中で並列処理されるpromiseを生成する
-	return promisesAboutToExecutedParallelly;
-};
-
-const promise = Promise.resolve()
-.then(() => task1())
-.then(() => task2())
-.then(() => task3())
-.then(() => Promise.all(generateParallelPromise()))
-.then(() => task4())
-```
-つまり、generateParallelPromise()が呼び出されて初めて並列処理されるPromise群を生成するのである。
-
-こうすれば上記のPromiseチェーンの順番通りにPromise.all()の中身が実行される。
-
-現状：
-
-```TypeScript
-// index.ts
-
-// setupCollectByKeywordTaskQueue()は逐次処理されることになる関数からなる配列を返す
-taskQueue = [
-	...setupCollectByKeywordTaskQueue(
-		instances.getBrowser(), 
-		instances.getPage(), 
-		{...options} as iCollectOptions)
-];
-
-// NOTE: ここで初めてすべて実行してほしい。
-// taskQueueの実行
-await sequentialAsyncTasks(taskQueue);
-
-// setupCollectByKeywordTaskQueue.ts
-let tasks: iSequentialAsyncTask[] = [];
-tasks.push(() => search());
-tasks.push(() => NAVIGATIONPROCESS());
-tasks.push(() => RESOLVINGPROCESS());
-tasks.push(() => DEFINENUMBEROFPROCESS());
-tasks.push(() => () => {
-	/* ここでPromise.all()させる逐次処理群を生成している */ 
-	return assembler;
-});
-tasks.push((assembler) => {
-	/* ここでPromise.all()している */ 
-	return assembler.run().catch(e => assembeler.errorHandler(e)).finally(() => assembler.finally());
-})
-```
-
-ということで、
-
-並列処理の生成段階と実行段階が別々になっている。
-
-これは大丈夫なのか？assembler.sequencesは既にassembler.run()する前に実行し始めていないか？
-
-確認する必要がある。
-
-TODO: テスト。
