@@ -3,6 +3,9 @@
  * 
  * NOTE: This class treats Array data. Not object type.
  * This class does not save collected data. Only to be collected data.
+ * 
+ * Collectはどんなデータ型をthis.dataとして抱えることになるのかに関心があり、
+ * CollectのメソッドはT
  * *******************************************************************/ 
 
  export type iFilterLogic<T> = (e: T) => boolean;

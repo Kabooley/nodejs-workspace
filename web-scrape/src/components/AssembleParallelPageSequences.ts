@@ -45,37 +45,17 @@
 /**
  * TODO: this.collectedの型を柔軟にするために
  * 
- * Generics<T>の影響を受けるところ：
- * - Collect
- * - this.responseResolver()
- * - this.setResponseResolver()
- * - this.resolveResponses()
- * - this.collect()
- * - this.filter()
- * - this.getResult()
+ * (httpresponse|any)[]
+ * > httpresponse
+ * > httpresponse body
+ * > aDataIWant(type T)
+ * > modified-data(like T[keyof T][] or T[] ): this.collectedが抱えることになるデータ
  * 
- * 型情報はどう定めるべきか
+ * ということで、
+ * T型は何かといえば、http response bodyから抜き出したデータ型であり、
+ * 実際にはthis.collectedの型になるとは限らないのである
  * 
- * 現状最終的に取得したいオブジェクトの型をTとしている
- * しかし実際には、
- * 検索結果ページでの情報取得でほしいのはT型の値ではなくて
- * T[keyof T][]である
- * 一方でartworkページでの情報収集はT[]である
- * 
- * 基本の流れ：
- * - navigation: (httpresponse | any)[]
- * - get response body from navigation result: httpresponse
- * - resolve response body: T[]
- * - this.collect()またはthis.filter()で特定の型のデータを収集する: T[keyof T][]
- * ということは
- * 前半の2つは必ずこうなるので問題ないとして、
- * 後半の二つは必ずしもこの型で解決されるわけではないはずなので自由にできていいはず。
- * 
- * (httpresponse|any)[] > httpresponse > httpresponse.body 
- * > aDataYouWant 
- * > (ここでCLIのOPTIONで指定する処理をする。この処理はAssemblerで関知する内容ではないが、T型のデータかもしくはT型のデータのプロパティセットとなるはずである）
- * > 最終的に
- * 
+ * this.collectedの型は使う側の都合によって決まるので不明である。
  * 
  * */ 
 import type puppeteer from 'puppeteer';
@@ -97,22 +77,24 @@ export type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
  * 
  * 
  * DEBUG:
- * RESOLVED: httpresponse bodyを解決してひとまず収集するデータ型
- * COLLECT: 最終的に収集されるデータ型。RESOLVED[]か、RESOLVED[keyof RESOLVED][]である
+ * T: httpresponse bodyを解決してひとまず収集するデータ型
+ * U: 最終的に収集されるデータ型。T[]か、T[keyof T][]である
  * */ 
-export class AssembleParallelPageSequences<RESOLVED, COLLECT> {
+export class AssembleParallelPageSequences<T> {
     public sequences: Promise<void>[] = [];
     private pageInstances: puppeteer.Page[] = [];
-    private collected: COLLECT[];
+    private collected: T[];
+    private collectedProperties: T[keyof T][];
     // NOTE: 初期化する必要があるから仕方なくundefinedの可能性をつけている
-    private responsesResolver: iResponsesResolveCallback<RESOLVED> | undefined;
+    private responsesResolver: iResponsesResolveCallback<T> | undefined;
     constructor(
         private browser: puppeteer.Browser, 
         private concurrency: number,
         public navigation: Navigation,
-        private collector: Collect<>
+        private collector: Collect<T>
     ){
         this.collected = [];
+        this.collectedProperties = [];
         this.responsesResolver = undefined;
         // Methods binding. 
         this._generatePageInstances = this._generatePageInstances.bind(this);
@@ -124,9 +106,11 @@ export class AssembleParallelPageSequences<RESOLVED, COLLECT> {
         this.setResponsesResolver = this.setResponsesResolver.bind(this);
         this.resolveResponses = this.resolveResponses.bind(this);
         this.collect = this.collect.bind(this);
+        this.collectProperties = this.collectProperties.bind(this);
         this.filter = this.filter.bind(this);
         this.run = this.run.bind(this);
-        this.getResult = this.getResult.bind(this);
+        this.getCollected = this.getCollected.bind(this);
+        this.getCollectedProperties = this.getCollectedProperties.bind(this);
         this.errorHandler = this.errorHandler.bind(this);
         this.finally = this.finally.bind(this);
     };
@@ -184,7 +168,7 @@ export class AssembleParallelPageSequences<RESOLVED, COLLECT> {
      * 
      * 
      * */ 
-    setResponsesResolver(resolver: iResponsesResolveCallback<RESOLVED>): void {
+    setResponsesResolver(resolver: iResponsesResolveCallback<T>): void {
         this.responsesResolver = resolver;
     };
 
@@ -192,30 +176,29 @@ export class AssembleParallelPageSequences<RESOLVED, COLLECT> {
      * Call this.responsesResolver if it's not undefined.
      * 
      * */ 
-    resolveResponses(responses: any): RESOLVED[] | Promise<RESOLVED[]> {
+    resolveResponses(responses: any): T[] | Promise<T[]> {
         if(this.responsesResolver) return this.responsesResolver(responses);
         else throw new Error("");
     }
 
     /***
-     * TODO: FIX: `collected` の型を自由にできるようにしよう
-     * 
-     * 現状this.collected: T[keyof T][]である
-     * これだと、data: Tのときそのプロパティを集めることしかできなくなる
-     * 
-     * T[]とか他の型を集めるようにできるようにしたい
-     * 
-     * そもそも収集するデータは多岐にわたるはずである。
-     * 
-     * artworkページならばartwork情報[]
-     * resultページならiIllustMangaDataElement[]の特定のプロパティ
+     * Collect properties from data by specifying key which is keyof T.
      * */ 
-    collect(data: RESOLVED[], key: keyof RESOLVED): void {
+    collectProperties(data: T[], key: keyof T): void {
         this.collector.setData(data);
         if(key !== undefined) {
-            this.collected = [...this.collected, ...this.collector.collectProperties(key)];
+            this.collectedProperties = [...this.collectedProperties, ...this.collector.collectProperties(key)];
         }
     };
+
+    /***
+     * 
+     * なんだか意味のないことをしているなぁ
+     * */ 
+    collect(data: T[]): void {
+        this.collector.setData(data);
+        this.collected = [...this.collected, ...this.collector.getData()];
+    }
 
     /***
      * @param {T[]} data - 
@@ -232,10 +215,6 @@ export class AssembleParallelPageSequences<RESOLVED, COLLECT> {
      * key: 'id'
      * filterLogic:
      * */ 
-    // filter(data: T[], key: keyof T, filterLogic: iFilterLogic<T>) {
-    //     this.collector.resetData(data);
-    //     this.collected = [...this.collected, ...this.collector.filter(filterLogic, key)];
-    // };
     filter(data: T[], filterLogic: iFilterLogic<T>): T[] {
         this.collector.setData(data);
         return this.collector.filter(filterLogic);
@@ -245,12 +224,17 @@ export class AssembleParallelPageSequences<RESOLVED, COLLECT> {
         return Promise.all(this.sequences);
     };
 
-    getResult(): T[keyof T][] {
+    getCollectedProperties(): T[keyof T][] {
+        return [...this.collectedProperties];
+    };
+
+    getCollected(): T[] {
         return [...this.collected];
     };
 
-    errorHandler(e: Error) {
-        console.error(e.message);
+    errorHandler(e: Error, occuredSequenceNumber?: number) {
+        const message: string = e.message + (occuredSequenceNumber === undefined ? "" : occuredSequenceNumber);
+        console.error(message);
         this.finally();
         throw e;
     };

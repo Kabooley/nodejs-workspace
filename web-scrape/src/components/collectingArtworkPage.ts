@@ -100,6 +100,46 @@ const validOptions: (keyof iCollectOptions)[] = ["keyword", "bookmarkOver"];
     };
 })();
 
+// --- ACTION METHODS ---
+
+/**
+ * 
+ * */
+const action = (order: string): void => {
+    switch(order) {
+        case "bookmark":
+            bookmark();    
+        break;
+        default: break;
+    }
+};
+
+/***
+ * 
+ * 
+ * */
+const bookmark = (page: puppeteer.Page): Promise<void> => {
+    // ブックマークする
+    return new Promise((resolve, reject): void => {
+        page.click(
+            /* TODO: specify selector */ 
+        )
+        .then(() => resolve())
+        .catch((e) => reject(e));
+    })
+};
+
+const unbookmark = (page: puppeteer.Page): Promise<void> => {
+    // ブックマークを解除する
+    return new Promise((resolve, reject): void => {
+        page.click(
+            /* TODO: specify selector */ 
+        )
+        .then(() => resolve())
+        .catch((e) => reject(e));
+    })
+};
+
 
 /***
  * HTTPResponse resolver.
@@ -227,15 +267,9 @@ export const assemblingCollectProcess = async (
                 // 2. Resolve HTTP Response which from HTTPResponse filter
                 .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
                 // 3. Collect data only matched to requirement
-                .then((resolved: iIllustData[]) => { 
-                    // 
-                    // TODO: Collect.collect()にkeyは必須にするか？
-                    // 現状だと、assembler.getResult()と矛盾する
-                    // assembler.collectedにデータが格納されていないからである
-                    // なのでassembler.collectedにデータを突っ込めるようにしなくてはならない
-                    // Collect.collect()のほかにCollect.collectProperty()みたいなメソッドを追加しようか...
-                    collected = [...collected, ...assembler.filter(resolved, filterLogic)];
-                })
+                .then((resolved: iIllustData[]) => 
+                    assembler.collect(assembler.filter(resolved, filterLogic))
+                )
                 // 4. In case commad was `bookmark`
                 .then(() => {
                     // TODO: DOM 操作というかアクション的処理はここで実行する
@@ -249,10 +283,13 @@ export const assemblingCollectProcess = async (
             }
         }
 
-        return assembler.run().then(() => assembler.getResult()).catch(e => assembler.errorHandler(e)).finally(() => assembler.finally());
+        return assembler.run()
+            .then(() => assembler.getCollected())
+            .catch(e => assembler.errorHandler(e))
+            .finally(() => assembler.finally());
     }
     catch(e) {
         assembler.finally();
         throw e;
     }
-}
+};

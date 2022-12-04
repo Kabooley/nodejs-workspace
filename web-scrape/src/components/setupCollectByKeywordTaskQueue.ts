@@ -139,19 +139,15 @@ const assemblingCollectProcess = async (
                 );
 
                 assembler.getSequences()[circulator] = assembler.getSequences()[circulator]!
-
-                // DEBUG:
+                // DEBUG: ---
                 .then(() => console.log(`Running Instance and Sequence: ${circulator} currentPage: ${currentPage}`))
-
+                // ---
                 .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(optionsProxy.get().keyword), i:currentPage}), { waitUntil: ["load", "networkidle2"]})))
                 .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
-                // DEBUG: 12/02 refactored.
-                // 
-                // .then((data: iIllustMangaDataElement[]) => assembler.filter(data, key, filterLogic))
                 .then(
-                    (data: iIllustMangaDataElement[]) => assembler.collect(assembler.filter(data, filterLogic), key)
+                    (data: iIllustMangaDataElement[]) => assembler.collectProperties(data, key)
                 )
-                .catch((e) => assembler.errorHandler(e))
+                .catch((e) => assembler.errorHandler(e, circulator))
             }
         };
         
@@ -161,11 +157,7 @@ const assemblingCollectProcess = async (
 
         // assemblerを外に出すのが面倒なのでここですべて必要なプロミスチェーンを呼び出す。
         // NOTE: プロミスの入れ子は外のプロミスチェーンのエラーを捕捉しないのでfinally()が必要な時に発火しない可能性がある
-        // 
-        // TYPE of this retuned value is 
-        // (keyof iIllustaMangaDataElement: illustaMangaDataElement[keyof iIllustaMangaDataElement])[]
-        return assembler.run().then(() => assembler.getResult()).catch(e => assembler.errorHandler(e)).finally(() => assembler.finally());
-
+        return assembler.run().then(() => assembler.getCollectedProperties()).catch(e => assembler.errorHandler(e)).finally(() => assembler.finally());
     }
     catch(e) {
         assembler.finally();
@@ -252,16 +244,13 @@ export const setupCollectByKeywordTaskQueue = (
     // 3. Check the response includes required data.
     tasks.push((res: (puppeteer.HTTPResponse | any)[]) => res.shift().json() as iBodyIncludesIllustManga);
     // 4. Resolve HTTPResponse body to specific type.
-    /***
-     * errorをスローしているけれど、then()ハンドラは同期関数なのでOK
-     * 
-     * */ 
     tasks.push((responseBody: iBodyIncludesIllustManga): iIllustManga => {
                 
         // DEBUG:
         console.log("Resolving navigation http response body...");
 
         const resolved = retrieveDeepProp<iIllustManga>(["body", "illustManga"], responseBody);
+        // このthen()ハンドラは同期関数なのでスローは補足される
         if(resolved === undefined) throw new Error("");
         return resolved;
     })
@@ -272,26 +261,6 @@ export const setupCollectByKeywordTaskQueue = (
     // NOTE: 11/28 Also collect process will be run in this handler
     tasks.push((p: {numberOfProcess: number, numberOfPages: number}) => 
         assemblingCollectProcess(browser, p.numberOfProcess, p.numberOfPages));
-    // 6. run assembled sequences.
-
-    // NOTE: 11/28 修正内容のテストの為コメントアウト
-    // tasks.push(
-    //     (assembler: AssembleParallelPageSequences<iIllustMangaDataElement>) => {
-    //         // DEBUG:
-    //         console.log("START COLLECTING PROCESS...");
-
-    //         return assembler.run()
-    //         // TODO: finally呼出しているからこのthen()呼出は意味ないかも...
-    //         .then(() => assembler.getResult())
-    //         .catch(e => assembler.errorHandler(e))
-    //         .finally(() => {
-                
-    //             // DEBUG:
-    //             console.log("END COLLECTING PROCESS...");
-
-    //             assembler.finally();
-    //         })}
-    // );
-
+    // これ以降のtask追加は呼び出し側に任せる
     return tasks;
 };
