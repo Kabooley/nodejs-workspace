@@ -42,6 +42,42 @@
  * 呼出時は、iIllustMangaDataElement[]からcollector.execute()するときに
  * フィルタリング処理を挟めばよい
  * ************************************************************/ 
+/**
+ * TODO: this.collectedの型を柔軟にするために
+ * 
+ * Generics<T>の影響を受けるところ：
+ * - Collect
+ * - this.responseResolver()
+ * - this.setResponseResolver()
+ * - this.resolveResponses()
+ * - this.collect()
+ * - this.filter()
+ * - this.getResult()
+ * 
+ * 型情報はどう定めるべきか
+ * 
+ * 現状最終的に取得したいオブジェクトの型をTとしている
+ * しかし実際には、
+ * 検索結果ページでの情報取得でほしいのはT型の値ではなくて
+ * T[keyof T][]である
+ * 一方でartworkページでの情報収集はT[]である
+ * 
+ * 基本の流れ：
+ * - navigation: (httpresponse | any)[]
+ * - get response body from navigation result: httpresponse
+ * - resolve response body: T[]
+ * - this.collect()またはthis.filter()で特定の型のデータを収集する: T[keyof T][]
+ * ということは
+ * 前半の2つは必ずこうなるので問題ないとして、
+ * 後半の二つは必ずしもこの型で解決されるわけではないはずなので自由にできていいはず。
+ * 
+ * (httpresponse|any)[] > httpresponse > httpresponse.body 
+ * > aDataYouWant 
+ * > (ここでCLIのOPTIONで指定する処理をする。この処理はAssemblerで関知する内容ではないが、T型のデータかもしくはT型のデータのプロパティセットとなるはずである）
+ * > 最終的に
+ * 
+ * 
+ * */ 
 import type puppeteer from 'puppeteer';
 import type { Collect, iFilterLogic } from './Collect';
 import type { Navigation } from './Navigation';
@@ -60,19 +96,21 @@ export type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
  * Property:
  * 
  * 
- * 
+ * DEBUG:
+ * RESOLVED: httpresponse bodyを解決してひとまず収集するデータ型
+ * COLLECT: 最終的に収集されるデータ型。RESOLVED[]か、RESOLVED[keyof RESOLVED][]である
  * */ 
-export class AssembleParallelPageSequences<T> {
+export class AssembleParallelPageSequences<RESOLVED, COLLECT> {
     public sequences: Promise<void>[] = [];
     private pageInstances: puppeteer.Page[] = [];
-    private collected: T[keyof T][];
+    private collected: COLLECT[];
     // NOTE: 初期化する必要があるから仕方なくundefinedの可能性をつけている
-    private responsesResolver: iResponsesResolveCallback<T> | undefined;
+    private responsesResolver: iResponsesResolveCallback<RESOLVED> | undefined;
     constructor(
         private browser: puppeteer.Browser, 
         private concurrency: number,
         public navigation: Navigation,
-        private collector: Collect<T>
+        private collector: Collect<>
     ){
         this.collected = [];
         this.responsesResolver = undefined;
@@ -146,7 +184,7 @@ export class AssembleParallelPageSequences<T> {
      * 
      * 
      * */ 
-    setResponsesResolver(resolver: iResponsesResolveCallback<T>): void {
+    setResponsesResolver(resolver: iResponsesResolveCallback<RESOLVED>): void {
         this.responsesResolver = resolver;
     };
 
@@ -154,7 +192,7 @@ export class AssembleParallelPageSequences<T> {
      * Call this.responsesResolver if it's not undefined.
      * 
      * */ 
-    resolveResponses(responses: any): T[] | Promise<T[]> {
+    resolveResponses(responses: any): RESOLVED[] | Promise<RESOLVED[]> {
         if(this.responsesResolver) return this.responsesResolver(responses);
         else throw new Error("");
     }
@@ -172,7 +210,7 @@ export class AssembleParallelPageSequences<T> {
      * artworkページならばartwork情報[]
      * resultページならiIllustMangaDataElement[]の特定のプロパティ
      * */ 
-    collect(data: T[], key: keyof T): void {
+    collect(data: RESOLVED[], key: keyof RESOLVED): void {
         this.collector.setData(data);
         if(key !== undefined) {
             this.collected = [...this.collected, ...this.collector.collectProperties(key)];

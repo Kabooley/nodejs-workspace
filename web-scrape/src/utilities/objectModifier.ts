@@ -50,30 +50,3 @@ export const takeOutPropertiesFrom = < T extends object>(obj: T, keys: (keyof T)
     });
     return o;
  };
-
-
- // /***
-//  * DEPRICATED: retrieveDeepProp()に取って代わった。
-//  * 
-//  * 
-//  * Retrieves nested property.
-//  * Passed keys element in keys array must be ordered same as property nested in the object.
-//  * 
-//  * If specified key does not exist in object, then returns undefined.
-//  * 
-//  * objの中から、keys配列のプロパティに順番にアクセス可能で、
-//  * 一番最後の要素に一致するプロパティを返す。
-//  * アクセスできなかったらundefinedを返す。
-//  * keys配列はobjのプロパティのネスト
-//  * */ 
-//  const retrieveDeepProp = <T extends object>(obj: T, keys: string[]): any | undefined => {
-//     let o: iReplacableKeyObject | undefined = obj;
-//     keys.forEach(key => {
-//       if(o !== undefined && o.hasOwnProperty(key)){
-//         o = o[key];
-//       }
-//       else{ o = undefined;}
-//     });
-//     return o;
-// };
-

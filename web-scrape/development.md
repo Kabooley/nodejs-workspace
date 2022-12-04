@@ -128,9 +128,6 @@ sudo apt update && sudo apt install -y gconf-service libgbm-dev libasound2 libat
 1. アカウントのブックマークページへ移動(URL or puppeteerの操作によって)
 2. あとは`collect byKeyword`と同じになる
 
-部屋掃除
-廊下掃除
-ステッカー作り
 
 ## メモリリーク監視
 

@@ -470,26 +470,18 @@ console.log(isIncludesAllOf(expected, target3));    // false
 ```
 
 
-## Promiseチェーンで任意の場所でエラーハンドリング
-
-プロミスチェーンは一番最後にだけ`.catch()`を付ければそれでいいのか？
-
-`.then()`でつないでいくときに、特定のthen()のところでエラーキャッチさせたいときはどうすればいいのか？
-
-参考：
-
-https://stackoverflow.com/a/43079803
-
-まず知っておくこと：
-
-- [promise入れ子](#promise入れ子)
-- [catch()は非同期関数内部のエラーは補足しない](#catch()は非同期関数内部のエラーは補足しない)
-
 ## Promiseチェーン
 
 いろいろいじってプロミスチェーンを理解する。
 
-#### まず結論
+#### 結論
+
+- then()ハンドラは同期関数であること。
+
+  `promise.then(() => functionReturnsPromise())`は有効である。
+  `promise.then(() => {functionReturnsPromise();})`は無効である。
+  つまりreturnで非同期関数を返すかPromiseを返すならばよし。
+  内部でただ非同期処理をするのはなしである。
 
 - `promise.then(() => async関数)`は可能。
 
@@ -502,6 +494,17 @@ https://stackoverflow.com/a/43079803
     `promise.then(() => 非同期関数)`の非同期関数がreject()したら補足される。
 
 - then()のなかではpromiseを返すようにすること、またはthen()のハンドラは同期関数であること。
+
+- Promiseの入れ子をすると、入れ子のエラーは外側のPromiseチェーンのエラーハンドラで補足できるけど、内側のPromiseチェーンは外側のPromiseチェーンを補足できない
+
+- then()を呼出した時点でそのプロミスは実行されている
+
+  なのでひとまずPromiseチェーンを定義しておいて好きな時に呼び出し
+  呼出した時点でPromiseチェーンが実行されてほしくて、それまで何もしないでほしい
+  そんな場合、
+  Promiseチェーンは何かしらの関数でラップされておかなくてはならない。
+  そうでない場合、
+  Promiseチェーンはすぐさまイベントキューへ登録される。
 
 ```TypeScript
   // return 非同期関数
