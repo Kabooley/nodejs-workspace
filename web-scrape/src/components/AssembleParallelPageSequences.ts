@@ -62,7 +62,7 @@ import type puppeteer from 'puppeteer';
 import type { Collect, iFilterLogic } from './Collect';
 import type { Navigation } from './Navigation';
 
-export type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
+export type iResponsesResolveCallback<T> = (responses: (puppeteer.HTTPResponse | any)[], params?: any) => T[] | Promise<T[]>;
 
 /****
  * @class
@@ -176,8 +176,8 @@ export class AssembleParallelPageSequences<T> {
      * Call this.responsesResolver if it's not undefined.
      * 
      * */ 
-    resolveResponses(responses: any): T[] | Promise<T[]> {
-        if(this.responsesResolver) return this.responsesResolver(responses);
+    resolveResponses(responses: (puppeteer.HTTPResponse | any)[], params?: any): T[] | Promise<T[]> {
+        if(this.responsesResolver) return this.responsesResolver(responses, params); 
         else throw new Error("");
     }
 

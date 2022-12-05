@@ -102,43 +102,43 @@ const validOptions: (keyof iCollectOptions)[] = ["keyword", "bookmarkOver"];
 
 // --- ACTION METHODS ---
 
-/**
- * 
- * */
-const action = (order: string): void => {
-    switch(order) {
-        case "bookmark":
-            bookmark();    
-        break;
-        default: break;
-    }
-};
+// /**
+//  * 
+//  * */
+// const action = (order: string): void => {
+//     switch(order) {
+//         case "bookmark":
+//             bookmark();    
+//         break;
+//         default: break;
+//     }
+// };
 
-/***
- * 
- * 
- * */
-const bookmark = (page: puppeteer.Page): Promise<void> => {
-    // ブックマークする
-    return new Promise((resolve, reject): void => {
-        page.click(
-            /* TODO: specify selector */ 
-        )
-        .then(() => resolve())
-        .catch((e) => reject(e));
-    })
-};
+// /***
+//  * 
+//  * 
+//  * */
+// const bookmark = (page: puppeteer.Page): Promise<void> => {
+//     // ブックマークする
+//     return new Promise((resolve, reject): void => {
+//         page.click(
+//             /* TODO: specify selector */ 
+//         )
+//         .then(() => resolve())
+//         .catch((e) => reject(e));
+//     })
+// };
 
-const unbookmark = (page: puppeteer.Page): Promise<void> => {
-    // ブックマークを解除する
-    return new Promise((resolve, reject): void => {
-        page.click(
-            /* TODO: specify selector */ 
-        )
-        .then(() => resolve())
-        .catch((e) => reject(e));
-    })
-};
+// const unbookmark = (page: puppeteer.Page): Promise<void> => {
+//     // ブックマークを解除する
+//     return new Promise((resolve, reject): void => {
+//         page.click(
+//             /* TODO: specify selector */ 
+//         )
+//         .then(() => resolve())
+//         .catch((e) => reject(e));
+//     })
+// };
 
 
 /***
@@ -160,7 +160,7 @@ const unbookmark = (page: puppeteer.Page): Promise<void> => {
  * 
  * */ 
 const resolver: iResponsesResolveCallback<iIllustData> = async (
-    responses: (puppeteer.HTTPResponse | any)[]
+    responses: (puppeteer.HTTPResponse | any)[], id: number
     ) => {
     // Pop out first element of responses.
     const response: puppeteer.HTTPResponse = responses.shift();
@@ -175,18 +175,10 @@ const resolver: iResponsesResolveCallback<iIllustData> = async (
     const json = document.querySelector('#meta-preload-data')!.getAttribute("content");
     const metaPreloadData: iMetaPreloadData | undefined = json ? JSON.parse(json): undefined;
 
-    // Check if metaPreloadData is undefined or not.
-    
-    // NOTE: 一時的な都合で変数idをここに定義している。本来は外部から取得する
-    const id = "12345";
-    if(
-        metaPreloadData === undefined
-        || !metaPreloadData.hasOwnProperty('illust')
-        || !metaPreloadData.illust[id]
-    ) throw new Error("Error: Cannot retrieve 'illust' property from metadata");
-
-
-    return [metaPreloadData.illust[id]];
+    if(metaPreloadData !== undefined && metaPreloadData.illust[id] !== undefined) 
+        return [metaPreloadData.illust[id] as iIllustData];
+    else 
+        throw new Error("Error: Cannot retrieve 'illust' property from metadata");
 };
 
 /**
@@ -249,7 +241,6 @@ export const assemblingCollectProcess = async (
         // Generate sequential process as same as number of idTable.
 
         let counter: number = 0;
-        let collected: iIllustData[] = [];
         for(const id of idTable) {
             const circulator = counter % numberOfProcess;
             const url = mustache(artworkPageUrl, {id: id});
@@ -265,7 +256,7 @@ export const assemblingCollectProcess = async (
                         page, page.goto(url, {waitUntil: ["load", "networkidle2"]}));
                 })
                 // 2. Resolve HTTP Response which from HTTPResponse filter
-                .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
+                .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses, id))
                 // 3. Collect data only matched to requirement
                 .then((resolved: iIllustData[]) => 
                     assembler.collect(assembler.filter(resolved, filterLogic))
