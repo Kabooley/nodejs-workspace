@@ -21,6 +21,7 @@
  *  
  * 
  * TODO:
+ * - 今のところ`collect byKeyword`に特化している
  * - エラーハンドリング
  * - `then(() => foo().then(() => bar()))`という使い型は問題がないかのか検証
  * - 機能の分割（1ファイル1機能を守る）
@@ -35,18 +36,14 @@ import type { iFilterLogic  } from './Collect';
 import type { iCollectOptions } from '../commandParser/commandModules/collectCommand';
 import { search } from './search';
 import { Navigation } from './Navigation';
-import { Collect } from './Collect';
-import { AssembleParallelPageSequences } from './AssembleParallelPageSequences';
 import { retrieveDeepProp } from '../utilities/objectModifier';
+import { decideNumberOfProcess } from './decideNumberOfProcess';
+import {assemblingResultPageCollectProcess} from './assemblingResultPageCollectProcess';
 import array from '../utilities/array';
 import mustache from '../utilities/mustache';
 
 let tasks: iSequentialAsyncTask[] = [];
-const key: keyof iIllustMangaDataElement = "id";
-const url: string = "https://www.pixiv.net/tags/{{keyword}}/artworks?p={{i}}&s_mode=s_tag";
 const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}}?word={{keyword}}&order=date_d&mode=all&p={{i}}&s_mode=s_tag&type=all&lang=ja";
-
-type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
 
 /***
  * Command `collectbyKeyword`'s options will be stored.
@@ -65,18 +62,6 @@ const optionsProxy = (function() {
         }
     };
 })();
-
-
-/***
- * 
- * 
- * */ 
-const resolver: iResponsesResolveCallback<iIllustMangaDataElement> = async (responses: (puppeteer.HTTPResponse | any)[]) => {
-    const response = await responses.shift().json() as iBodyIncludesIllustManga;
-    const resolved: iIllustMangaDataElement[] = retrieveDeepProp<iIllustMangaDataElement[]>(["body", "illustManga", "data"], response);
-    if(resolved === undefined) throw new Error("");
-    return resolved;
-};
 
 /***
  * filterLogic for AssembleParallelPageSequences.filter() function.
@@ -101,108 +86,6 @@ const filterLogic: iFilterLogic<iIllustMangaDataElement> = (e: iIllustMangaDataE
 
 
 
-/***
- * Generate AssembleParallelPageSequences<iIllustMangaDataElement> instance.
- * 
- * */ 
-const assemblingCollectProcess = async (
-    browser: puppeteer.Browser, numberOfProcess: number, numberOfPages: number
-    // ): Promise<AssembleParallelPageSequences<iIllustMangaDataElement>> => {
-    ) => {
-
-                
-        // DEBUG:
-        console.log("assemblingCollectProcess()");
-
-
-    // NOTE: Code outside of try block is for catch block to scope instance.
-    const assembler = new AssembleParallelPageSequences<iIllustMangaDataElement>(
-        browser, numberOfProcess, new Navigation(), new Collect<iIllustMangaDataElement>()
-    );
-    try {
-        await assembler.initialize();
-        assembler.setResponsesResolver(resolver);
-
-        // DEBUG:
-        console.log("generating assembler parallel process...");
-        
-        for(let currentPage = 1; currentPage <= numberOfPages; currentPage++) {
-            const circulator: number = currentPage % numberOfProcess;
-            if(assembler.getSequences()[circulator] !== undefined
-                && assembler.getPageInstance(circulator) !== undefined
-            ) {
-                const page = assembler.getPageInstance(circulator)!;
-                assembler.setResponseFilter(
-                    (res: puppeteer.HTTPResponse) => 
-                        res.status() === 200 
-                        && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: currentPage})
-                );
-
-                assembler.getSequences()[circulator] = assembler.getSequences()[circulator]!
-                // DEBUG: ---
-                .then(() => console.log(`Running Instance and Sequence: ${circulator} currentPage: ${currentPage}`))
-                // ---
-                .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(optionsProxy.get().keyword), i:currentPage}), { waitUntil: ["load", "networkidle2"]})))
-                .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
-                .then(
-                    (data: iIllustMangaDataElement[]) => assembler.collectProperties(data, key)
-                )
-                .catch((e) => assembler.errorHandler(e, circulator))
-            }
-        };
-        
-        // DEBUG:
-        console.log("generating has been done.");
-
-
-        // assemblerを外に出すのが面倒なのでここですべて必要なプロミスチェーンを呼び出す。
-        // NOTE: プロミスの入れ子は外のプロミスチェーンのエラーを捕捉しないのでfinally()が必要な時に発火しない可能性がある
-        return assembler.run().then(() => assembler.getCollectedProperties()).catch(e => assembler.errorHandler(e)).finally(() => assembler.finally());
-    }
-    catch(e) {
-        assembler.finally();
-        throw e;
-    }
-};
-
-/***
- * Get http response body data and decides how many process (page instances) should be generated.
- * 
- * */
-const decideNumberOfProcess = (illustManga: iIllustManga) => {
-            
-        // DEBUG:
-        console.log("Decide number of process...");
-
-    const { data, total } = illustManga;
-    // 検索結果の全ページ数
-    const numberOfPages: number = Math.floor(total / data.length);
-    let numberOfProcess: number = 1;
-
-    if(numberOfPages >= 20 && numberOfPages < 50) {
-        numberOfProcess = 2;
-    }
-    else if(numberOfPages >= 50 && numberOfPages < 100) {
-        numberOfProcess = 5;	
-    }
-    else if(numberOfPages >= 100) {
-        numberOfProcess = 10;
-    }
-    else {
-        numberOfProcess = 1;
-    };
-
-    
-        // DEBUG:
-        console.log(`number of process: ${numberOfProcess}, number of pages: ${numberOfPages}`);
-
-    return {
-        numberOfProcess: numberOfProcess, 
-        numberOfPages: numberOfPages
-    };
-
-    // return assemblingCollectProcess(browser, numberOfProcess, numberOfPages);
-};
 
 /****
  * Set up tasks which required by "collectByKeyword" command and return tasks.
@@ -232,10 +115,6 @@ export const setupCollectByKeywordTaskQueue = (
         const navigation = new Navigation();
         navigation.resetFilter((res: puppeteer.HTTPResponse) => 
             res.status() === 200 
-            // 
-            // TODO: どうやらこのＵＲＬは無効みたいだ...
-            // 
-            // && res.url() === mustache("https://www.pixiv.net/ajax/search/artworks/${{keyword}}?word=${{keyword}}", {keyword: encodeURIComponent(optionsProxy.get().keyword)})
             && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: 1})
         );
         navigation.resetWaitForOptions({waitUntil: ["load", "networkidle2"]});
@@ -260,7 +139,7 @@ export const setupCollectByKeywordTaskQueue = (
     // 
     // NOTE: 11/28 Also collect process will be run in this handler
     tasks.push((p: {numberOfProcess: number, numberOfPages: number}) => 
-        assemblingCollectProcess(browser, p.numberOfProcess, p.numberOfPages));
+        assemblingResultPageCollectProcess(browser, p.numberOfProcess, p.numberOfPages, optionsProxy.get()));
     // これ以降のtask追加は呼び出し側に任せる
     return tasks;
 };
