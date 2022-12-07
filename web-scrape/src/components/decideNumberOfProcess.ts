@@ -19,6 +19,7 @@ export const decideNumberOfProcess = (illustManga: iIllustManga) => {
     console.log("Decide number of process...");
 
     const { data, total } = illustManga;
+
     // 検索結果の全ページ数
     const numberOfPages: number = Math.floor(total / data.length);
     let numberOfProcess: number = 1;
@@ -37,6 +38,8 @@ export const decideNumberOfProcess = (illustManga: iIllustManga) => {
     };
 
     // DEBUG:
+    console.log(data.length);
+    console.log(total);
     console.log(`number of process: ${numberOfProcess}, number of pages: ${numberOfPages}`);
 
     return {

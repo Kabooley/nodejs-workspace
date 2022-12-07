@@ -235,6 +235,10 @@ export class AssembleParallelPageSequences<T> {
     errorHandler(e: Error, occuredSequenceNumber?: number) {
         const message: string = e.message + (occuredSequenceNumber === undefined ? "" : occuredSequenceNumber);
         console.error(message);
+        
+        // DEBUG:
+        if(occuredSequenceNumber !== undefined && this.getPageInstance(occuredSequenceNumber) !== undefined) this.getPageInstance(occuredSequenceNumber)!.screenshot({type: "png", path: `./dist/assemblerErrorHandlerInSequence${occuredSequenceNumber}.png`})
+        
         this.finally();
         throw e;
     };
@@ -265,28 +269,3 @@ export class AssembleParallelPageSequences<T> {
         // }
     };
 };
-
-/*
-動作
-- `collect byKeyword`: キーワード検索をしてオプションの条件指定を満たす作品のメタデータを収集する(JSONファイルで保存する)
-- `collect fromBookmark`: ブックマークからオプションの条件指定を満たす作品のメタデータを収集する(JSONファイルで保存する)
-- `bookmark`: (キーワード検索をして)オプションの条件指定を満たす作品をブックマークする
-- `download fromBookmark`: ブックマークから条件指定に一致するデータをダウンロードする
-- `download byKeyword`: キーワード検索から条件指定に一致するデータをダウンロードする
-
-each options:
-
-条件指定
-    検索条件
-    - keyword: 検索キーワード
-    収集条件
-    - tags: 指定のタグがすべて含まれていること
-    - userName: 指定の作者であること
-    - bookmarkOver: 指定のブックマーク数を誇ること
-動作
-- bookmarkIt: 条件を満たすartworkをブックマークする
-- downloadIt: 条件を満たすartworkをダウンロードする
-- unbookmarkIt: 条件を満たすartworkをブックマーク解除する
-- 
-
-*/ 

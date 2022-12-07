@@ -78,13 +78,25 @@ export const assemblingResultPageCollectProcess = async (
                 // DEBUG: Logs current sequence number and current keyword search result page.
                 .then(() => console.log(`Running Instance and Sequence: ${circulator} currentPage: ${currentPage}`))
                 // 1. Navigation
-                .then(() => assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(options.keyword), i:currentPage}), { waitUntil: ["load", "networkidle2"]})))
+                .then(() => {
+                    // DEBUG:
+                    console.log(`[assemblingResultPageCollectProcess] S:${circulator} - P:${currentPage} Navigating to ${mustache(url, {keyword: encodeURIComponent(options.keyword), i:currentPage})}...`);
+
+                    return assembler.navigation.navigateBy(page, page.goto(mustache(url, {keyword: encodeURIComponent(options.keyword), i:currentPage}), { waitUntil: ["load", "domcontentloaded"]}))
+                })
                 // 2. Resolves http response to specific data(iIllustMangaDataElement[])
-                .then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses))
+                .then((responses: (puppeteer.HTTPResponse | any)[]) => {
+                    // DEBUG:
+                    console.log(`[assemblingResultPageCollectProcess] S:${circulator} - P:${currentPage} Resolving HTTP Response...`);
+                    return assembler.resolveResponses!(responses);
+                })
                 // 3. Collect id from the data.
-                .then(
-                    (data: iIllustMangaDataElement[]) => assembler.collectProperties(data, key)
-                )
+                .then((data: iIllustMangaDataElement[]) => {
+                    // DEBUG:
+                    console.log(`[assemblingResultPageCollectProcess] S:${circulator} - P:${currentPage} Collecting property...`);
+
+                    return assembler.collectProperties(data, key)
+                })
                 // 4. Error handling
                 .catch((e) => assembler.errorHandler(e, circulator))
             }

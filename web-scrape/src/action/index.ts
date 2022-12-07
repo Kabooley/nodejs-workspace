@@ -26,36 +26,36 @@
  * 
  * 実行する内容は
  * *************************************************/ 
-import type puppeteer from 'puppeteer';
+// import type puppeteer from 'puppeteer';
 
-const action = (order: string): void => {
-    switch(order) {
-        case "collect": 
-        break;
-        case "bookmark": 
-        break;
-        case "download": 
-        break;
-        default:
-        break;
-    }
-};
+// const action = (order: string): void => {
+//     switch(order) {
+//         case "collect": 
+//         break;
+//         case "bookmark": 
+//         break;
+//         case "download": 
+//         break;
+//         default:
+//         break;
+//     }
+// };
 
-/**
- * @param {puppeteer.Page} page - 
- * 
- * */ 
-const bookmark = (page: puppeteer.Page): Promise<void> => {
-    // TODO: Check if it is already bookmarked.
-    return page.click(
-            // TODO: specify selector of bookmark button
-        ).then(() => resolve()).catch(e => reject(e));
-};
+// /**
+//  * @param {puppeteer.Page} page - 
+//  * 
+//  * */ 
+// const bookmark = (page: puppeteer.Page): Promise<void> => {
+//     // TODO: Check if it is already bookmarked.
+//     return page.click(
+//             // TODO: specify selector of bookmark button
+//         ).then(() => resolve()).catch(e => reject(e));
+// };
 
-/**
- * Dispatches download order witch url.
- * 
- * */ 
-const download = (url: string): Promise<void> => {
-    // TODO: Implement download process
-}
+// /**
+//  * Dispatches download order witch url.
+//  * 
+//  * */ 
+// const download = (url: string): Promise<void> => {
+//     // TODO: Implement download process
+// }

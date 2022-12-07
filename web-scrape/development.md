@@ -178,6 +178,14 @@ puppeteer.Pageインスタンスが一つだと大変な時間がかかる。
 
 並列処理して集めるデータを格納してくれる。
 
+#### TEST: 並列処理と逐次処理の導入
+
+とにかく、
+
+`assemblingResultPageCollectProcess.ts`のNavigationのところでタイムアウトエラーになる。
+
+
+
 ## セレクタ調査
 
 username:
