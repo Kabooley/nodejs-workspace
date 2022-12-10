@@ -15,6 +15,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 - [ダウンロードロジック](#ダウンロードロジック)
 - [デザインパターンの導入](#デザインパターンの導入)
 - [puppeteerマルチpageインスタンス](#puppeteerマルチpageインスタンス)
+- [コマンドの実行](#コマンドの実行)
 - [セレクタ調査](#セレクタ調査)
 - [自習](#自習)
 
@@ -1218,3 +1219,103 @@ puppeteerにはリクエストを送信する機能はなくて、リクエス�
 
 
 
+
+## コマンドの実行
+
+```bash
+# ひとまずなコマンドとオプションの組み合わせ一覧
+collect byKeyword --keyword --tags		# 何もしない
+collect fromBookmakr --keyword --tags	# 何もしない
+bookmark --keyword --userName	# ブックマーク操作をする
+download byKeyword --keyword --tags	# ダウンロード操作をする
+download fromBookmakr --keyword --tags	# ダウンロード操作をする
+```
+
+actionの内容は次の通りになりそうだ
+
+- ブックマーク操作
+- ダウンロード操作
+
+#### action
+
+actionはどこで実行されるかといえば...
+
+- ブックマーク操作は検索結果ページでもartworkページでもどちらでも可能
+
+ただしブックマークする作品が条件に合うのかどうかは、artowkrページまでいかないとわからない場合がある
+
+- ダウンロード操作はURLさえわかればいい
+
+URLがどこで取得できるかによる
+
+collectのときと衝突する。
+
+collect 処理
+
+```TypeScript
+// then()ハンドラの受け取る引数の変遷：
+// httpResponses --> resolvedData --> collectedData --> ...
+promise
+	.then(() => assembler.httpResolver())
+	.then(() => assembler.filter())
+	.then(() => action()) 
+```
+とすると、最後のthen()ハンドラでfilter処理の戻り値が返るので
+取得したデータを拾うことができなくなる
+
+これってつまり、
+
+AssembleParallelPageSequencesの逐次処理に含めることができないということになるのでは？
+
+逐次処理の段階において、
+
+resolvedDataを受け取ってから初めてデータを評価できる
+
+データの評価とは、そのデータがコマンドで指定した条件を満たすかどうかである
+
+満たすならやってほしいことを実行して
+
+満たさないなら何もしない
+
+このことはactionにも当てはまる。
+
+条件に一致するならaction実行して
+
+一致しないなら何もしない
+
+となると、
+
+条件を満たしたかどうかがactionでもわからないといかん。
+
+
+```TypeScript
+// 現状の条件を満たすかどうかの判定方法
+promse = promise
+	.then(() => 
+	// 1. Navigate to the url
+	)
+	.then(	// 2. Resolve HTTP Response which from HTTPResponse filter
+	)
+	// 3. Collect data only matched to requirement
+	.then((resolved: iIllustData[]) => 
+		assembler.collect(
+			// 
+			// ここのfilterLogic (generateFilterLogic()が生成する関数)が
+			// 条件判定をしている
+			// 
+			assembler.filter(resolved, generateFilterLogic(optionsProxy.get()))
+		)
+	)
+	// 4. In case commad was `bookmark`
+	.then(() => {
+		// TODO: DOM 操作というかアクション的処理はここで実行する
+		// たとえばそのartworkをブックマークするなど
+		// TODO: assembler.setAction()みたいなメソッドの追加
+	})
+	.catch(e => assembler.errorHandler(e))
+
+```
+
+今のところ条件判定は完全にAssemble~に最適化されているため
+
+分離する必要がある

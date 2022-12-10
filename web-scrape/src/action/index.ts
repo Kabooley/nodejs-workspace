@@ -26,36 +26,44 @@
  * 
  * 実行する内容は
  * *************************************************/ 
-// import type puppeteer from 'puppeteer';
+import * as fs from 'fs';
+import type http from 'http';
+import type { Http2SecureServer } from 'http2';
+import type puppeteer from 'puppeteer';
+import { Downloader } from '../http/downloader';
 
-// const action = (order: string): void => {
-//     switch(order) {
-//         case "collect": 
-//         break;
-//         case "bookmark": 
-//         break;
-//         case "download": 
-//         break;
-//         default:
-//         break;
-//     }
-// };
+// TODO: Define this
+interface iOptions {
 
-// /**
-//  * @param {puppeteer.Page} page - 
-//  * 
-//  * */ 
-// const bookmark = (page: puppeteer.Page): Promise<void> => {
-//     // TODO: Check if it is already bookmarked.
-//     return page.click(
-//             // TODO: specify selector of bookmark button
-//         ).then(() => resolve()).catch(e => reject(e));
-// };
+    // iCollectOPtions
+    // iBookmarkOptions
+}
+class Action<T> {
+    constructor(private options: iOptions, private page: puppeteer.Page){};
 
-// /**
-//  * Dispatches download order witch url.
-//  * 
-//  * */ 
-// const download = (url: string): Promise<void> => {
-//     // TODO: Implement download process
-// }
+
+    download(
+        url: string, 
+        dest: fs.PathLike, 
+        options: BufferEncoding | StreamOptions | undefined,
+        requestOptions: http.RequestOptions) {
+        const opt = options !== undefined ? options : {};
+        const wfs: fs.WriteStream = fs.createWriteStream(dest, opt);
+        return new Downloader(requestOptions, wfs).download();
+    }
+
+    /***
+     * DOM操作をする
+     * どこでブックマークするかでセレクタが異なるはず
+     * 
+     * 検索結果ページで実行するのか
+     * artworkページで実行するのか
+     * */ 
+    bookmark() {
+        return this.page.click("")
+    }
+
+    errorHandler() {
+
+    }
+};
