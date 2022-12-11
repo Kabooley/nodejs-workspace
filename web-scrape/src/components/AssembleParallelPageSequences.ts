@@ -194,6 +194,7 @@ export class AssembleParallelPageSequences<T> {
     /***
      * 
      * なんだか意味のないことをしているなぁ
+     * NOTE: Nothing returns.
      * */ 
     collect(data: T[]): void {
         this.collector.setData(data);

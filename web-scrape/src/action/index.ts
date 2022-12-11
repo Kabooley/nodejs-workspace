@@ -13,7 +13,7 @@
  * 逐次処理の段階で前回のPromiseから引数をとらないこと
  * 
  * 
- * 取得する可能性のあるCLIコマンドとオプションの組み合わせ
+ * 取得する可能性のあるC
  * - `collect byKeyword --keyword --tags --bookmarkOver --userName`
  * とくになし
  * - `collect fromBookmark --keyword --tags --bookmarkOver --userName`
@@ -38,7 +38,7 @@ interface iOptions {
     // iCollectOPtions
     // iBookmarkOptions
 }
-class Action<T> {
+export class Action {
     constructor(private options: iOptions, private page: puppeteer.Page){};
 
 

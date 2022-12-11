@@ -1236,86 +1236,119 @@ actionの内容は次の通りになりそうだ
 - ブックマーク操作
 - ダウンロード操作
 
-#### action
+#### action実装の前に分析
 
-actionはどこで実行されるかといえば...
+resolvedとして取り出したHTTPResponseのbodyデータの一部が
 
-- ブックマーク操作は検索結果ページでもartworkページでもどちらでも可能
+検査に合格すればactionを実行する
 
-ただしブックマークする作品が条件に合うのかどうかは、artowkrページまでいかないとわからない場合がある
+検査はiFilterLogic型の関数
 
-- ダウンロード操作はURLさえわかればいい
+ただし現状は完全にこの検査関数がassembler.filter()に組み込まれているので
 
-URLがどこで取得できるかによる
+これを分離する必要がある。
 
-collectのときと衝突する。
+前提：
 
-collect 処理
-
-```TypeScript
-// then()ハンドラの受け取る引数の変遷：
-// httpResponses --> resolvedData --> collectedData --> ...
-promise
-	.then(() => assembler.httpResolver())
-	.then(() => assembler.filter())
-	.then(() => action()) 
-```
-とすると、最後のthen()ハンドラでfilter処理の戻り値が返るので
-取得したデータを拾うことができなくなる
-
-これってつまり、
-
-AssembleParallelPageSequencesの逐次処理に含めることができないということになるのでは？
-
-逐次処理の段階において、
-
-resolvedDataを受け取ってから初めてデータを評価できる
-
-データの評価とは、そのデータがコマンドで指定した条件を満たすかどうかである
-
-満たすならやってほしいことを実行して
-
-満たさないなら何もしない
-
-このことはactionにも当てはまる。
-
-条件に一致するならaction実行して
-
-一致しないなら何もしない
-
-となると、
-
-条件を満たしたかどうかがactionでもわからないといかん。
-
+- resolvedは必ずT型配列である。
+- resolvedからどんなデータを取り出すのかは場合による。(T[]なのか、T[property][]なのか)
+- filterLogicによってresolvedの検査を行う
 
 ```TypeScript
-// 現状の条件を満たすかどうかの判定方法
-promse = promise
-	.then(() => 
-	// 1. Navigate to the url
-	)
-	.then(	// 2. Resolve HTTP Response which from HTTPResponse filter
-	)
-	// 3. Collect data only matched to requirement
+	.then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses, id))
 	.then((resolved: iIllustData[]) => 
+
+		// ここで4つ行っているわけ
+		// 1. resolvedにほしいデータがあるのかどうかの判定: filterLogic()
+		// 2. resolvedがfilterLogicｎ合格したら配列に収めるassembler.filter()
+		// 3. assembler.collect()でassembler.fitler()のデータの収集
+		// 4. 収集結果の値のリターン(ただし実際には値を返していない)
+
 		assembler.collect(
-			// 
-			// ここのfilterLogic (generateFilterLogic()が生成する関数)が
-			// 条件判定をしている
-			// 
 			assembler.filter(resolved, generateFilterLogic(optionsProxy.get()))
 		)
 	)
-	// 4. In case commad was `bookmark`
-	.then(() => {
-		// TODO: DOM 操作というかアクション的処理はここで実行する
-		// たとえばそのartworkをブックマークするなど
-		// TODO: assembler.setAction()みたいなメソッドの追加
-	})
 	.catch(e => assembler.errorHandler(e))
-
 ```
 
-今のところ条件判定は完全にAssemble~に最適化されているため
+こんな感じに分離することになる
 
-分離する必要がある
+```TypeScript
+
+const action = new Action();
+assembler.setAction(/* define order according to command */)
+// ....
+	.then((resolved: iIllustData[]) => {
+		// ここで3つ行っているわけ
+		// 1. resolvedにほしいデータがあるのかどうかの判定: filterLogic()
+		// 2. resolvedがfilterLogicｎ合格したら配列に収めるassembler.filter()
+		// 3. assembler.collect()でassembler.fitler()のデータの収集
+
+		for(const element of resolved) {
+			// resolvedの要素が検査に合格しているかどうか
+			if(filterLogic(element)) {
+				// collect data
+				this.collected.push(element)
+				// or collect data property
+				this.collected.push(element[key]);
+				// execute action
+				return assembler.executeAction();
+			}
+		}
+	})
+	.catch(e => assembler.errorHandler(e))
+```
+`assembler.setAction(...orders)`とあらかじめセットしておけば、
+
+あとは`assembler.executeAction()`を実行すればいいだけ
+
+という便利さにしたい。
+
+問題：
+
+- 実際に実行することになるaction関数へ引数が渡せない
+
+そのままだとハードコーディングになる（別にいいのだけれど
+
+```TypeScript
+// 引数は、resolvedから導き出されるので、予め渡すようなことはできない
+const download = (url: string, dest: fs.PathLike): void => {
+
+};
+
+// pageは渡せるけど、それはbookmarkだけ
+const bookmark = (page: puppeteer.Page) => {
+	return page.click(/* selector */);
+};
+```
+
+なので、
+
+```TypeScript
+.then((resolved: iIllustData[]) => {
+	for(const element of resolved) {
+		// Check if element passes filterLogic
+		if(filterLogic(element)) {
+			assembler.collected.push(element);
+
+			// ここでactionを実行させたいのだけれど、
+			// どんな引数を渡すべきなのかは実行させるactionの内容による
+			// なのでハードコーディングになるのでは？
+			// 
+			// あと、実行内容が非同期だとそのまま実行できない。
+			// return 非同期関数（）としないと逐次処理にならない
+
+			download(resolved.urls.origin, "./dest/cat.png");
+			bookmark(assembler.getPageInstances(circulator));
+		}
+	}
+})
+```
+
+```TypeScript
+// Artworkページでの処理の場合
+// resolved --> filterLogic --> filterdResolved
+.then((resolved: iIllustData[]) => {
+
+})
+```
