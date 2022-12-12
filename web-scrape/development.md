@@ -1253,6 +1253,7 @@ resolvedとして取り出したHTTPResponseのbodyデータの一部が
 - resolvedは必ずT型配列である。
 - resolvedからどんなデータを取り出すのかは場合による。(T[]なのか、T[property][]なのか)
 - filterLogicによってresolvedの検査を行う
+- filterLogicは合否をbooleanで返すだけ
 
 ```TypeScript
 	.then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses, id))
@@ -1325,9 +1326,12 @@ const bookmark = (page: puppeteer.Page) => {
 なので、
 
 ```TypeScript
+// 確実なこと：必ず配列Type[]を引数として取得する
 .then((resolved: iIllustData[]) => {
+	// resolvedは配列であり、filterLogicはその要素一つずつに対して呼び出されるので
+	// actionは要素一つずつに対して実行しなくてはいけない
 	for(const element of resolved) {
-		// Check if element passes filterLogic
+		// 確実なこと：filterLogic()は必ずresolvedを受け取り合否をbooleanで返す
 		if(filterLogic(element)) {
 			assembler.collected.push(element);
 
@@ -1343,12 +1347,96 @@ const bookmark = (page: puppeteer.Page) => {
 		}
 	}
 })
+// ...
+
+// 検討１: action関数をクロージャにする
+// 
+// しかし、donwload()は次のようにできるかも？
+// これならelementだけ取得すればよい
+const generateDownloader = <T>(element: T):  => {
+	const dest = "";
+	let url: string = "";
+	if(element.hasOwnProperty('urls') && element.url.hasOwnProperty('origin')) url = element.url.origin;
+	else return;
+	return download(url, dest);
+};
+
+
+// ...
+.then((resolved: iIllustData[]) => {
+	for(const element of resolved) {
+		if(filterLogic(element)) {
+			assembler.collected.push(element);
+			assembler.generateDownload(element);
+			assembler.bookmark(assembler.getPageInstances(circulator));
+		}
+	}
+})
 ```
 
-```TypeScript
-// Artworkページでの処理の場合
-// resolved --> filterLogic --> filterdResolved
-.then((resolved: iIllustData[]) => {
+まだ非同期関数を実行する場合を考慮していない
+action関数は基本的に非同期という前提のもと検討する
 
+promiseチェーンは、then()ハンドラが`return非同期関数`ならば問題ないので...
+
+```TypeScript
+.then((resolved: iIllustData[]) => {
+	for(const element of resolved) {
+		if(filterLogic(element)) {
+			assembler.collected.push(element);
+			return (async function actionExecutor() {
+				await assembler.generateDownload(element);
+				await assembler.bookmark(assembler.getPageInstances(circulator));
+			})();
+		}
+	}
 })
+```
+
+これなら予め`actionExecutor`を定義しておいて後はここのthen()ハンドラのreturnで呼出すだけにできる
+
+
+```TypeScript
+const page: puppeteer.Page;
+
+const generateDownloader = <T>(element: T):  => {
+	const dest = "";
+	let url: string = "";
+	if(element.hasOwnProperty('urls') && element.url.hasOwnProperty('origin')) url = element.url.origin;
+	else return;
+	return download(url, dest);
+};
+
+// action内容をハードコーディング
+const executor = async (element: T): Promise<void> => {
+	await generateDownloader(element);
+	await bookmark(page);
+}
+
+// then()呼出の前にあらかじめセットしておく
+assembler.setAction(
+	executor
+)
+
+.then((resolved: iIllustData[]) => {
+	// 各要素に対して
+	for(const element of resolved) {
+		// フィルタ検査
+		if(filterLogic(element)) {
+			assembler.collected.push(element);
+			return executeAction(element);		// 必要な引数をここですべて取得しなくちゃいけないけれども
+		}
+	}
+})
+```
+
+これならば、
+
+```TypeScript
+type iActionExecutor = <T>(element: T) => Promise<void>;
+
+const executor: iActionExecutor<iIllustData> = async (element) => {
+	await generateDownloader(element);
+	await bookmark(page);
+}
 ```
