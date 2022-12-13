@@ -147,8 +147,40 @@ export class Downloader {
     }
 };
 
+// --- USAGE ---
 
-/*********************************************************************************
+// import * as fs from "fs";
+// import * as url from "url";
+// import type http from 'http';
+
+// const _url: URL = new url.URL("https://raw.githubusercontent.com/wiki/Microsoft/DirectXTK/images/cat.png");
+
+// const filepath: string = "./dist/cat.png";
+
+// const options: http.RequestOptions = {
+//     method: "GET",
+//     host: _url.host,
+//     path: _url.pathname,
+//     protocol: "https:",
+// };
+
+// (async function(options) {
+//     try {
+//         const wfs: fs.WriteStream = fs.createWriteStream(filepath, { 
+//             encoding: 'binary',     /* default: 'utf8' */
+//             autoClose: true,
+//             emitClose: true,
+//             highWaterMark: 1024     /* default: 64 * 1024 */
+//         });
+//         const downloader = new Downloader(options, wfs);
+//         await downloader.download();
+//     }
+//     catch(e) {
+//         console.error(e);
+//     }
+// })(options);
+
+/***
  * 
  * 実行結果：
  * 
@@ -222,4 +254,6 @@ response と fs.WriteStream がやり取りしている間に `close` on request
 `end` on response > `close` on fs.WriteStream は想定通り。
 
 正常運転が実現できているならば、`close` on requestは一番最後（`end` on responseよりあと）のはずだと思ったけれど、結果ファイルは取得できている。
-******************************************************************************/ 
+
+***/ 
+

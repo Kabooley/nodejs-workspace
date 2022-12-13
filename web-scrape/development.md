@@ -16,6 +16,7 @@ pix*vで画像収集...はまずいので、せめて人気なイラストURLを
 - [デザインパターンの導入](#デザインパターンの導入)
 - [puppeteerマルチpageインスタンス](#puppeteerマルチpageインスタンス)
 - [コマンドの実行](#コマンドの実行)
+- [検証：AssembleParallelPageSequencesの自動セットアップ](#検証：AssembleParallelPageSequencesの自動セットアップ)
 - [セレクタ調査](#セレクタ調査)
 - [自習](#自習)
 
@@ -1435,8 +1436,79 @@ assembler.setAction(
 ```TypeScript
 type iActionExecutor = <T>(element: T) => Promise<void>;
 
-const executor: iActionExecutor<iIllustData> = async (element) => {
-	await generateDownloader(element);
-	await bookmark(page);
+const dest: fs.PathLike = "../dist/cat.png";
+
+const parseOriginUrlOfArtwork = (element: iIllustData): string | undefined => {
+	// origin urlをelementから解析して取り出す
+	return element.hasOwnProperty() && element.urls.hasOwnProperty() 
+		? element.urls.origin
+		: undefined;
 }
+
+const download = (url: string, dest: fs.PathLike): Promise<void> => {
+	return new Downloader(url, dest).download();
+}
+
+const executor: iActionExecutor<iIllustData> = async (element) => {
+	// TODO: page is not be scoped.
+	await bookmark(page);
+	await download(parseOriginUrlOfArtwork(element), dest);
+};
+
+
+// ...
+// In case collecting result page...
+		.then((responses: (puppeteer.HTTPResponse | any)[]) => {
+			// DEBUG:
+			console.log(`[assemblingResultPageCollectProcess] S:${circulator} - P:${currentPage} Resolving HTTP Response...`);
+			return assembler.resolveResponses!(responses);
+		})
+		// 3. Collect id from the data.
+		.then((data: iIllustMangaDataElement[]) => {
+			// DEBUG:
+			console.log(`[assemblingResultPageCollectProcess] S:${circulator} - P:${currentPage} Collecting property...`);
+
+			return assembler.collectProperties(data, key)
+		})
+		// 4. Error handling
+		.catch((e) => assembler.errorHandler(e, circulator))
+
+
+// In case collecting artwork page...
+		.then((responses: (puppeteer.HTTPResponse | any)[]) => assembler.resolveResponses!(responses, id))
+		.then((resolved: iIllustData[]) => {
+			// NOTE: resolvedは要素がただ一つという前提である。
+			const element = resolved.shift();
+			if(generateFilterLogic(optionsProxy.get())(element)) {
+				assembler.collected.push(element);
+				return assembler.actionExecution(element);
+			}
+		})
+		.catch(e => assembler.errorHandler(e))
+```
+
+## 検証：AssembleParallelPageSequencesの自動セットアップ
+
+結局のところ、
+
+Assemble~の逐次処理をどうするかは外部で定義することになる。
+
+しかし、
+
+使ってみたところ逐次処理の基本的な流れが定まってきた。
+
+以下が単一の逐次処理の処理の流れである
+
+- `(引数なし) => ナビゲーション()`
+- `(HTTPResponses: (puppeteer.HTTPResopnse | any)[]) => resolver()`
+- `(resolvedValue: T[]) => {/* 場合によるが、値を返さない */}`
+- `(e) => errorHandler()`
+
+なので逐次処理の各段階のthenハンドラに対して型を定めることができるかもしれない。
+
+
+```TypeScript
+type iAssemblerNavigationHandler = () => Promise<(puppeteer.HTTPResponse | any)[]>;
+type iAssemblerResolveHandler = <T>(responses: (puppeteer.HTTPResponse | any)[]) => Promise<resolved: T[]>;
+type iAssemblerSolutionHandler = <T>(resolved: T[]) => Promise<void>;
 ```
