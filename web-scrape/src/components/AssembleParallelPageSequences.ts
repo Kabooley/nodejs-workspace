@@ -97,6 +97,9 @@ export class AssembleParallelPageSequences<T> {
         this.collectedProperties = [];
         this.responsesResolver = undefined;
         // Methods binding. 
+        // NOTE: bind()は元の関数の関数の型をanyにしてしなうとのこと...
+        // https://typescript-jp.gitbook.io/deep-dive/main-1/bind
+        // しかし型推論をみるにそんなことはないんだけどね
         this._generatePageInstances = this._generatePageInstances.bind(this);
         this._initializeSequences = this._initializeSequences.bind(this);
         this.initialize = this.initialize.bind(this);

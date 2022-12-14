@@ -1489,6 +1489,8 @@ const executor: iActionExecutor<iIllustData> = async (element) => {
 
 ## 検証：AssembleParallelPageSequencesの自動セットアップ
 
+NOTE: *これが成功で来たら内容をまとめて記事にしよう*
+
 結局のところ、
 
 Assemble~の逐次処理をどうするかは外部で定義することになる。
@@ -1511,4 +1513,82 @@ Assemble~の逐次処理をどうするかは外部で定義することにな�
 type iAssemblerNavigationHandler = () => Promise<(puppeteer.HTTPResponse | any)[]>;
 type iAssemblerResolveHandler = <T>(responses: (puppeteer.HTTPResponse | any)[]) => Promise<resolved: T[]>;
 type iAssemblerSolutionHandler = <T>(resolved: T[]) => Promise<void>;
+
+// これを利用すれば、予め逐次処理の関数を登録しておけるかも？
+// 
+// とはいえ、外部の関数をつかってAssemble~のインスタンスのアクセスが必要になる
+const navigationProcess: iAssemblerNavigationHandler = () => {
+	this.
+}
+
+
+class AssembleParallelPageSequences<T> {
+	// ...
+	setupSequences() {
+		this.getSequences()[circulator] = this.getSequences()[circulator]
+		.then(() => this.navigationProcess())
+		.then((responses: (puppeteer.HTTPResponse|any)[]) => this.resolvingProcess())
+		.then((resolved: iIllustData[]) => this.solutionProcess())
+		.catch(e => this.errorHandler());
+	};
+
+	setNavigationProcess(navigaitonLogic) {
+		// この呼出は有効か？
+		this.navigationLogic = navigatoinLogic.bind(this);
+	};
+
+	// setResponsesResolverの名前を変更するだけ
+	setResolvingProcess(resolveLogic) {
+		this.resolveLogic = resolveLogic.bind(this);
+	};
+
+	setSolutionProcess(solutionLogic) {
+		this.solutionLogic = solutionLogic.bind(this);
+	};
+
+	setErrorHandlingProcess(errorHandlingLogic) {
+		this.errorHandlingLogic = errorHandlingLogic.bind(this);
+	};
+
+}
+```
+
+要検証１：class外部関数をクラス内部でbind呼び出ししたら、その関数はclass内部にアクセスできるのか？
+
+TODO: 要テスト
+
+```TypeScript
+type iCustom = () => string;
+
+class Person {
+	private costomIntroduce: iCustom | undefined;
+	constructor(private name: string, private age: number) {
+    this.introduce = this.introduce.bind(this);
+    this.setCustomIntroduce = this.setCustomIntroduce.bind(this);
+    this.customIntroduce = this.customIntroduce.bind(this);
+	};
+
+	introduce(): string {
+		return `Hi, this is ${this.name} and I am ${this.age} yo.`;
+	};
+
+	setCustomIntroduce(customLogic: iCustom): void {
+		this.customIntroduce = customLogic.bind(this);
+	};
+
+	customIntroduce(): string {
+		return this.customIntroduce();
+	};
+};
+
+
+function customIntroduce() {
+  if(this !== undefined)
+    return `Hi, this is ${this!.name} and I am ${this!.age} yo. My favorite is make some noise`;
+  else throw new Error("this is not deinfed");
+};
+
+const dd = new Person('DD', 28);
+dd.setCustomIntroduce(customIntroduce);
+console.log(dd.customIntroduce());
 ```
