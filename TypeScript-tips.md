@@ -22,6 +22,8 @@ TODO: TypeScriptの書籍を買え！
 
 [keyを動的に変更可能なオブジェクトの型作成まとめ](#keyを動的に変更可能なオブジェクトの型作成まとめ)
 
+[関数のthis指定](#関数のthis指定)
+
 
 ## TypeScriptはprivate指定子でスコープを制御してくれるわけではない
 
@@ -912,3 +914,176 @@ const obj: Person = {};
 const obj: Person = <Person>{};
 const obj: Person = {} as Person;
 ```
+
+## 関数のthis指定
+
+class外部関数をクラス内部でbind呼び出ししたら、その関数はclass内部にアクセスできるのか？
+
+結論：出来る。
+
+class内部にアクセスできるというか、予め関数のコンテキストを特定のクラスに指定しておくことができる。
+
+```TypeScript
+type iCustom = () => string;
+
+class Person {
+	private costomIntroduce: iCustom | undefined;
+	constructor(private name: string, private age: number) {
+    this.introduce = this.introduce.bind(this);
+    this.setCustomIntroduce = this.setCustomIntroduce.bind(this);
+    this.customIntroduce = this.customIntroduce.bind(this);
+	};
+
+	introduce(): string {
+		return `Hi, this is ${this.name} and I am ${this.age} yo.`;
+	};
+
+	setCustomIntroduce(customLogic: iCustom): void {
+		this.customIntroduce = customLogic.bind(this);
+	};
+
+	customIntroduce(): string {
+		return this.customIntroduce();
+	};
+
+	getName(): string {
+		return this.name;
+	};
+
+	getAge(): number {
+		return this.age;
+	};
+};
+
+
+function customIntroduce(this: Person) {
+  if(this !== undefined)
+    return `Hi, this is ${this!.name} and I am ${this!.age} yo. My favorite is make some noise`;
+  else throw new Error("this is not deinfed");
+};
+
+const dd = new Person('DD', 28);
+dd.setCustomIntroduce(customIntroduce);
+console.log(dd.customIntroduce());
+```
+
+TypeScriptで関数のthisを指定する方法:
+
+参考：https://www.gesource.jp/weblog/?p=7703
+
+こうすると、上記コードはほぼエラーにならない。
+
+ただし、
+
+`customIntroduce()`の中で`this.name`等にはアクセスできない。
+
+なぜなら`name`も`age`もプライベート変数だからである。
+
+クラスメソッドでないcustomeIntroduceはそもそもアクセスできない。
+
+なので、
+
+```TypeScript
+
+type iCustom = () => string;
+
+class Person {
+	private costomIntroduce: iCustom | undefined;
+	constructor(private name: string, private age: number) {
+    this.introduce = this.introduce.bind(this);
+    this.setCustomIntroduce = this.setCustomIntroduce.bind(this);
+    this.customIntroduce = this.customIntroduce.bind(this);
+	};
+
+	introduce(): string {
+		return `Hi, this is ${this.name} and I am ${this.age} yo.`;
+	};
+
+	setCustomIntroduce(customLogic: iCustom): void {
+		this.customIntroduce = customLogic.bind(this);
+	};
+
+	customIntroduce(): string {
+		return this.customIntroduce();
+  };
+  
+  
+//   プライベート変数ゲッターを用意した
+	getName(): string {
+		return this.name;
+	};
+
+	getAge(): number {
+		return this.age;
+	};
+};
+
+
+// thisをPersonにしている外部関数なので、
+// パブリックメソッドにはアクセスできる
+const customIntroduce: iCustome = function(this: Person) {
+  if(this !== undefined)
+    return `Hi, this is ${this!.getName()} and I am ${this!.getAge()} yo. My favorite is make some noise`;
+  else throw new Error("this is not deinfed");
+};
+
+const dd = new Person('DD', 28);
+dd.setCustomIntroduce(customIntroduce);
+console.log(dd.customIntroduce());
+```
+これでエラーはなくなった。
+
+こういう改善もできる。
+
+```TypeScript
+
+type iCustom = (this: Person) => string;
+
+class Person {
+	private costomIntroduce: iCustom | undefined;
+	constructor(private name: string, private age: number) {
+    this.introduce = this.introduce.bind(this);
+    this.setCustomIntroduce = this.setCustomIntroduce.bind(this);
+    this.customIntroduce = this.customIntroduce.bind(this);
+	};
+
+	introduce(): string {
+		return `Hi, this is ${this.name} and I am ${this.age} yo.`;
+	};
+
+	setCustomIntroduce(customLogic: iCustom): void {
+		this.customIntroduce = customLogic.bind(this);
+	};
+
+	customIntroduce(): string {
+		return this.customIntroduce();
+  };
+  
+  
+//   プライベート変数ゲッターを用意した
+	getName(): string {
+		return this.name;
+	};
+
+	getAge(): number {
+		return this.age;
+	};
+};
+
+
+// thisをPersonにしている外部関数なので、
+// パブリックメソッドにはアクセスできる
+const customIntroduce: iCustome = function(
+	// this引数はもともとTypeScript用の仮引数である。
+	// typeで型指定済なので、this引数の省略可能。
+) {
+  if(this !== undefined)
+    return `Hi, this is ${this!.getName()} and I am ${this!.getAge()} yo. My favorite is make some noise`;
+  else throw new Error("this is not deinfed");
+};
+
+const dd = new Person('DD', 28);
+dd.setCustomIntroduce(customIntroduce);
+console.log(dd.customIntroduce());      // No error.
+```
+

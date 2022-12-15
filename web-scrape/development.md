@@ -1579,10 +1579,18 @@ class Person {
 	customIntroduce(): string {
 		return this.customIntroduce();
 	};
+
+	getName(): string {
+		return this.name;
+	};
+
+	getAge(): number {
+		return this.age;
+	};
 };
 
 
-function customIntroduce() {
+function customIntroduce(this: Person) {
   if(this !== undefined)
     return `Hi, this is ${this!.name} and I am ${this!.age} yo. My favorite is make some noise`;
   else throw new Error("this is not deinfed");
@@ -1592,3 +1600,261 @@ const dd = new Person('DD', 28);
 dd.setCustomIntroduce(customIntroduce);
 console.log(dd.customIntroduce());
 ```
+
+TypeScriptで関数のthisを指定する方法:
+
+参考：https://www.gesource.jp/weblog/?p=7703
+
+こうすると、上記コードはほぼエラーにならない。
+
+ただし、
+
+`customIntroduce()`の中で`this.name`等にはアクセスできない。
+
+なぜなら`name`も`age`もプライベート変数だからである。
+
+クラスメソッドでないcustomeIntroduceはそもそもアクセスできない。
+
+なので、
+
+```TypeScript
+
+type iCustom = () => string;
+
+class Person {
+	private costomIntroduce: iCustom | undefined;
+	constructor(private name: string, private age: number) {
+    this.introduce = this.introduce.bind(this);
+    this.setCustomIntroduce = this.setCustomIntroduce.bind(this);
+    this.customIntroduce = this.customIntroduce.bind(this);
+	};
+
+	introduce(): string {
+		return `Hi, this is ${this.name} and I am ${this.age} yo.`;
+	};
+
+	setCustomIntroduce(customLogic: iCustom): void {
+		this.customIntroduce = customLogic.bind(this);
+	};
+
+	customIntroduce(): string {
+		return this.customIntroduce();
+  };
+  
+  
+//   プライベート変数ゲッターを用意した
+	getName(): string {
+		return this.name;
+	};
+
+	getAge(): number {
+		return this.age;
+	};
+};
+
+
+// thisをPersonにしている外部関数なので、
+// パブリックメソッドにはアクセスできる
+const customIntroduce: iCustome = function(this: Person) {
+  if(this !== undefined)
+    return `Hi, this is ${this!.getName()} and I am ${this!.getAge()} yo. My favorite is make some noise`;
+  else throw new Error("this is not deinfed");
+};
+
+const dd = new Person('DD', 28);
+dd.setCustomIntroduce(customIntroduce);
+console.log(dd.customIntroduce());
+```
+これでエラーはなくなった。
+
+こういう改善もできる。
+
+```TypeScript
+
+type iCustom = (this: Person) => string;
+
+class Person {
+	private costomIntroduce: iCustom | undefined;
+	constructor(private name: string, private age: number) {
+    this.introduce = this.introduce.bind(this);
+    this.setCustomIntroduce = this.setCustomIntroduce.bind(this);
+    this.customIntroduce = this.customIntroduce.bind(this);
+	};
+
+	introduce(): string {
+		return `Hi, this is ${this.name} and I am ${this.age} yo.`;
+	};
+
+	setCustomIntroduce(customLogic: iCustom): void {
+		this.customIntroduce = customLogic.bind(this);
+	};
+
+	customIntroduce(): string {
+		return this.customIntroduce();
+  };
+  
+  
+//   プライベート変数ゲッターを用意した
+	getName(): string {
+		return this.name;
+	};
+
+	getAge(): number {
+		return this.age;
+	};
+};
+
+
+// thisをPersonにしている外部関数なので、
+// パブリックメソッドにはアクセスできる
+const customIntroduce: iCustome = function(
+	// this引数はもともとTypeScript用の仮引数である。
+	// typeで型指定済なので、this引数の省略可能。
+) {
+  if(this !== undefined)
+    return `Hi, this is ${this!.getName()} and I am ${this!.getAge()} yo. My favorite is make some noise`;
+  else throw new Error("this is not deinfed");
+};
+
+const dd = new Person('DD', 28);
+dd.setCustomIntroduce(customIntroduce);
+console.log(dd.customIntroduce());
+
+```
+
+検証２：
+
+```TypeScript
+// NOTE: Not then handler. then handler returns below type function.
+type iAssemblerNavigationProcess = (this: AssembleParallelPageCollection) => Promise<(puppeteer.HTTPResponse | any)[]>;
+type iAssemblerResolveProcess = <T>(this: AssembleParallelPageCollection, responses: (puppeteer.HTTPResponse | any)[]) => Promise<resolved: T[]>;
+type iAssemblerSolutionProcess = <T>(this: AssembleParallelPageCollection, resolved: T[]) => Promise<void>;
+type iAssemblerErrorHandlingProcess = (e: Error) => void;
+
+
+class AssembleParallelPageSequences<T> {
+	// ...
+	setupSequence(circulator: number) {
+		if(this.getSequences()[circulator] !== undefined && assembler.getPageInstance(circulator) !== undefined) {
+			this.getSequences()[circulator] = this.getSequences()[circulator]
+			.then(() => this.navigationProcess())
+			.then((responses: (puppeteer.HTTPResponse|any)[]) => this.resolvingProcess(responses))
+			.then((resolved: iIllustData[]) => this.solutionProcess(resolved))
+			.catch(e => this.errorHandler(e));
+		}
+		else {
+			// Out of range error
+		}
+	};
+
+	setNavigationProcess(navigaitonLogic) {
+		this.navigationLogic = navigatoinLogic.bind(this);
+	};
+
+	// setResponsesResolverの名前を変更するだけ
+	setResolvingProcess(resolveLogic) {
+		this.resolveLogic = resolveLogic.bind(this);
+	};
+
+	setSolutionProcess(solutionLogic) {
+		this.solutionLogic = solutionLogic.bind(this);
+	};
+
+	setErrorHandlingProcess(errorHandlingLogic) {
+		this.errorHandlingLogic = errorHandlingLogic.bind(this);
+	};
+
+	// setActionExecutor(actionExecutor) {
+	// 	this.actionExecutor = actionExecutor.bind(this);
+	// }
+};
+
+
+const navigationProcess: iAssemblerNavigationProcess = function() {
+	this.setResponseFilter(
+		// TODO: スコープ問題
+		// artworkページにおいては、idとurlが必要
+	);
+	return this.navigation.navigateBy(this.getPageInstance(circulator), this.getPageInstance(circualtor).goto("", { waitUntil: ["load", "networkidle2"]}));
+};
+
+const resolveProcess: iAssemblerResolveProcess<iIllustData> = function(
+	responses: (puppeteer.HTTPResponse | any)[]
+) {
+	// TODO: スコープ問題
+	// id
+	return this.resolveResponses(responses, id);
+};
+
+type iActionExecutor = <T>(element: T) => Promise<void>;
+/**
+ * ActionはAssemble~とどういう関係であるべきか
+ * 	bookmark: pageインスタンスが必要である
+ * 	download: urlが必要である
+ * 
+ * Assembler~はActionが何をするのか関知したくない
+ * 	呼出はaction.execute()位にしたい
+ * 
+ * 
+ * */ 
+const executeAction: iActionExecutor<iIllustData> = async (element) => {
+	await download();
+	await bookmark(
+		// TODO: pageインスタンスが必要
+	);
+}
+
+const solutionProcess: iAssemblerSolutionProcess<iIllustData> = function(
+	resolved: iIllustData[]
+) {
+	// ことartworkページでのソリューションにおいて、
+	// 引数resolved[]の要素数は一つである
+	const element: iIllustData = resolved.shift();
+	if(filterLogic(element)) {
+		// TODO: 多分collectedはprivateだからアクセサが必要かも
+		this.collected.push(element)
+		return actionExecutor(element);
+	}
+}
+
+const errorHandlingProcess: iAssemblerErrorHandlingProcess = function(e: Error) {
+	// Error Handling...
+};
+
+// usage
+
+const idTable: number[];
+const numberOfProcess: number;
+const assembler = new AssembleParallelPageSequences<iIllustData>(
+	// ...
+);
+const setupSequencesOfArtworkPages = (idTable: number[], numberOfProcess: number) => {
+	// すべての逐次処理をセットアップする
+	for(const id of idTable) {
+		// ここで単一の逐次処理に必要なセットアップを定義する。
+		// 
+		// ループごとに異なるパラメータを与えなくてはいけないものは
+		// ここで定義する
+		const circulator: number = counter % numberOfProcess;
+		assembler.setResponseFilter(httpResponseFilter(id, artworkPageUrl));
+		assembler.setResponsesResolver(genResolver(id));
+		assembler.setupSequences(circulator);
+	}
+
+	return assembler.run()
+		.then(() => assembler.getCollected())
+		.catch(e => assembler.errorHandler(e))
+		.finally(() => assembler.finally());
+};
+
+setupSequencesOfArtworkPages(idTable, numberOfProcess);
+
+// resolverにidを渡さなくてはならないので...
+const genResolver = (id: number) => {
+	return function(responses: (puppeteer.HTTPResponse | any)[]) {
+		return resolver(responses, id);
+	};
+};
+
+
+```	
