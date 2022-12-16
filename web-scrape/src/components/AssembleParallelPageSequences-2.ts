@@ -2,7 +2,6 @@
  * Ver:2
  * branch: feat-action-integlation
  * ******************************************************************/ 
-import { timeStamp } from 'console';
 import type puppeteer from 'puppeteer';
 import type { Collect, iFilterLogic } from './Collect';
 import type { Navigation } from './Navigation';
@@ -10,10 +9,17 @@ import type { Navigation } from './Navigation';
 export type iResponsesResolveCallback<T> = (responses: (puppeteer.HTTPResponse | any)[], params?: any) => T[] | Promise<T[]>;
 
 // NOTE: Not then handler. then handler returns below type function.
-type iAssemblerNavigationProcess<T> = (this: AssembleParallelPageSequences<T>) => Promise<(puppeteer.HTTPResponse | any)[]>;
-type iAssemblerResolveProcess<T> = (this: AssembleParallelPageSequences<T>, responses: (puppeteer.HTTPResponse | any)[]) => Promise<T[]>;
-type iAssemblerSolutionProcess<T> = (this: AssembleParallelPageSequences<T>, resolved: T[]) => Promise<void>;
-type iAssemblerErrorHandlingProcess = (e: Error) => void;
+export type iAssemblerNavigationProcess<T> = (this: AssembleParallelPageSequences<T>, circulator: number) => Promise<(puppeteer.HTTPResponse | any)[]>;
+export type iAssemblerResolveProcess<T> = (
+    this: AssembleParallelPageSequences<T>, 
+    circulator: number,
+    responses: (puppeteer.HTTPResponse | any)[],
+    param?: any) => Promise<T[]>;
+export type iAssemblerSolutionProcess<T> = (
+    this: AssembleParallelPageSequences<T>, 
+    circulator: number, 
+    resolved: T[]) => Promise<void>;
+export type iAssemblerErrorHandlingProcess = (e: Error) => void;
 
 
 export class AssembleParallelPageSequences<T> {
@@ -255,9 +261,9 @@ export class AssembleParallelPageSequences<T> {
         ) throw new Error("Error: Process methods may not setup yet.");
         
         this.getSequences()[index] = this.getSequences()[index]!
-        .then(() => this.navigationProcess!())
-        .then((responses: (puppeteer.HTTPResponse|any)[]) => this.resolveProcess!(responses))
-        .then((resolved: T[]) => this.solutionProcess!(resolved))
+        .then(() => this.navigationProcess!(index))
+        .then((responses: (puppeteer.HTTPResponse|any)[]) => this.resolveProcess!(index, responses))
+        .then((resolved: T[]) => this.solutionProcess!(index, resolved))
         .catch(e => this.errorHandler(e));
 	};
 
