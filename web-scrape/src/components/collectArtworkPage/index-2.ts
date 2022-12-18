@@ -62,28 +62,37 @@ export const setupCollectingArtworkPage = async (
     try {
         await assembler.initialize();
         
-        assembler.setNavigationProcess(navigationProcess);
+        // assembler.setNavigationProcess(navigationProcess);
         assembler.setResolvingProcess(resolveProcess);
         assembler.setSolutionProcess(solutionProcess);
         assembler.setErrorHandlingProcess();
 
         let counter: number = 1;
         for(const id of idTable) {
-            // 単一の逐次処理の内容をここで定義する
+            // 毎ループで更新すべき単一の逐次処理の内容をここで定義する
+            // 毎ループ更新した内容を反映させるならこのブロック内でsetメソッドを呼び出して更新済のprocess関数をセットする
             // 
             // 毎ループで更新すべき内容は...
             // page.goto()するときのURL
             // page.waitForResponse()のフィルターURL
-            // resolveSolution()へ渡す`id`変数
             // 
             const circulator: number = counter % numberOfProcess;
             // このURLをnavigationProcessへ渡す手段がない...
-            const url: string = mustache(artworkPageUrl, {id: id})
-            // waitForResponseのURLの更新
+            const url: string = mustache(artworkPageUrl, {id: id});
+            // page.waitForResponseのURLの更新
             assembler.setResponseFilter(httpResponseFilter(id, url));
+            // navigation内容の更新(URL)
+            assembler.setNavigationTrigger(
+                function trigger(page: puppeteer.Page) { 
+                    return page.goto(url);
+                });
             assembler.setupSequence(circulator);
             counter++;
         }
+        return assembler.run()
+            .then(() => assembler.getCollected())
+            .catch(e => assembler.errorHandler(e))
+            .finally(() => assembler.finally());
     }
     catch(e) {
         assembler.finally();

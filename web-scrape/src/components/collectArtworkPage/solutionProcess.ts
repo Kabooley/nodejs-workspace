@@ -2,7 +2,6 @@
  * 
  * 
  * *******************************************************************/ 
-import type puppeteer from 'puppeteer';
 import type { iIllustData } from './typeOfArtworkPage';
 import type { iAssemblerSolutionProcess } from '../AssembleParallelPageSequences-2';
 import type { AssembleParallelPageSequences } from '../AssembleParallelPageSequences-2';

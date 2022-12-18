@@ -29,10 +29,13 @@ export class AssembleParallelPageSequences<T> {
     private collectedProperties: T[keyof T][];
     // NOTE: 初期化する必要があるから仕方なくundefinedの可能性をつけている
     // private responsesResolver: iResponsesResolveCallback<T> | undefined;
-    private navigationProcess: iAssemblerNavigationProcess<T> | undefined;
+    // private navigationProcess: iAssemblerNavigationProcess<T> | undefined;
     private resolveProcess: iAssemblerResolveProcess<T> | undefined;
     private solutionProcess: iAssemblerSolutionProcess<T> | undefined;
     private errorHandlingProcess: iAssemblerErrorHandlingProcess | undefined;
+    // NOTE: New added. 12/18
+    // trigger内容をラップした同期関数であること
+    private navigationTrigger: ((page: puppeteer.Page) => Promise<any>) | undefined;
     constructor(
         private browser: puppeteer.Browser, 
         private concurrency: number,
@@ -42,10 +45,11 @@ export class AssembleParallelPageSequences<T> {
         this.collected = [];
         this.collectedProperties = [];
         // this.responsesResolver = undefined;
-        this.navigationProcess = undefined;
+        // this.navigationProcess = undefined;
         this.resolveProcess = undefined;
         this.solutionProcess = undefined;
         this.errorHandlingProcess = undefined;
+        this.navigationTrigger = undefined;
         // Methods binding. 
         // NOTE: bind()は元の関数の関数の型をanyにしてしなうとのこと...
         // https://typescript-jp.gitbook.io/deep-dive/main-1/bind
@@ -70,7 +74,7 @@ export class AssembleParallelPageSequences<T> {
         // NOTE: new added
         // 
         this.setupSequence = this.setupSequence.bind(this);
-        this.setNavigationProcess = this.setNavigationProcess.bind(this);
+        // this.setNavigationProcess = this.setNavigationProcess.bind(this);
         this.setResolvingProcess = this.setResolvingProcess.bind(this);
         this.setSolutionProcess = this.setSolutionProcess.bind(this);
         this.setErrorHandlingProcess = this.setErrorHandlingProcess.bind(this);
@@ -254,7 +258,7 @@ export class AssembleParallelPageSequences<T> {
         ) throw new Error("ReangeError: index accessing out of range or getSequences()");
 		
         if(
-            this.navigationProcess === undefined
+            this.navigationTrigger === undefined
             || this.resolveProcess === undefined
             || this.solutionProcess === undefined
             || this.errorHandlingProcess === undefined
@@ -267,9 +271,10 @@ export class AssembleParallelPageSequences<T> {
         .catch(e => this.errorHandler(e));
 	};
 
-	setNavigationProcess(navigationProcess: iAssemblerNavigationProcess<T>) {
-		this.navigationProcess = navigationProcess.bind(this);
-	};
+    // TODO: いらないかも...かわりにsetNavigationTrigger()を追加した。
+	// setNavigationProcess(navigationProcess: iAssemblerNavigationProcess<T>) {
+	// 	this.navigationProcess = navigationProcess.bind(this);
+	// };
 
 	// setResponsesResolverの名前を変更するだけ
 	setResolvingProcess(resolveProcess: iAssemblerResolveProcess<T>) {
@@ -283,4 +288,17 @@ export class AssembleParallelPageSequences<T> {
 	setErrorHandlingProcess(errorHandlingProcess: iAssemblerErrorHandlingProcess) {
 		this.errorHandlingProcess = errorHandlingProcess.bind(this);
 	};
+
+    // NOTE: New added. 12/18
+    setNavigationTrigger(trigger: (page: puppeteer.Page) => Promise<any>): void {
+        this.navigationTrigger = trigger;
+    };
+
+    // NOTE: New added. 12/18
+    navigationProcess(circulator: number): Promise<(puppeteer.HTTPResponse | any)[]> {
+        return this.navigation.navigateBy(
+            this.getPageInstance(circulator)!,
+            this.navigationTrigger!(this.getPageInstance(circulator)!)
+        );
+    };
 };
