@@ -10,10 +10,10 @@ import { AssembleParallelPageSequences } from '../AssembleParallelPageSequences-
 import { filterOnlyMatchedKey } from '../../utilities/Filter';
 import { httpResponseFilter } from './httpResponseFilter';
 // process definition
-import { navigationProcess } from './navigationProcess';
 import { resolveProcess } from './resolveProcess';
 import { solutionProcess } from './solutionProcess';
 import mustache from '../../utilities/mustache';
+// import { navigationProcess } from './navigationProcess';
 
 
 // GLOBAL
@@ -76,6 +76,7 @@ export const setupCollectingArtworkPage = async (
             // page.goto()するときのURL
             // page.waitForResponse()のフィルターURL
             // 
+            // 
             const circulator: number = counter % numberOfProcess;
             // このURLをnavigationProcessへ渡す手段がない...
             const url: string = mustache(artworkPageUrl, {id: id});
@@ -84,7 +85,7 @@ export const setupCollectingArtworkPage = async (
             // navigation内容の更新(URL)
             assembler.setNavigationTrigger(
                 function trigger(page: puppeteer.Page) { 
-                    return page.goto(url);
+                    return page.goto(url, { waitUntil: ["load", "networkidle2"] });
                 });
             assembler.setupSequence(circulator);
             counter++;

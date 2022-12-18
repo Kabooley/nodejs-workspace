@@ -24,46 +24,49 @@
  * - `download fromBookmark --keyword --tags --bookmarkOver --userName`
  * ダウンロードする
  * 
- * 実行する内容は
+ * Actionはコマンドの内容を取得してなにをexecute()で実行するのか、
+ * 自身で組み立てるようにする
+ * 
+ * TODO: 受け取りうるコマンドの型の定義
  * *************************************************/ 
 import * as fs from 'fs';
 import type http from 'http';
-import type { Http2SecureServer } from 'http2';
 import type puppeteer from 'puppeteer';
 import { Downloader } from '../http/downloader';
 
 // TODO: Define this
-interface iOptions {
+type iOptions = "collect" | "bookmark" | "download";
 
-    // iCollectOPtions
-    // iBookmarkOptions
-}
-export class Action {
+export class Action<T> {
     constructor(private options: iOptions, private page: puppeteer.Page){};
 
-
+    /**
+     * 引数は
+     * 
+     * */ 
     download(
-        url: string, 
         dest: fs.PathLike, 
         options: BufferEncoding | StreamOptions | undefined,
         requestOptions: http.RequestOptions) {
         const opt = options !== undefined ? options : {};
         const wfs: fs.WriteStream = fs.createWriteStream(dest, opt);
         return new Downloader(requestOptions, wfs).download();
-    }
+    };
 
-    /***
-     * DOM操作をする
-     * どこでブックマークするかでセレクタが異なるはず
-     * 
-     * 検索結果ページで実行するのか
-     * artworkページで実行するのか
+    /**
+     * TODO: セレクターは動的に決まるので、引数から渡したい
      * */ 
     bookmark() {
         return this.page.click("")
-    }
+    };
 
-    errorHandler() {
-
-    }
+    // download()もbookmark()も動的な引数が必要なのだが、
+    // このままだとその動的な引数を渡すことができない
+    async execute(element: T, page: puppeteer.Page): Promise<any> {
+        switch(this.options) {
+            case "collect":return;
+            case "bookmark": return this.bookmark(page);
+            case "download": return this.download()
+        }
+    };
 };

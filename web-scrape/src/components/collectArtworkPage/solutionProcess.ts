@@ -11,6 +11,9 @@ import { Action } from '../../action';
 /**
  * TODO: Commandの内容を実行する
  * 
+ * actionはassemblerが抱えることとする
+ * ただし、呼び出しはaction.execute()のみで
+ * 何をすべきなのかはAction自体が考えるものとする
  * */ 
 export const solutionProcess: iAssemblerSolutionProcess<iIllustData> = function(
     this: AssembleParallelPageSequences<iIllustData>,
@@ -23,5 +26,5 @@ export const solutionProcess: iAssemblerSolutionProcess<iIllustData> = function(
     this.getCollected().push(element);
     // page: puppeteer.Page
     // TODO: Action is not implemented yet. Define it.
-    return Action.execute(element, this.getPageInstance(index)!);
+    return this.action.execute(element, this.getPageInstance(index)!);
 }
