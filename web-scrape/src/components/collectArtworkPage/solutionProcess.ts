@@ -26,5 +26,5 @@ export const solutionProcess: iAssemblerSolutionProcess<iIllustData> = function(
     this.getCollected().push(element);
     // page: puppeteer.Page
     // TODO: Action is not implemented yet. Define it.
-    return this.action.execute(element, this.getPageInstance(index)!);
+    return this.action.execute()();
 }

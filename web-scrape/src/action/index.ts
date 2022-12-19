@@ -29,44 +29,81 @@
  * 
  * TODO: 受け取りうるコマンドの型の定義
  * *************************************************/ 
+import type puppeteer from 'puppeteer';
 import * as fs from 'fs';
 import type http from 'http';
-import type puppeteer from 'puppeteer';
 import { Downloader } from '../http/downloader';
 
-// TODO: Define this
-type iOptions = "collect" | "bookmark" | "download";
-
-export class Action<T> {
-    constructor(private options: iOptions, private page: puppeteer.Page){};
-
+// NOTE: `StreamOptions` fs.d.tsに定義されてあるのだけれど、
+// なぜかインポートできないので
+// しかたなくここに転記する。
+import type * as promises from 'fs/promises';
+interface StreamOptions {
+    flags?: string | undefined;
+    encoding?: BufferEncoding | undefined;
+    fd?: number | promises.FileHandle | undefined;
+    mode?: number | undefined;
+    autoClose?: boolean | undefined;
     /**
-     * 引数は
-     * 
-     * */ 
+     * @default false
+     */
+    emitClose?: boolean | undefined;
+    start?: number | undefined;
+    highWaterMark?: number | undefined;
+};
+
+
+type iOptions = "collect" | "bookmark" | "download";
+type iMethodDownload = (dest: fs.PathLike, options: BufferEncoding | StreamOptions | undefined, requestOptions: http.RequestOptions) => void;
+
+export class Action {
+    constructor(private options: iOptions){
+        this.download = this.download.bind(this);
+        this.bookmark = this.bookmark.bind(this);
+        this.execute = this.execute.bind(this);
+    };
+
     download(
         dest: fs.PathLike, 
+        requestOptions: http.RequestOptions,
         options: BufferEncoding | StreamOptions | undefined,
-        requestOptions: http.RequestOptions) {
+        ) {
         const opt = options !== undefined ? options : {};
         const wfs: fs.WriteStream = fs.createWriteStream(dest, opt);
         return new Downloader(requestOptions, wfs).download();
     };
 
     /**
-     * TODO: セレクターは動的に決まるので、引数から渡したい
+     * Clicks bookmark button on artwork page.
      * */ 
-    bookmark() {
-        return this.page.click("")
+    bookmark(page: puppeteer.Page, selector: string): Promise<void> {
+        return page.click(selector);
     };
 
-    // download()もbookmark()も動的な引数が必要なのだが、
-    // このままだとその動的な引数を渡すことができない
-    async execute(element: T, page: puppeteer.Page): Promise<any> {
+    /***
+     * executeというより、実行する関数を返す関数
+     * なので引数が不要である
+     * 
+     * usage:
+     *  `action.execute()(//呼出したメソッドに必要な引数)`
+     * */ 
+    execute() {
+        // 今のところ、各コマンドは独立（コマンドが複数になることはない）なので
+        // switch分で行うことを振り分ける
         switch(this.options) {
-            case "collect":return;
-            case "bookmark": return this.bookmark(page);
-            case "download": return this.download()
+            case "bookmark": return this.bookmark;
+            case "download": return this.download;
+            default : return function(){};
         }
     };
 };
+
+async function usage(command: iOptions, page: puppeteer.Page) {
+    const action = new Action(command);
+    // TODO: expected 3 parameter, but got 2といわれる
+    // 
+    // ここを調べてみよう
+    // https://stackoverflow.com/questions/58673034/type-inference-from-switch-case-return-with-typescript
+    return action.execute()(page, "ssss");
+
+}
