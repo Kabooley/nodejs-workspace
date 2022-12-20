@@ -24,6 +24,8 @@ TODO: TypeScriptの書籍を買え！
 
 [関数のthis指定](#関数のthis指定)
 
+[オーバーロード](#オーバーロード)
+
 
 ## TypeScriptはprivate指定子でスコープを制御してくれるわけではない
 
@@ -1087,3 +1089,147 @@ dd.setCustomIntroduce(customIntroduce);
 console.log(dd.customIntroduce());      // No error.
 ```
 
+
+
+## オーバーロード
+
+https://www.typescriptlang.org/docs/handbook/functions.html#overloads
+
+https://www.typescriptlang.org/docs/handbook/2/functions.html#function-overloads
+
+
+- オーバーロード・シグネチャと実装シグネチャの2つからなる。
+- 実装シグネチャの直上にオーバーロードシグネチャを宣言すること。
+- 実装シグネチャは直接呼び出すことができない。
+- 関数本体を記述するために使用される署名は、外部から「見る」ことはできません。
+- 実装シグネチャはオーバーロードシグネチャと互換性を持たなくてはならない。
+ 
+#### 実装シグネチャとオーバーロードシグネチャの互換性について
+
+実装シグネチャは引数も戻り値もオーバーロードシグネチャと互換性を持たなくてはならない。
+
+なのでオーバーロードシグネチャがそれぞれ戻り値string, number, booleanなら
+実装シグネチャの戻り値はいずれもとりうるように実装しなくてはならない。
+
+#### 書き方
+
+```TypeScript
+// 1. オーバーロードを先に宣言だけする。
+// この宣言だけの署名をオーバーロード・シグネチャと呼ぶ
+function makeDate(timestamp: number): Date;
+function makeDate(m: number, d: number, y: number): Date;
+// 2. 実装を最後に記述する
+// この実装をした署名を実装シグネチャと呼ぶ
+// NOTE: この関数を直接呼び出すことはできない！
+function makeDate(
+    // 実装シグネチャはオーバーロードシグネチャと互換性を持たなくてはならないので
+    // その取る引数はすべてのオーバーロードの引数をとらなくてはならない。
+    mOrTimestamp: number, d?: number, y?: number
+    ): Date {
+  if (d !== undefined && y !== undefined) {
+    return new Date(y, mOrTimestamp, d);
+  } else {
+    return new Date(mOrTimestamp);
+  }
+}
+const d1 = makeDate(12345678);
+const d2 = makeDate(5, 5, 5);
+const d3 = makeDate(1, 3);  // No overload expects 2 arguments, but overloads do exist that expect either 1 or 3 arguments.
+```
+
+#### Writing good overloads
+
+```TypeScript
+function len(s: string): number;
+function len(arr: any[]): number;
+function len(x: any) {
+  return x.length;
+};
+
+len(""); // OK
+len([0]); // OK
+
+// NOTE: 問題のある呼び出し方...1
+len(Math.random() > 0.5 ? "hello" : [0]);
+/*
+No overload matches this call.
+  Overload 1 of 2, '(s: string): number', gave the following error.
+    Argument of type 'number[] | "hello"' is not assignable to parameter of type 'string'.
+      Type 'number[]' is not assignable to type 'string'.
+  Overload 2 of 2, '(arr: any[]): number', gave the following error.
+    Argument of type 'number[] | "hello"' is not assignable to parameter of type 'any[]'.
+      Type 'string' is not assignable to type 'any[]'.
+*/
+```
+
+1について：
+
+TypeScriptはオーバーロード関数を呼び出すときに、必ずいずれか一つの関数で解決するので、
+
+「どちらかの可能性のある」呼び出し方はできないのである。
+
+つまり、引数でどのオーバーロードなのかを判断しているといってもいいかも。
+
+なので上記の三項演算子は実行時でないとstringなのか配列なのか判断できないためエラーになるのである。
+
+
+
+#### 検証
+
+codesandboxで確認したところ、以下のコードは正常である。
+
+```TypeScript
+type Options = 'op1' | 'op2' | 'op3'
+type fn01 = (name: string) => string;
+type fn02 = (age: string) => string;
+type fn03 = (description: number) => number;
+
+// here overloads - define output for every input
+function test(a: 'op1'): fn01;
+function test(a: 'op2'): fn02;
+function test(a: 'op3'): fn03;
+
+function test(options: Options) {
+    switch(options) {
+      case 'op1':
+        return (name: string) => {return name;}
+      case 'op2':
+        return (age: string) => {return age;}
+      case 'op3':
+        return (description: number) => {return description;}
+      default:
+        throw new Error('no such value')  
+      }
+}
+
+const f = test('op1') // it is fn01
+console.log(f("tesst"));        // tesst
+```
+
+つまり、オーバーロードの条件として戻り値が共通である必要がない。
+
+#### 実践
+
+```TypeScript
+type iCommands = "collect" | "bookmark" | "download";
+type iActionBookmark = (page: puppeteer.Page, selector: string) => Promise<void>;
+type iActionDownload = (dest: fs.PathLike, options: BufferEncoding | StreamOptions | undefined, requestOptions: http.RequestOptions) => void;
+
+class Action {
+    // ...
+
+    caller() {
+        function execute(command: "bookmark"): iActionBookmark;
+        function execute(command: "download"): iActionDownload;
+        function execute(command: iCommands) {
+            switch(command) {
+                case "bookmark": return this.bookmark;
+                case "download": return this.download;
+                default: throw new Error("No such a action method");
+            }
+        };
+
+        return execute(this.command);
+    }
+}
+```

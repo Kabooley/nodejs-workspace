@@ -53,14 +53,16 @@ interface StreamOptions {
 };
 
 
-type iOptions = "collect" | "bookmark" | "download";
-type iMethodDownload = (dest: fs.PathLike, options: BufferEncoding | StreamOptions | undefined, requestOptions: http.RequestOptions) => void;
+type iCommands = "collect" | "bookmark" | "download";
+type iActionDownload = (dest: fs.PathLike, options: BufferEncoding | StreamOptions | undefined, requestOptions: http.RequestOptions) => void;
+type iActionBookmark = (page: puppeteer.Page, selector: string) => Promise<void>;
 
 export class Action {
-    constructor(private options: iOptions){
+    constructor(private command: iCommands){
         this.download = this.download.bind(this);
         this.bookmark = this.bookmark.bind(this);
-        this.execute = this.execute.bind(this);
+        this.caller = this.caller.bind(this);
+        // this.execute = this.execute.bind(this);
     };
 
     download(
@@ -87,18 +89,32 @@ export class Action {
      * usage:
      *  `action.execute()(//呼出したメソッドに必要な引数)`
      * */ 
-    execute() {
-        // 今のところ、各コマンドは独立（コマンドが複数になることはない）なので
-        // switch分で行うことを振り分ける
-        switch(this.options) {
-            case "bookmark": return this.bookmark;
-            case "download": return this.download;
-            default : return function(){};
-        }
-    };
+    // execute() {
+    //     // 今のところ、各コマンドは独立（コマンドが複数になることはない）なので
+    //     // switch分で行うことを振り分ける
+    //     switch(this.options) {
+    //         case "bookmark": return this.bookmark;
+    //         case "download": return this.download;
+    //         default : return function(){};
+    //     }
+    // };
+    
+    caller(this: Action) {
+        function execute(command: "bookmark"): iActionBookmark;
+        function execute(command: "download"): iActionDownload;
+        function execute(command: iCommands) {
+            switch(command) {
+                case "bookmark": return this.bookmark;
+                case "download": return this.download;
+                default: throw new Error("No such a action method");
+            }
+        };
+
+        return execute(this.command);
+    }
 };
 
-async function usage(command: iOptions, page: puppeteer.Page) {
+async function usage(command: iCommands, page: puppeteer.Page) {
     const action = new Action(command);
     // TODO: expected 3 parameter, but got 2といわれる
     // 
