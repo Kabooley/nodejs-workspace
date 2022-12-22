@@ -6,14 +6,6 @@ import type { iIllustData } from './typeOfArtworkPage';
 import type { iAssemblerSolutionProcess } from '../AssembleParallelPageSequences-2';
 import type { AssembleParallelPageSequences } from '../AssembleParallelPageSequences-2';
 
-
-/**
- * TODO: Commandの内容を実行する
- * 
- * actionはassemblerが抱えることとする
- * ただし、呼び出しはaction.execute()のみで
- * 何をすべきなのかはAction自体が考えるものとする
- * */ 
 export const solutionProcess: iAssemblerSolutionProcess<iIllustData> = function(
     this: AssembleParallelPageSequences<iIllustData>,
     index: number,
@@ -23,8 +15,5 @@ export const solutionProcess: iAssemblerSolutionProcess<iIllustData> = function(
     if(element === undefined || !filterLogic(element)) return;
     // TODO: Actually, collecting is not necessary...
     // this.getCollected().push(element);
-
-    // コマンドがなんであるのか既知として...
-    return this.action.
-
+    return this.executeAction(element);
 };

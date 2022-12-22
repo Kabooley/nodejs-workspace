@@ -158,7 +158,6 @@ import * as path from 'path';
 import * as url from 'url';
 import type { iIllustData } from '../components/collectArtworkPage/typeOfArtworkPage';
 import { AssembleParallelPageSequences } from '../components/AssembleParallelPageSequences-2';
-import { setUncaughtExceptionCaptureCallback } from 'process';
 
 const callDownloader = (data: iIllustData): void => {
     const { urls, illustTitle } = data;
@@ -182,13 +181,15 @@ const callDownloader = (data: iIllustData): void => {
     return new Action().download(filepath, httpRequestOption, options);
 };
 
-
-const closure = function() {
-    return callDownloader;
+type iActionClosure<T> = (data: T) => Promise<any> | any;
+const closure = function(): iActionClosure<iIllustData> {
+    return function(data: iIllustData) {
+        return callDownloader(data);
+    }
 };
 
-const closure2 = function(page: puppeteer.Page, selector: string) {
-    return function() {
+const closure2 = function(page: puppeteer.Page, selector: string): iActionClosure<iIllustData> {
+    return function(data: iIllustData) {
         return new Action().bookmark(page, selector);
     }
 };
@@ -204,8 +205,12 @@ const assigningAction = (command: iCommands, page: puppeteer.Page, selector: str
 };
 
 // AssembleParallelPageSequences-2.ts
-setAction() {
+setAction(actionExecutor: iActionClosure<iIllustData>) {
+    this.action = actionExecutor;
+};
 
+executeAction(data: iIllustData) {
+    return this.action(data);
 }
 
 // src/components/collectArtworkPage/index-2.ts

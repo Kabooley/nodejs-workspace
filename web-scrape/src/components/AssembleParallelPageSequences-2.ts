@@ -21,6 +21,9 @@ export type iAssemblerSolutionProcess<T> = (
     resolved: T[]) => Promise<any> | any;
 export type iAssemblerErrorHandlingProcess = (e: Error) => void;
 
+// NOTE: Action wrapper
+export type iAssemblerActionClosure<T> = (data: T) => Promise<any> | any;
+
 
 export class AssembleParallelPageSequences<T> {
     public sequences: Promise<void>[] = [];
@@ -33,9 +36,10 @@ export class AssembleParallelPageSequences<T> {
     private resolveProcess: iAssemblerResolveProcess<T> | undefined;
     private solutionProcess: iAssemblerSolutionProcess<T> | undefined;
     private errorHandlingProcess: iAssemblerErrorHandlingProcess | undefined;
-    // NOTE: New added. 12/18
-    // trigger内容をラップした同期関数であること
+    // NOTE: New added. 12/18 trigger内容をラップした同期関数であること
     private navigationTrigger: ((page: puppeteer.Page) => Promise<any>) | undefined;
+    // NOTE: action
+    private action: iAssemblerActionClosure<T> | undefined;
     constructor(
         private browser: puppeteer.Browser, 
         private concurrency: number,
@@ -44,8 +48,6 @@ export class AssembleParallelPageSequences<T> {
     ){
         this.collected = [];
         this.collectedProperties = [];
-        // this.responsesResolver = undefined;
-        // this.navigationProcess = undefined;
         this.resolveProcess = undefined;
         this.solutionProcess = undefined;
         this.errorHandlingProcess = undefined;
@@ -60,8 +62,6 @@ export class AssembleParallelPageSequences<T> {
         this.getPageInstance = this.getPageInstance.bind(this);
         this.getSequences = this.getSequences.bind(this);
         this.setResponseFilter = this.setResponseFilter.bind(this);
-        // this.setResponsesResolver = this.setResponsesResolver.bind(this);
-        // this.resolveResponses = this.resolveResponses.bind(this);
         this.collect = this.collect.bind(this);
         this.collectProperties = this.collectProperties.bind(this);
         this.filter = this.filter.bind(this);
@@ -74,10 +74,16 @@ export class AssembleParallelPageSequences<T> {
         // NOTE: new added
         // 
         this.setupSequence = this.setupSequence.bind(this);
-        // this.setNavigationProcess = this.setNavigationProcess.bind(this);
         this.setResolvingProcess = this.setResolvingProcess.bind(this);
         this.setSolutionProcess = this.setSolutionProcess.bind(this);
         this.setErrorHandlingProcess = this.setErrorHandlingProcess.bind(this);
+        this.action = undefined;
+        
+        // this.responsesResolver = undefined;
+        // this.navigationProcess = undefined;
+        // this.setNavigationProcess = this.setNavigationProcess.bind(this);
+        // this.resolveResponses = this.resolveResponses.bind(this);
+        // this.setResponsesResolver = this.setResponsesResolver.bind(this);
     };
 
 
@@ -255,7 +261,7 @@ export class AssembleParallelPageSequences<T> {
     setupSequence(index: number) {
 		if(this.getSequences()[index] === undefined 
             || this.getPageInstance(index) === undefined
-        ) throw new Error("ReangeError: index accessing out of range or getSequences()");
+        ) throw new Error("ReangeError: index accessing out of range of getSequences()");
 		
         if(
             this.navigationTrigger === undefined
@@ -271,10 +277,6 @@ export class AssembleParallelPageSequences<T> {
         .catch(e => this.errorHandler(e));
 	};
 
-    // TODO: いらないかも...かわりにsetNavigationTrigger()を追加した。
-	// setNavigationProcess(navigationProcess: iAssemblerNavigationProcess<T>) {
-	// 	this.navigationProcess = navigationProcess.bind(this);
-	// };
 
 	// setResponsesResolverの名前を変更するだけ
 	setResolvingProcess(resolveProcess: iAssemblerResolveProcess<T>) {
@@ -301,4 +303,19 @@ export class AssembleParallelPageSequences<T> {
             this.navigationTrigger!(this.getPageInstance(circulator)!)
         );
     };
+
+    // NOTE: action
+    setAction(action: iAssemblerActionClosure<T>): void {
+        this.action = action;
+    };
+    executeAction(data: T): Promise<any> | any {
+        if(this.action !== undefined) return this.action(data);
+    }
+
+    // --- LEGACY ---
+
+    // 代わりにsetNavigationTrigger()を追加した。
+	// setNavigationProcess(navigationProcess: iAssemblerNavigationProcess<T>) {
+	// 	this.navigationProcess = navigationProcess.bind(this);
+	// };
 };
