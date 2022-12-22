@@ -18,7 +18,7 @@ export type iAssemblerResolveProcess<T> = (
 export type iAssemblerSolutionProcess<T> = (
     this: AssembleParallelPageSequences<T>, 
     circulator: number, 
-    resolved: T[]) => Promise<void>;
+    resolved: T[]) => Promise<any> | any;
 export type iAssemblerErrorHandlingProcess = (e: Error) => void;
 
 

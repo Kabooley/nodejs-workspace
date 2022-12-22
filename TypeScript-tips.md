@@ -1099,10 +1099,14 @@ https://www.typescriptlang.org/docs/handbook/2/functions.html#function-overloads
 
 
 - オーバーロード・シグネチャと実装シグネチャの2つからなる。
-- 実装シグネチャの直上にオーバーロードシグネチャを宣言すること。
-- 実装シグネチャは直接呼び出すことができない。
+- お作法として、実装シグネチャの直上にオーバーロードシグネチャを宣言すること。
+- 実装シグネチャは直接呼び出すことができない。(?)
 - 関数本体を記述するために使用される署名は、外部から「見る」ことはできません。
 - 実装シグネチャはオーバーロードシグネチャと互換性を持たなくてはならない。
+
+- **オーバーロード関数は静的な引数ならば呼び出すことができるが動的な引数の場合エラーになる**
+
+    詳しくは`Writing good overload`と`実践`で。
  
 #### 実装シグネチャとオーバーロードシグネチャの互換性について
 
@@ -1210,26 +1214,109 @@ console.log(f("tesst"));        // tesst
 
 #### 実践
 
+下記の通り、オーバーロード関数を呼び出すときは、引数が定数でなくてはならない。
+
+そうでない場合、引数が実行時に決定される場合、
+
+オーバーロード関数呼び出しはエラーになる。
+
+ということで、もしもオーバーロード関数の呼び出しを動的な引数で呼び出す場合
+
+オーバーロードを利用することは断念し、別の方法を模索するべきである。
+
+(`Writing good overload`に既に書いてあったわ...)
+
 ```TypeScript
-type iCommands = "collect" | "bookmark" | "download";
-type iActionBookmark = (page: puppeteer.Page, selector: string) => Promise<void>;
-type iActionDownload = (dest: fs.PathLike, options: BufferEncoding | StreamOptions | undefined, requestOptions: http.RequestOptions) => void;
+import type puppeteer from 'puppeteer';
+import * as fs from 'fs';
+import type http from 'http';
+import { Downloader } from '../http/downloader';
 
-class Action {
-    // ...
+// NOTE: `StreamOptions` fs.d.tsに定義されてあるのだけれど、
+// なぜかインポートできないので
+// しかたなくここに転記する。
+import type * as promises from 'fs/promises';
+interface StreamOptions {
+    flags?: string | undefined;
+    encoding?: BufferEncoding | undefined;
+    fd?: number | promises.FileHandle | undefined;
+    mode?: number | undefined;
+    autoClose?: boolean | undefined;
+    /**
+     * @default false
+     */
+    emitClose?: boolean | undefined;
+    start?: number | undefined;
+    highWaterMark?: number | undefined;
+};
 
-    caller() {
-        function execute(command: "bookmark"): iActionBookmark;
-        function execute(command: "download"): iActionDownload;
-        function execute(command: iCommands) {
+
+export type iCommands = "collect" | "bookmark" | "download";
+export type iActionDownload = (dest: fs.PathLike, requestOptions: http.RequestOptions, options: BufferEncoding | StreamOptions | undefined) => void;
+export type iActionBookmark = (page: puppeteer.Page, selector: string) => Promise<void>;
+
+export class Action {
+    constructor(private command: iCommands){
+        this.download = this.download.bind(this);
+        this.bookmark = this.bookmark.bind(this);
+        this.caller = this.caller.bind(this);
+    };
+
+    download(
+        dest: fs.PathLike, 
+        requestOptions: http.RequestOptions,
+        options: BufferEncoding | StreamOptions | undefined,
+        ) {
+        const opt = options !== undefined ? options : {};
+        const wfs: fs.WriteStream = fs.createWriteStream(dest, opt);
+        return new Downloader(requestOptions, wfs).download();
+    };
+
+    /**
+     * Clicks bookmark button on artwork page.
+     * */ 
+    bookmark(page: puppeteer.Page, selector: string): Promise<void> {
+        return page.click(selector);
+    };
+
+    /**
+     * NOTE: ボツ。JavaScriptでオーバーロードは使うべきではない。
+     * オーバーロードは直接呼び出すときにのみ使うべきで、
+     * 動的な引数によって呼び出されるときには使われるべきではない。
+     * 
+     * */ 
+    caller(): iActionBookmark & iActionDownload {
+        const self = this;
+        function _caller(command: "bookmark"): iActionBookmark;
+        function _caller(command: "download"): iActionDownload;
+        function _caller(command: "collect"): () => void;
+        function _caller(command: iCommands)
+        // : iActionDownload | iActionBookmark 
+        {
             switch(command) {
-                case "bookmark": return this.bookmark;
-                case "download": return this.download;
+                case "download": return self.download;
+                case "bookmark": return self.bookmark;
+                case "collect": return function(){};
                 default: throw new Error("No such a action method");
             }
         };
 
-        return execute(this.command);
+        // このように動的に呼び出される引数でオーバーロードを呼び出すと、
+        // エラーになる。
+        // 直接"bookmark"と呼び出すとエラーにはならない。
+        return _caller(this.command);   // `this.command` is not assignable to ...のエラー
+    };
+};
+
+const usage = function(command: iCommands, page: puppeteer.Page) {
+    let executor = new Action("bookmark").caller();
+    switch(command) {
+        case "bookmark":
+            return executor(page, "seelctor");  // エラー：iActionDownloadじゃないじゃんといわれる
+        case "download":
+            return executor("../dist/cat.png", {}, {});
+        default:
+            console.log("Error");
     }
-}
+};
 ```
