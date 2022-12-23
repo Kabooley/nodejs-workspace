@@ -13,31 +13,10 @@ import { httpResponseFilter } from './httpResponseFilter';
 import { resolveProcess } from './resolveProcess';
 import { solutionProcess } from './solutionProcess';
 import mustache from '../../utilities/mustache';
-// import { navigationProcess } from './navigationProcess';
+// Relate to Action process
+import { assignAction } from './assignAction';
+import { generateDownloadOptions } from './generateDownloadOptions';
 
-import type * as fs from 'fs';
-import * as path from 'path';
-import * as url from 'url';
-import type * as http from 'http';
-
-// NOTE: temporary
-import { Action } from '../../action';
-import type { iCommands, iActionDownload, iActionBookmark } from '../../action';
-import type * as promises from 'fs/promises';
-interface StreamOptions {
-    flags?: string | undefined;
-    encoding?: BufferEncoding | undefined;
-    fd?: number | promises.FileHandle | undefined;
-    mode?: number | undefined;
-    autoClose?: boolean | undefined;
-    /**
-     * @default false
-     */
-    emitClose?: boolean | undefined;
-    start?: number | undefined;
-    highWaterMark?: number | undefined;
-};
-type iActionClosure<T> = (data: T) => Promise<any> | any;
 
 // GLOBAL
 const artworkPageUrl: string = "https://www.pixiv.net/artworks/{{id}}";
@@ -60,58 +39,6 @@ const validOptions: (keyof iCollectOptions)[] = ["keyword", "bookmarkOver"];
         }
     };
 })();
-
-/**
- * NOTE: あとでファイル分割するとして
- * */ 
-const generateDownloadOptions = (data: iIllustData) => {
-    const { urls, illustTitle } = data;
-    if(urls === undefined || illustTitle === undefined || urls.original === undefined) 
-        throw new Error("Error: No expected data was contained in data.");
-    
-    const _url: URL = new url.URL(urls.original);
-    const filepath: fs.PathLike = path.join(__dirname, illustTitle, path.extname(urls.original));
-    const httpRequestOption: http.RequestOptions = {
-        method: "GET",
-        host: _url.host,
-        path: _url.pathname,
-        protocol: "https"
-    };
-    const options: StreamOptions = {
-        encoding: 'binary',
-        autoClose: true,
-        emitClose: true,
-        highWaterMark: 1024
-    };
-
-    return {dest: filepath, httpRequestOption: httpRequestOption, options: options};
-};
-
-/***
- * NOTE: iIllustData型変数以外のiActionClosureが求める引数は、ここですべて引数として取得しなくてはならない。
- * 
- * */ 
-const assignAction = (command: iCommands, page: puppeteer.Page, selector: string): iActionClosure<iIllustData> => {
-    switch(command) {
-        case "bookmark": return bookmarker(page, selector);
-        case "download": return downloader();
-        default: throw new Error("No such a action command");
-    }
-};
-
-const downloader = (): iActionClosure<iIllustData> => {
-    return function(data: iIllustData): void {
-        const { dest, httpRequestOption, options } = generateDownloadOptions(data);
-        return new Action().download(dest, httpRequestOption, options);
-    }
-};
-
-const bookmarker = (page: puppeteer.Page, selector: string): iActionClosure<iIllustData> => {
-    return function(data: iIllustData): Promise<void> {
-        return new Action().bookmark(page, selector);
-    }
-};
-
 
 /***
  * 
@@ -165,11 +92,12 @@ export const setupCollectingArtworkPage = async (
              * NOTE: actionのセット
              * */ 
             assembler.setAction(
-                assignAction(
-                    // commandは現状取得できない。ひとまず
-                    "collect",
+                assignAction<iIllustData>(
+                    // TODO: commandを渡すこと。ひとまずで
+                    "bookmark",
                     assembler.getPageInstance(circulator)!,
-                    "TODO: find out selector and store it here."
+                    "TODO: set selector",
+                    generateDownloadOptions
                 )
             );
 
