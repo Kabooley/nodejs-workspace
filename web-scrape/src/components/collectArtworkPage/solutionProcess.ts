@@ -12,8 +12,7 @@ export const solutionProcess: iAssemblerSolutionProcess<iIllustData> = function(
     resolved: iIllustData[]
 ) {
     const element: iIllustData | undefined = resolved.shift();
+    // 要素がなくてもエラーを起こすのではなく、無視する。
     if(element === undefined || !filterLogic(element)) return;
-    // TODO: Actually, collecting is not necessary...
-    // this.getCollected().push(element);
     return this.executeAction(element);
 };

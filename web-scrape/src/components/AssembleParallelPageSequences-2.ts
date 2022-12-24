@@ -1,6 +1,9 @@
 /*********************************************************************
  * Ver:2
  * branch: feat-action-integlation
+ * 
+ * NOTE:
+ * - Collect要らないかも...
  * ******************************************************************/ 
 import type puppeteer from 'puppeteer';
 import type { Collect, iFilterLogic } from './Collect';
@@ -19,7 +22,7 @@ export type iAssemblerSolutionProcess<T> = (
     this: AssembleParallelPageSequences<T>, 
     circulator: number, 
     resolved: T[]) => Promise<any> | any;
-export type iAssemblerErrorHandlingProcess = (e: Error) => void;
+export type iAssemblerErrorHandlingProcess = (e: Error, circulator: number) => void;
 
 // NOTE: Action wrapper
 export type iAssemblerActionClosure<T> = (data: T) => Promise<any> | any;
@@ -274,7 +277,7 @@ export class AssembleParallelPageSequences<T> {
         .then(() => this.navigationProcess!(index))
         .then((responses: (puppeteer.HTTPResponse|any)[]) => this.resolveProcess!(index, responses))
         .then((resolved: T[]) => this.solutionProcess!(index, resolved))
-        .catch(e => this.errorHandler(e));
+        .catch(e => this.errorHandler(e, index));
 	};
 
 

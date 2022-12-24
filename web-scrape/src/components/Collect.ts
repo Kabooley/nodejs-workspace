@@ -8,7 +8,8 @@
  * CollectのメソッドはT
  * *******************************************************************/ 
 
- export type iFilterLogic<T> = (e: T) => boolean;
+//  export type iFilterLogic<T> = (e: T) => boolean;
+ export type iFilterLogic<T> = (e: T, options: ) => boolean;
 
  /***
   * @type {T} - Type of the array element object.

@@ -12,10 +12,12 @@ import { httpResponseFilter } from './httpResponseFilter';
 // process definition
 import { resolveProcess } from './resolveProcess';
 import { solutionProcess } from './solutionProcess';
+import { errorHandlingProcess } from './errorHandlingProcess';
 import mustache from '../../utilities/mustache';
 // Relate to Action process
 import { assignAction } from './assignAction';
 import { generateDownloadOptions } from './generateDownloadOptions';
+import type { iCommands } from '../../action/Action';
 
 
 // GLOBAL
@@ -48,6 +50,7 @@ export const setupCollectingArtworkPage = async (
     browser: puppeteer.Browser,
     numberOfProcess: number,
     idTable: string[],
+    command: iCommands,
     options: iCollectOptions
 ) => {
     optionsProxy.set({
@@ -65,7 +68,7 @@ export const setupCollectingArtworkPage = async (
         // assembler.setNavigationProcess(navigationProcess);
         assembler.setResolvingProcess(resolveProcess);
         assembler.setSolutionProcess(solutionProcess);
-        assembler.setErrorHandlingProcess();
+        assembler.setErrorHandlingProcess(errorHandlingProcess);
 
         let counter: number = 1;
         for(const id of idTable) {
@@ -92,10 +95,7 @@ export const setupCollectingArtworkPage = async (
              * NOTE: actionのセット
              * */ 
             assembler.setAction(
-                assignAction<iIllustData>(
-                    // TODO: commandを渡すこと。ひとまずで
-                    "bookmark",
-                    assembler.getPageInstance(circulator)!,
+                assignAction<iIllustData>(command, assembler.getPageInstance(circulator)!,
                     "TODO: set selector",
                     generateDownloadOptions
                 )

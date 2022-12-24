@@ -72,6 +72,27 @@ sudo apt update && sudo apt install -y gconf-service libgbm-dev libasound2 libat
 
 `../yargs.md`に詳細
 
+#### コマンドとオプションの組み合わせ一覧
+
+```bash
+$ node ./dist/index.js collect byKeyword --keyword="" --tags="" --bookmarkOver=1000
+$ 
+$ 
+$ 
+$ 
+```
+
+最早オプションは共通である
+
+```TypeScript
+interface iOptions {
+      bookmarkOver?: number;
+      tags?: string[];
+      userName?: string;
+      keyword: string;
+ };
+ ```
+
 
 #### 実装予定のコマンド
 
