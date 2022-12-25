@@ -36,6 +36,7 @@ export const filterLogic: iFilterLogic<iIllustData> = (data: iIllustData, option
     let result: boolean = true;
     // const { bookmarkOver, tags, userName, keyword } = options;
     const { bookmarkCount, tags } = data;
+    if(bookmarkCount === undefined || tags === undefined) throw new Error('Error: property bookmarkCount and/or tags are undefined.');
     if(options.bookmarkOver !== undefined) {
         result = result && (bookmarkCount >= options.bookmarkOver)
     }

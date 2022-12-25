@@ -991,62 +991,631 @@ contentにほしい情報が載ったJSONオブジェクトが含まれている
 '>
 ```
 
-で、そのJSON情報が次
+#### meta-preload-dataのJSON
 
 ```JSON
 {
-    "timestamp":"2022-10-06T01:37:02+09:00",
+    "timestamp":"2022-12-26T00:47:20+09:00",
     "illust":{
-        "39189162":{
-            "illustId":"39189162",
-            "illustTitle":"Bebop Doo-wop",
-            "illustComment":":P",
-            "id":"39189162",
-            "title":"Bebop Doo-wop",
-            "description":":P",
+        "97618246":{
+            "illustId":"97618246",
+            "illustTitle":"チャイナキャス狐",
+            "illustComment":"初中華です",
+            "id":"97618246",
+            "title":"チャイナキャス狐",
+            "description":"初中華です",
             "illustType":0,
-            "createDate":"2013-10-18T10:11:03+00:00",
-            "uploadDate":"2013-10-18T10:11:03+00:00",
-            "restrict":0,"xRestrict":0,"sl":2,
-            "urls":{
-                "mini":"https://i.pximg.net/c/48x48/img-master/img/2013/10/18/19/11/03/39189162_p0_square1200.jpg",
-                "thumb":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2013/10/18/19/11/03/39189162_p0_square1200.jpg",
-                "small":"https://i.pximg.net/c/540x540_70/img-master/img/2013/10/18/19/11/03/39189162_p0_master1200.jpg",
-                "regular":"https://i.pximg.net/img-master/img/2013/10/18/19/11/03/39189162_p0_master1200.jpg",
-                "original":"https://i.pximg.net/img-original/img/2013/10/18/19/11/03/39189162_p0.png"
-            },
+            "createDate":"2022-04-14T05:53:00+00:00",
+            "uploadDate":"2022-04-14T05:53:00+00:00",
+            "restrict":0,
+            "xRestrict":0,
+            "sl":4,
+            "urls":{"mini":"https://i.pximg.net/c/48x48/img-master/img/2022/04/14/14/53/51/97618246_p0_square1200.jpg","thumb":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/04/14/14/53/51/97618246_p0_square1200.jpg","small":"https://i.pximg.net/c/540x540_70/img-master/img/2022/04/14/14/53/51/97618246_p0_master1200.jpg","regular":"https://i.pximg.net/img-master/img/2022/04/14/14/53/51/97618246_p0_master1200.jpg","original":"https://i.pximg.net/img-original/img/2022/04/14/14/53/51/97618246_p0.jpg"},
             "tags":{
-                "authorId":"7388304","isLocked":false,"tags":[{"tag":"カウボーイビバップ","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"アイン","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Original","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"スパイク・スピーゲル","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Sethard","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Cowboy","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Bebop","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Spike","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"Ein","locked":true,"deletable":false,"userId":"7388304","userName":"Sethard"},{"tag":"COWBOYBEBOP","locked":false,"deletable":true}],"writable":true
+                "authorId":"1047320","isLocked":false,
+                "tags":[
+                    {"tag":"玉藻の前","locked":true,"deletable":false,"userId":"1047320","userName":"ワイズスピーク@単行本発売中！"},
+                    {"tag":"キャス狐","locked":true,"deletable":false,"userId":"1047320","userName":"ワイズスピーク@単行本発売中！"},
+                    {"tag":"Fate/EXTRA","locked":true,"deletable":false,"userId":"1047320","userName":"ワイズスピーク@単行本発売中！"},
+                    {"tag":"尻神様","locked":false,"deletable":true},{"tag":"玉藻の前(Fate)","locked":false,"deletable":true},
+                    {"tag":"自称初中華兄貴","locked":false,"deletable":true},{"tag":"裸足","locked":false,"deletable":true},
+                    {"tag":"パンチラ","locked":false,"deletable":true},{"tag":"Fate/EXTRA5000users入り","locked":false,"deletable":true},
+                    {"tag":"斎藤千和","locked":false,"deletable":true}
+                ],
+                "writable":true
             },
-            "alt":"#カウボーイビバップ Bebop Doo-wop - Sethardのイラスト","storableTags":["sJYipl1Q5l","AXxyHHAUSC","ClLaegOm3j","8BNdRI_2mN","_DqSjOhLv_","_TeM2_kbKl","92IQginaoK","AdAuZzdCc6","hu9qtav100","ZrUawOPQtj"],
-            "userId":"7388304",
-            "userName":"Sethard",
-            "userAccount":"sethard",
+            "alt":"#玉藻の前 チャイナキャス狐 - ワイズスピーク@単行本発売中！のイラスト",
+            "storableTags":["y68AFldGp7","aKAp3RlsBg","9kbEA1dZeA","KN7uxuR89w","3g8y5LDx4G","g7xjaRuu1p","HY55MqmzzQ","gVfGX_rH_Y","asHH1_jNXv","YblYjqLXb_"],
+            "userId":"1047320",
+            "userName":"ワイズスピーク@単行本発売中！",
+            "userAccount":"hikomaro610",
             "userIllusts":{
-                // 省略
+                "103500457":null,"103169861":null,"102534269":null,"102502835":null,"102450012":null,"102012264":null,"101931343":null,"101239818":null,"101198029":null,"101175499":null,"101151531":null,"101125256":null,"101099521":null,"100706897":null,"100647997":null,"100297510":null,"100081531":null,"99325355":null,"99262920":null,"99243861":null,"99157120":null,"99105741":null,"98890873":null,"98816496":null,"98794515":null,"98682973":null,"98633132":null,"98546110":null,"98473308":null,"98356994":null,"98311176":null,"98289359":null,"98268342":null,"98246883":null,"98196634":null,"98168104":null,"98120346":null,"98095233":null,"97985337":null,"97933171":null,"97913373":null,"97892170":null,"97817082":null,"97732229":null,"97711776":null,"97658306":null,"97636602":{"id":"97636602","title":"おっぱいキャス狐","illustType":0,"xRestrict":1,"restrict":0,"sl":6,"url":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/04/15/12/35/37/97636602_p0_square1200.jpg","description":"","tags":["R-18","玉藻の前","キャス狐","Fate/EXTRA","自称初絞り兄貴","おっぱい","背後から胸揉み","爆乳","男主狐","Fate/EXTRA10000users入り"],"userId":"1047320","userName":"ワイズスピーク@単行本発売中！","width":1447,"height":2046,"pageCount":1,"isBookmarkable":true,"bookmarkData":null,"alt":"#玉藻の前 おっぱいキャス狐 - ワイズスピーク@単行本発売中！のイラスト","titleCaptionTranslation":{"workTitle":null,"workCaption":null},"createDate":"2022-04-15T12:35:37+09:00","updateDate":"2022-04-15T12:35:37+09:00","isUnlisted":false,"isMasked":false,"profileImageUrl":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_50.jpg","aiType":0},"97618246":{"id":"97618246","title":"チャイナキャス狐","illustType":0,"xRestrict":0,"restrict":0,"sl":4,"url":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/04/14/14/53/51/97618246_p0_square1200.jpg","description":"初中華です","tags":["玉藻の前","キャス狐","Fate/EXTRA","尻神様","玉藻の前(Fate)","自称初中華兄貴","裸足","パンチラ","Fate/EXTRA5000users入り","斎藤千和"],"userId":"1047320","userName":"ワイズスピーク@単行本発売中！","width":1447,"height":2160,"pageCount":1,"isBookmarkable":true,"bookmarkData":null,"alt":"#玉藻の前 チャイナキャス狐 - ワイズスピーク@単行本発売中！のイラスト","titleCaptionTranslation":{"workTitle":null,"workCaption":null},"createDate":"2022-04-14T14:53:51+09:00","updateDate":"2022-04-14T14:53:51+09:00","isUnlisted":false,"isMasked":false,"aiType":0},"97596157":{"id":"97596157","title":"モーニングコーヒーキャス狐","illustType":0,"xRestrict":0,"restrict":0,"sl":6,"url":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/04/13/11/30/17/97596157_p0_square1200.jpg","description":"","tags":["玉藻の前","キャス狐","Fate/EXTRA","モーニングコーヒー","裸ワイシャツ","玉藻の前(Fate)","部屋とYシャツと私","Fate/EXTRA5000users入り","爆乳","男主狐"],"userId":"1047320","userName":"ワイズスピーク@単行本発売中！","width":1447,"height":2046,"pageCount":1,"isBookmarkable":true,"bookmarkData":null,"alt":"#玉藻の前 モーニングコーヒーキャス狐 - ワイズスピーク@単行本発売中！のイラスト","titleCaptionTranslation":{"workTitle":null,"workCaption":null},"createDate":"2022-04-13T11:30:17+09:00","updateDate":"2022-04-13T11:30:17+09:00","isUnlisted":false,"isMasked":false,"profileImageUrl":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_50.jpg","aiType":0},"97577508":null,"97556355":null,"97540888":null,"97489394":null,"97469162":null,"97443023":null,"97424309":null,"97400965":null,"97298198":null,"96552049":null,"95084672":null,"94080396":null,"94060453":null,"94039565":null,"94014787":null,"93975093":null,"93636338":null,"93086138":null,"92772709":null,"92538000":null,"91915464":null,"91799441":null,"91794699":null,"91584240":null,"90602834":null,"90322727":null,"89908222":null,"89874622":null,"89829219":null,"89795822":null,"89537954":null,"89509642":null,"88840969":null,"86340855":null,"85664746":null,"85644548":null,"85625255":null,"85612377":null,"85543063":null,"85496777":null,"85477895":null,"85458141":null,"85430266":null,"85415521":null,"85392275":null,"85358822":null,"85310397":null,"85062767":null,"85027835":null,"84976769":null,"84815706":null,"84034078":null,"84004537":null,"83984622":null,"83945184":null,"83876882":null,"83862592":null,"83833156":null,"83812286":null,"83768865":null,"83695461":null,"83668146":null,"83645107":null,"83627511":null,"83482917":null,"82420100":null,"82401358":null,"81634656":null,"80692357":null,"79350890":null,"79278081":null,"78896991":null,"78834646":null,"78782749":null,"78745812":null,"78261149":null,"76761318":null,"76610280":null,"76530289":null,"76115779":null,"76091621":null,"74670111":null,"74287776":null,"74164948":null,"73643555":null,"72297142":null,"72287340":null,"72252737":null,"70892794":null,"70836676":null,"70538129":null,"70030260":null,"68896951":null,"68773660":null,"68694668":null,"68648309":null,"68305723":null,"68292550":null,"68227478":null,"68210187":null,"67747516":null,"66655321":null,"66472888":null,"66265204":null,"66226236":null,"65971793":null,"65570203":null,"65253227":null,"65038869":null,"65022153":null,"64848331":null,"64764617":null,"64690795":null,"64623609":null,"64473147":null,"64358222":null,"64356427":null,"64341384":null,"64322612":null,"63118729":null,"63052776":null,"63023403":null,"62987518":null,"62971726":null,"62957446":null,"62862058":null,"62848829":null,"62715698":null,"62696103":null,"62690095":null,"62647172":null,"62637780":null,"62629080":null,"62625039":null,"62612046":null,"61532915":null,"61521359":null,"61392523":null,"61377112":null,"61360820":null,"61340731":null,"61314924":null,"60450689":null,"60436500":null,"59495139":null,"59477096":null,"59463922":null,"59368360":null,"58337538":null,"58262201":null,"58246271":null,"57852597":null,"57578188":null,"57229708":null,"57225376":null,"57124060":null,"57044822":null,"57039414":null,"57014372":null,"56556057":null,"56253144":null,"56234931":null,"56145759":null,"56095491":null,"56090893":null,"56014865":null,"55877338":null,"55768714":null,"55543949":null,"55369122":null,"55286176":null,"55199457":null,"55146616":null,"55144137":null,"55106187":null,"55105006":null,"52559331":null,"51598217":null,"50665645":null,"50512279":null,"49435178":null,"49192001":null,"48426914":null,"48290443":null,"47026727":null,"46177936":null,"46082516":null,"45949913":null,"45932834":null,"44135894":null,"43907229":null,"43494986":null,"43413369":null,"42973907":null,"42899143":null,"42891595":null,"42791839":null,"42773574":null,"42772781":null,"42194880":null,"41372919":null,"41041525":null,"40492465":null,"40076624":null,"40036568":null,"39820051":null,"39819483":null,"39786542":null,"39786371":null,"39745608":null,"39743999":null,"39453469":null,"39117218":null,"37773453":null,"36489856":null,"36425377":null,"36352316":null,"36025531":null,"35980835":null,"35969952":null,"35372438":null,"35237081":null,"35192682":null,"35132421":null,"35124858":null,"34958240":null,"33761162":null,"33619542":null,"33532058":null,"33385095":null,"32124162":null,"32028232":null,"32004063":null,"31843050":null,"31571002":null,"31146362":null,"30884061":null,"30865013":null,"30864783":null,"30864572":null,"30435429":null,"30351490":null,"29332309":null,"29315803":null,"28784379":null,"28633672":null,"28633124":null,"28632937":null,"28254887":null,"28254327":null,"28151547":null,"28151182":null,"27973104":null,"27903697":null,"27835549":null,"26162288":null,"26146219":null,"26122154":null,"25698808":null,"25698235":null,"25609381":null,"25609253":null,"25559494":null,"25501573":null,"25501053":null,"25500704":null,"25498530":null,"25497279":null,"25495021":null,"25494367":null,"25484888":null,"25484431":null,"22764093":null,"22762611":null,"22758393":null,"21486264":null,"21485227":null,"20638783":null,"20638251":null,"20637434":null,"20635484":null,"5153047":null,"5141539":null},
+            "likeData":false,
+            "width":1447,
+            "height":2160,
+            "pageCount":1,
+            "bookmarkCount":11681,
+            "likeCount":6957,
+            "commentCount":26,
+            "responseCount":0,
+            "viewCount":51179,
+            "bookStyle":0,
+            "isHowto":false,
+            "isOriginal":false,
+            "imageResponseOutData":[],
+            "imageResponseData":[],
+            "imageResponseCount":0,
+            "pollData":null,
+            "seriesNavData":null,
+            "descriptionBoothId":null,
+            "descriptionYoutubeId":null,
+            "comicPromotion":null,
+            "fanboxPromotion":{"userName":"ワイズスピーク@単行本発売中！","userImageUrl":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_170.jpg","contentUrl":"https://www.pixiv.net/fanbox/creator/1047320?utm_campaign=www_artwork&amp;utm_medium=site_flow&amp;utm_source=pixiv","description":"フリーのイラストレーター、漫画家のワイズスピークと申します。\n『ワイズスピーク』は、「こがさきゆいな」と「ようめい」の二人組のユニットです。\n同人活動はサークル『やみつき本舗』にて行っています。\n\n試行錯誤しながら運用していけたらいいなーと思っています！\n\n\n※どのプランでもすべての記事をお読み頂けます。\n\n\nお仕事履歴\n\n全年齢\nFate/Grand Order電撃コミックアンソロジー11\n同12\n同13\n同14\n同16\n\n成人向け\nコミックアンスリウム \n2018 4月号\n2018 9月号\n2019 2月号\n2019 5月号\n2019 10月号\n\n合同企画\n『おさななじみと。』\n『Melty H』\n『最終制服女史』\n\nイベント関係\nコスホリック23イメージイラスト\nメロンブックス　女身くじ第四弾【乳くじ】HAPPY NEW(乳) YEAR『中乳』","imageUrl":"https://pixiv.pximg.net/c/520x280_90_a2_g5/fanbox/public/images/creator/1047320/cover/TUfJ0UEoBDxN8knpQIXrHqu4.jpeg","imageUrlMobile":"https://pixiv.pximg.net/c/520x280_90_a2_g5/fanbox/public/images/creator/1047320/cover/TUfJ0UEoBDxN8knpQIXrHqu4.jpeg","hasAdultContent":true},
+            "contestBanners":[],
+            "isBookmarkable":true,
+            "bookmarkData":null,
+            "contestData":null,
+            "zoneConfig":{"responsive":{"url":"https://pixon.ads-pixiv.net/show?zone_id=illust_responsive_side&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxtnmldnlo5&amp;num=63a87088858"},"rectangle":{"url":"https://pixon.ads-pixiv.net/show?zone_id=illust_rectangle&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxtqwvaxxnd&amp;num=63a87088433"},"500x500":{"url":"https://pixon.ads-pixiv.net/show?zone_id=bigbanner&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxttm3x5zq9&amp;num=63a87088692"},"header":{"url":"https://pixon.ads-pixiv.net/show?zone_id=header&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxtwbwdwdnn&amp;num=63a87088212"},"footer":{"url":"https://pixon.ads-pixiv.net/show?zone_id=footer&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxtyyuf1vpr&amp;num=63a87088149"},"expandedFooter":{"url":"https://pixon.ads-pixiv.net/show?zone_id=multiple_illust_viewer&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxu1n56mx9j&amp;num=63a87088720"},"logo":{"url":"https://pixon.ads-pixiv.net/show?zone_id=logo_side&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxu4imxpaj3&amp;num=63a87088407"},"relatedworks":{"url":"https://pixon.ads-pixiv.net/show?zone_id=relatedworks&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxu7bimj0da&amp;num=63a8708856"}},
+            "extraData":{"meta":{"title":"#玉藻の前 チャイナキャス狐 - ワイズスピーク@単行本発売中！のイラスト - pixiv","description":"この作品 「チャイナキャス狐」 は 「玉藻の前」「キャス狐」 等のタグがつけられた「ワイズスピーク@単行本発売中！」さんのイラストです。 「初中華です」","canonical":"https://www.pixiv.net/artworks/97618246","alternateLanguages":{"ja":"https://www.pixiv.net/artworks/97618246","en":"https://www.pixiv.net/en/artworks/97618246"},"descriptionHeader":"この作品「チャイナキャス狐」は「玉藻の前」「キャス狐」等のタグがつけられたイラストです。","ogp":{"description":"初中華です","image":"https://embed.pixiv.net/artwork.php?illust_id=97618246","title":"#玉藻の前 チャイナキャス狐 - ワイズスピーク@単行本発売中！のイラスト - pixiv","type":"article"},"twitter":{"description":"初中華です","image":"https://embed.pixiv.net/artwork.php?illust_id=97618246","title":"チャイナキャス狐","card":"summary_large_image"}}},
+            "titleCaptionTranslation":{"workTitle":null,"workCaption":null},
+            "isUnlisted":false,
+            "request":null,
+            "commentOff":0,
+            "aiType":0
+        }
+    },
+    "user":{"1047320":{"userId":"1047320","name":"ワイズスピーク@単行本発売中！","image":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_50.jpg","imageBig":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_170.jpg","premium":true,"isFollowed":false,"isMypixiv":false,"isBlocking":false,"background":{"repeat":null,"color":null,"url":"https://i.pximg.net/c/1920x960_80_a2_g5/background/img/2018/12/27/21/55/56/1047320_e8ed59af4b916963ebb903b43e053ee5.jpg","isPrivate":false},"sketchLiveId":null,"partial":0,"acceptRequest":true,"sketchLives":[]}}
+}
+```
+```JavaScript
+{
+    timestamp:"2022-12-26T00:47:20+09:00",
+    illust:{
+        97618246:{
+            "illustId":"97618246",
+            "illustTitle":"チャイナキャス狐",
+            "illustComment":"初中華です",
+            "id":"97618246",
+            "title":"チャイナキャス狐",
+            "description":"初中華です",
+            "illustType":0,
+            "createDate":"2022-04-14T05:53:00+00:00",
+            "uploadDate":"2022-04-14T05:53:00+00:00",
+            "restrict":0,
+            "xRestrict":0,
+            "sl":4,
+            "urls":{"mini":"https://i.pximg.net/c/48x48/img-master/img/2022/04/14/14/53/51/97618246_p0_square1200.jpg","thumb":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/04/14/14/53/51/97618246_p0_square1200.jpg","small":"https://i.pximg.net/c/540x540_70/img-master/img/2022/04/14/14/53/51/97618246_p0_master1200.jpg","regular":"https://i.pximg.net/img-master/img/2022/04/14/14/53/51/97618246_p0_master1200.jpg","original":"https://i.pximg.net/img-original/img/2022/04/14/14/53/51/97618246_p0.jpg"},
+            "tags":{
+                "authorId":"1047320","isLocked":false,
+                "tags":[
+                    {"tag":"玉藻の前","locked":true,"deletable":false,"userId":"1047320","userName":"ワイズスピーク@単行本発売中！"},
+                    {"tag":"キャス狐","locked":true,"deletable":false,"userId":"1047320","userName":"ワイズスピーク@単行本発売中！"},
+                    {"tag":"Fate/EXTRA","locked":true,"deletable":false,"userId":"1047320","userName":"ワイズスピーク@単行本発売中！"},
+                    {"tag":"尻神様","locked":false,"deletable":true},{"tag":"玉藻の前(Fate)","locked":false,"deletable":true},
+                    {"tag":"自称初中華兄貴","locked":false,"deletable":true},{"tag":"裸足","locked":false,"deletable":true},
+                    {"tag":"パンチラ","locked":false,"deletable":true},{"tag":"Fate/EXTRA5000users入り","locked":false,"deletable":true},
+                    {"tag":"斎藤千和","locked":false,"deletable":true}
+                ],
+                "writable":true
             },
-            "likeData":false,"width":400,"height":634,"pageCount":1,
-            "bookmarkCount":209,
-            "likeCount":156,
-            "commentCount":0,
-            "responseCount":0,"viewCount":2200,"bookStyle":0,"isHowto":false,"isOriginal":false,"imageResponseOutData":[],"imageResponseData":[],"imageResponseCount":0,"pollData":null,"seriesNavData":null,"descriptionBoothId":null,"descriptionYoutubeId":null,"comicPromotion":null,"fanboxPromotion":null,"contestBanners":[],"isBookmarkable":true,"bookmarkData":null,"contestData":null,
-            "zoneConfig":{
-                // 省略
-            },
-            "extraData":{
-                // 省略
-            },
-            "titleCaptionTranslation":{"workTitle":null,"workCaption":null},"isUnlisted":false,"request":null,"commentOff":0}},"user":{"7388304":{"userId":"7388304","name":"Sethard","image":"https://i.pximg.net/user-profile/img/2013/10/18/06/03/29/6951029_7f2bf5e92a36a1a551c8bbac0170362b_50.png","imageBig":"https://i.pximg.net/user-profile/img/2013/10/18/06/03/29/6951029_7f2bf5e92a36a1a551c8bbac0170362b_170.png","premium":false,"isFollowed":false,"isMypixiv":false,"isBlocking":false,"background":null,"sketchLiveId":null,"partial":0,"acceptRequest":false,"sketchLives":[]}}
+            "alt":"#玉藻の前 チャイナキャス狐 - ワイズスピーク@単行本発売中！のイラスト",
+            "storableTags":["y68AFldGp7","aKAp3RlsBg","9kbEA1dZeA","KN7uxuR89w","3g8y5LDx4G","g7xjaRuu1p","HY55MqmzzQ","gVfGX_rH_Y","asHH1_jNXv","YblYjqLXb_"],
+            "userId":"1047320",
+            "userName":"ワイズスピーク@単行本発売中！",
+            "userAccount":"hikomaro610",
+            "userIllusts":{
+                "103500457":null,"103169861":null,"102534269":null,"102502835":null,"102450012":null,"102012264":null,"101931343":null,"101239818":null,"101198029":null,"101175499":null,"101151531":null,"101125256":null,"101099521":null,"100706897":null,"100647997":null,"100297510":null,"100081531":null,"99325355":null,"99262920":null,"99243861":null,"99157120":null,"99105741":null,"98890873":null,"98816496":null,"98794515":null,"98682973":null,"98633132":null,"98546110":null,"98473308":null,"98356994":null,"98311176":null,"98289359":null,"98268342":null,"98246883":null,"98196634":null,"98168104":null,"98120346":null,"98095233":null,"97985337":null,"97933171":null,"97913373":null,"97892170":null,"97817082":null,"97732229":null,"97711776":null,"97658306":null,"97636602":{"id":"97636602","title":"おっぱいキャス狐","illustType":0,"xRestrict":1,"restrict":0,"sl":6,"url":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/04/15/12/35/37/97636602_p0_square1200.jpg","description":"","tags":["R-18","玉藻の前","キャス狐","Fate/EXTRA","自称初絞り兄貴","おっぱい","背後から胸揉み","爆乳","男主狐","Fate/EXTRA10000users入り"],"userId":"1047320","userName":"ワイズスピーク@単行本発売中！","width":1447,"height":2046,"pageCount":1,"isBookmarkable":true,"bookmarkData":null,"alt":"#玉藻の前 おっぱいキャス狐 - ワイズスピーク@単行本発売中！のイラスト","titleCaptionTranslation":{"workTitle":null,"workCaption":null},"createDate":"2022-04-15T12:35:37+09:00","updateDate":"2022-04-15T12:35:37+09:00","isUnlisted":false,"isMasked":false,"profileImageUrl":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_50.jpg","aiType":0},"97618246":{"id":"97618246","title":"チャイナキャス狐","illustType":0,"xRestrict":0,"restrict":0,"sl":4,"url":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/04/14/14/53/51/97618246_p0_square1200.jpg","description":"初中華です","tags":["玉藻の前","キャス狐","Fate/EXTRA","尻神様","玉藻の前(Fate)","自称初中華兄貴","裸足","パンチラ","Fate/EXTRA5000users入り","斎藤千和"],"userId":"1047320","userName":"ワイズスピーク@単行本発売中！","width":1447,"height":2160,"pageCount":1,"isBookmarkable":true,"bookmarkData":null,"alt":"#玉藻の前 チャイナキャス狐 - ワイズスピーク@単行本発売中！のイラスト","titleCaptionTranslation":{"workTitle":null,"workCaption":null},"createDate":"2022-04-14T14:53:51+09:00","updateDate":"2022-04-14T14:53:51+09:00","isUnlisted":false,"isMasked":false,"aiType":0},"97596157":{"id":"97596157","title":"モーニングコーヒーキャス狐","illustType":0,"xRestrict":0,"restrict":0,"sl":6,"url":"https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/04/13/11/30/17/97596157_p0_square1200.jpg","description":"","tags":["玉藻の前","キャス狐","Fate/EXTRA","モーニングコーヒー","裸ワイシャツ","玉藻の前(Fate)","部屋とYシャツと私","Fate/EXTRA5000users入り","爆乳","男主狐"],"userId":"1047320","userName":"ワイズスピーク@単行本発売中！","width":1447,"height":2046,"pageCount":1,"isBookmarkable":true,"bookmarkData":null,"alt":"#玉藻の前 モーニングコーヒーキャス狐 - ワイズスピーク@単行本発売中！のイラスト","titleCaptionTranslation":{"workTitle":null,"workCaption":null},"createDate":"2022-04-13T11:30:17+09:00","updateDate":"2022-04-13T11:30:17+09:00","isUnlisted":false,"isMasked":false,"profileImageUrl":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_50.jpg","aiType":0},"97577508":null,"97556355":null,"97540888":null,"97489394":null,"97469162":null,"97443023":null,"97424309":null,"97400965":null,"97298198":null,"96552049":null,"95084672":null,"94080396":null,"94060453":null,"94039565":null,"94014787":null,"93975093":null,"93636338":null,"93086138":null,"92772709":null,"92538000":null,"91915464":null,"91799441":null,"91794699":null,"91584240":null,"90602834":null,"90322727":null,"89908222":null,"89874622":null,"89829219":null,"89795822":null,"89537954":null,"89509642":null,"88840969":null,"86340855":null,"85664746":null,"85644548":null,"85625255":null,"85612377":null,"85543063":null,"85496777":null,"85477895":null,"85458141":null,"85430266":null,"85415521":null,"85392275":null,"85358822":null,"85310397":null,"85062767":null,"85027835":null,"84976769":null,"84815706":null,"84034078":null,"84004537":null,"83984622":null,"83945184":null,"83876882":null,"83862592":null,"83833156":null,"83812286":null,"83768865":null,"83695461":null,"83668146":null,"83645107":null,"83627511":null,"83482917":null,"82420100":null,"82401358":null,"81634656":null,"80692357":null,"79350890":null,"79278081":null,"78896991":null,"78834646":null,"78782749":null,"78745812":null,"78261149":null,"76761318":null,"76610280":null,"76530289":null,"76115779":null,"76091621":null,"74670111":null,"74287776":null,"74164948":null,"73643555":null,"72297142":null,"72287340":null,"72252737":null,"70892794":null,"70836676":null,"70538129":null,"70030260":null,"68896951":null,"68773660":null,"68694668":null,"68648309":null,"68305723":null,"68292550":null,"68227478":null,"68210187":null,"67747516":null,"66655321":null,"66472888":null,"66265204":null,"66226236":null,"65971793":null,"65570203":null,"65253227":null,"65038869":null,"65022153":null,"64848331":null,"64764617":null,"64690795":null,"64623609":null,"64473147":null,"64358222":null,"64356427":null,"64341384":null,"64322612":null,"63118729":null,"63052776":null,"63023403":null,"62987518":null,"62971726":null,"62957446":null,"62862058":null,"62848829":null,"62715698":null,"62696103":null,"62690095":null,"62647172":null,"62637780":null,"62629080":null,"62625039":null,"62612046":null,"61532915":null,"61521359":null,"61392523":null,"61377112":null,"61360820":null,"61340731":null,"61314924":null,"60450689":null,"60436500":null,"59495139":null,"59477096":null,"59463922":null,"59368360":null,"58337538":null,"58262201":null,"58246271":null,"57852597":null,"57578188":null,"57229708":null,"57225376":null,"57124060":null,"57044822":null,"57039414":null,"57014372":null,"56556057":null,"56253144":null,"56234931":null,"56145759":null,"56095491":null,"56090893":null,"56014865":null,"55877338":null,"55768714":null,"55543949":null,"55369122":null,"55286176":null,"55199457":null,"55146616":null,"55144137":null,"55106187":null,"55105006":null,"52559331":null,"51598217":null,"50665645":null,"50512279":null,"49435178":null,"49192001":null,"48426914":null,"48290443":null,"47026727":null,"46177936":null,"46082516":null,"45949913":null,"45932834":null,"44135894":null,"43907229":null,"43494986":null,"43413369":null,"42973907":null,"42899143":null,"42891595":null,"42791839":null,"42773574":null,"42772781":null,"42194880":null,"41372919":null,"41041525":null,"40492465":null,"40076624":null,"40036568":null,"39820051":null,"39819483":null,"39786542":null,"39786371":null,"39745608":null,"39743999":null,"39453469":null,"39117218":null,"37773453":null,"36489856":null,"36425377":null,"36352316":null,"36025531":null,"35980835":null,"35969952":null,"35372438":null,"35237081":null,"35192682":null,"35132421":null,"35124858":null,"34958240":null,"33761162":null,"33619542":null,"33532058":null,"33385095":null,"32124162":null,"32028232":null,"32004063":null,"31843050":null,"31571002":null,"31146362":null,"30884061":null,"30865013":null,"30864783":null,"30864572":null,"30435429":null,"30351490":null,"29332309":null,"29315803":null,"28784379":null,"28633672":null,"28633124":null,"28632937":null,"28254887":null,"28254327":null,"28151547":null,"28151182":null,"27973104":null,"27903697":null,"27835549":null,"26162288":null,"26146219":null,"26122154":null,"25698808":null,"25698235":null,"25609381":null,"25609253":null,"25559494":null,"25501573":null,"25501053":null,"25500704":null,"25498530":null,"25497279":null,"25495021":null,"25494367":null,"25484888":null,"25484431":null,"22764093":null,"22762611":null,"22758393":null,"21486264":null,"21485227":null,"20638783":null,"20638251":null,"20637434":null,"20635484":null,"5153047":null,"5141539":null},
+            "likeData":false,
+            "width":1447,
+            "height":2160,
+            "pageCount":1,
+            "bookmarkCount":11681,
+            "likeCount":6957,
+            "commentCount":26,
+            "responseCount":0,
+            "viewCount":51179,
+            "bookStyle":0,
+            "isHowto":false,
+            "isOriginal":false,
+            "imageResponseOutData":[],
+            "imageResponseData":[],
+            "imageResponseCount":0,
+            "pollData":null,
+            "seriesNavData":null,
+            "descriptionBoothId":null,
+            "descriptionYoutubeId":null,
+            "comicPromotion":null,
+            "fanboxPromotion":{"userName":"ワイズスピーク@単行本発売中！","userImageUrl":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_170.jpg","contentUrl":"https://www.pixiv.net/fanbox/creator/1047320?utm_campaign=www_artwork&amp;utm_medium=site_flow&amp;utm_source=pixiv","description":"フリーのイラストレーター、漫画家のワイズスピークと申します。\n『ワイズスピーク』は、「こがさきゆいな」と「ようめい」の二人組のユニットです。\n同人活動はサークル『やみつき本舗』にて行っています。\n\n試行錯誤しながら運用していけたらいいなーと思っています！\n\n\n※どのプランでもすべての記事をお読み頂けます。\n\n\nお仕事履歴\n\n全年齢\nFate/Grand Order電撃コミックアンソロジー11\n同12\n同13\n同14\n同16\n\n成人向け\nコミックアンスリウム \n2018 4月号\n2018 9月号\n2019 2月号\n2019 5月号\n2019 10月号\n\n合同企画\n『おさななじみと。』\n『Melty H』\n『最終制服女史』\n\nイベント関係\nコスホリック23イメージイラスト\nメロンブックス　女身くじ第四弾【乳くじ】HAPPY NEW(乳) YEAR『中乳』","imageUrl":"https://pixiv.pximg.net/c/520x280_90_a2_g5/fanbox/public/images/creator/1047320/cover/TUfJ0UEoBDxN8knpQIXrHqu4.jpeg","imageUrlMobile":"https://pixiv.pximg.net/c/520x280_90_a2_g5/fanbox/public/images/creator/1047320/cover/TUfJ0UEoBDxN8knpQIXrHqu4.jpeg","hasAdultContent":true},
+            "contestBanners":[],
+            "isBookmarkable":true,
+            "bookmarkData":null,
+            "contestData":null,
+            "zoneConfig":{"responsive":{"url":"https://pixon.ads-pixiv.net/show?zone_id=illust_responsive_side&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxtnmldnlo5&amp;num=63a87088858"},"rectangle":{"url":"https://pixon.ads-pixiv.net/show?zone_id=illust_rectangle&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxtqwvaxxnd&amp;num=63a87088433"},"500x500":{"url":"https://pixon.ads-pixiv.net/show?zone_id=bigbanner&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxttm3x5zq9&amp;num=63a87088692"},"header":{"url":"https://pixon.ads-pixiv.net/show?zone_id=header&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxtwbwdwdnn&amp;num=63a87088212"},"footer":{"url":"https://pixon.ads-pixiv.net/show?zone_id=footer&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxtyyuf1vpr&amp;num=63a87088149"},"expandedFooter":{"url":"https://pixon.ads-pixiv.net/show?zone_id=multiple_illust_viewer&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxu1n56mx9j&amp;num=63a87088720"},"logo":{"url":"https://pixon.ads-pixiv.net/show?zone_id=logo_side&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxu4imxpaj3&amp;num=63a87088407"},"relatedworks":{"url":"https://pixon.ads-pixiv.net/show?zone_id=relatedworks&amp;format=js&amp;s=1&amp;up=0&amp;a=42&amp;ng=g&amp;l=ja&amp;uri=%2Fartworks%2F_PARAM_&amp;ref=www.pixiv.net%2Fartworks%2F97618246&amp;is_spa=1&amp;K=8d85081b167696&amp;ab_test_digits_first=27&amp;uab=22&amp;yuid=QIglcHI&amp;suid=Ph9ghndxu7bimj0da&amp;num=63a8708856"}},
+            "extraData":{"meta":{"title":"#玉藻の前 チャイナキャス狐 - ワイズスピーク@単行本発売中！のイラスト - pixiv","description":"この作品 「チャイナキャス狐」 は 「玉藻の前」「キャス狐」 等のタグがつけられた「ワイズスピーク@単行本発売中！」さんのイラストです。 「初中華です」","canonical":"https://www.pixiv.net/artworks/97618246","alternateLanguages":{"ja":"https://www.pixiv.net/artworks/97618246","en":"https://www.pixiv.net/en/artworks/97618246"},"descriptionHeader":"この作品「チャイナキャス狐」は「玉藻の前」「キャス狐」等のタグがつけられたイラストです。","ogp":{"description":"初中華です","image":"https://embed.pixiv.net/artwork.php?illust_id=97618246","title":"#玉藻の前 チャイナキャス狐 - ワイズスピーク@単行本発売中！のイラスト - pixiv","type":"article"},"twitter":{"description":"初中華です","image":"https://embed.pixiv.net/artwork.php?illust_id=97618246","title":"チャイナキャス狐","card":"summary_large_image"}}},
+            "titleCaptionTranslation":{"workTitle":null,"workCaption":null},
+            "isUnlisted":false,
+            "request":null,
+            "commentOff":0,
+            "aiType":0
+        }
+    },
+    "user":{"1047320":{"userId":"1047320","name":"ワイズスピーク@単行本発売中！","image":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_50.jpg","imageBig":"https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_170.jpg","premium":true,"isFollowed":false,"isMypixiv":false,"isBlocking":false,"background":{"repeat":null,"color":null,"url":"https://i.pximg.net/c/1920x960_80_a2_g5/background/img/2018/12/27/21/55/56/1047320_e8ed59af4b916963ebb903b43e053ee5.jpg","isPrivate":false},"sketchLiveId":null,"partial":0,"acceptRequest":true,"sketchLives":[]}}
 }
 ```
 
-こいつをinterfaceにすると...
+```JavaScript
+{
+  '97618246': {
+    illustId: '97618246',
+    illustTitle: 'チャイナキャス狐',
+    illustComment: '初中華です',
+    id: '97618246',
+    title: 'チャイナキャス狐',
+    description: '初中華です',
+    illustType: 0,
+    createDate: '2022-04-14T05:53:00+00:00',
+    uploadDate: '2022-04-14T05:53:00+00:00',
+    restrict: 0,
+    xRestrict: 0,
+    sl: 4,
+    urls: {
+      mini: 'https://i.pximg.net/c/48x48/img-master/img/2022/04/14/14/53/51/97618246_p0_square1200.jpg',
+      thumb: 'https://i.pximg.net/c/250x250_80_a2/img-master/img/2022/04/14/14/53/51/97618246_p0_square1200.jpg',
+      small: 'https://i.pximg.net/c/540x540_70/img-master/img/2022/04/14/14/53/51/97618246_p0_master1200.jpg',
+      regular: 'https://i.pximg.net/img-master/img/2022/04/14/14/53/51/97618246_p0_master1200.jpg',
+      original: 'https://i.pximg.net/img-original/img/2022/04/14/14/53/51/97618246_p0.jpg'
+    },
+    tags: {
+      authorId: '1047320',
+      isLocked: false,
+      tags: [Array],
+      writable: true
+    },
+    alt: '#玉藻の前 チャイナキャス狐 - ワイズスピーク@単行本発売中！のイラスト',
+    storableTags: [
+      'y68AFldGp7', 'aKAp3RlsBg',
+      '9kbEA1dZeA', 'KN7uxuR89w',
+      '3g8y5LDx4G', 'g7xjaRuu1p',
+      'HY55MqmzzQ', 'gVfGX_rH_Y',
+      'asHH1_jNXv', 'YblYjqLXb_'
+    ],
+    userId: '1047320',
+    userName: 'ワイズスピーク@単行本発売中！',
+    userAccount: 'hikomaro610',
+    userIllusts: {
+      '5141539': null,
+      '5153047': null,
+      '20635484': null,
+      '20637434': null,
+      '20638251': null,
+      '20638783': null,
+      '21485227': null,
+      '21486264': null,
+      '22758393': null,
+      '22762611': null,
+      '22764093': null,
+      '25484431': null,
+      '25484888': null,
+      '25494367': null,
+      '25495021': null,
+      '25497279': null,
+      '25498530': null,
+      '25500704': null,
+      '25501053': null,
+      '25501573': null,
+      '25559494': null,
+      '25609253': null,
+      '25609381': null,
+      '25698235': null,
+      '25698808': null,
+      '26122154': null,
+      '26146219': null,
+      '26162288': null,
+      '27835549': null,
+      '27903697': null,
+      '27973104': null,
+      '28151182': null,
+      '28151547': null,
+      '28254327': null,
+      '28254887': null,
+      '28632937': null,
+      '28633124': null,
+      '28633672': null,
+      '28784379': null,
+      '29315803': null,
+      '29332309': null,
+      '30351490': null,
+      '30435429': null,
+      '30864572': null,
+      '30864783': null,
+      '30865013': null,
+      '30884061': null,
+      '31146362': null,
+      '31571002': null,
+      '31843050': null,
+      '32004063': null,
+      '32028232': null,
+      '32124162': null,
+      '33385095': null,
+      '33532058': null,
+      '33619542': null,
+      '33761162': null,
+      '34958240': null,
+      '35124858': null,
+      '35132421': null,
+      '35192682': null,
+      '35237081': null,
+      '35372438': null,
+      '35969952': null,
+      '35980835': null,
+      '36025531': null,
+      '36352316': null,
+      '36425377': null,
+      '36489856': null,
+      '37773453': null,
+      '39117218': null,
+      '39453469': null,
+      '39743999': null,
+      '39745608': null,
+      '39786371': null,
+      '39786542': null,
+      '39819483': null,
+      '39820051': null,
+      '40036568': null,
+      '40076624': null,
+      '40492465': null,
+      '41041525': null,
+      '41372919': null,
+      '42194880': null,
+      '42772781': null,
+      '42773574': null,
+      '42791839': null,
+      '42891595': null,
+      '42899143': null,
+      '42973907': null,
+      '43413369': null,
+      '43494986': null,
+      '43907229': null,
+      '44135894': null,
+      '45932834': null,
+      '45949913': null,
+      '46082516': null,
+      '46177936': null,
+      '47026727': null,
+      '48290443': null,
+      '48426914': null,
+      '49192001': null,
+      '49435178': null,
+      '50512279': null,
+      '50665645': null,
+      '51598217': null,
+      '52559331': null,
+      '55105006': null,
+      '55106187': null,
+      '55144137': null,
+      '55146616': null,
+      '55199457': null,
+      '55286176': null,
+      '55369122': null,
+      '55543949': null,
+      '55768714': null,
+      '55877338': null,
+      '56014865': null,
+      '56090893': null,
+      '56095491': null,
+      '56145759': null,
+      '56234931': null,
+      '56253144': null,
+      '56556057': null,
+      '57014372': null,
+      '57039414': null,
+      '57044822': null,
+      '57124060': null,
+      '57225376': null,
+      '57229708': null,
+      '57578188': null,
+      '57852597': null,
+      '58246271': null,
+      '58262201': null,
+      '58337538': null,
+      '59368360': null,
+      '59463922': null,
+      '59477096': null,
+      '59495139': null,
+      '60436500': null,
+      '60450689': null,
+      '61314924': null,
+      '61340731': null,
+      '61360820': null,
+      '61377112': null,
+      '61392523': null,
+      '61521359': null,
+      '61532915': null,
+      '62612046': null,
+      '62625039': null,
+      '62629080': null,
+      '62637780': null,
+      '62647172': null,
+      '62690095': null,
+      '62696103': null,
+      '62715698': null,
+      '62848829': null,
+      '62862058': null,
+      '62957446': null,
+      '62971726': null,
+      '62987518': null,
+      '63023403': null,
+      '63052776': null,
+      '63118729': null,
+      '64322612': null,
+      '64341384': null,
+      '64356427': null,
+      '64358222': null,
+      '64473147': null,
+      '64623609': null,
+      '64690795': null,
+      '64764617': null,
+      '64848331': null,
+      '65022153': null,
+      '65038869': null,
+      '65253227': null,
+      '65570203': null,
+      '65971793': null,
+      '66226236': null,
+      '66265204': null,
+      '66472888': null,
+      '66655321': null,
+      '67747516': null,
+      '68210187': null,
+      '68227478': null,
+      '68292550': null,
+      '68305723': null,
+      '68648309': null,
+      '68694668': null,
+      '68773660': null,
+      '68896951': null,
+      '70030260': null,
+      '70538129': null,
+      '70836676': null,
+      '70892794': null,
+      '72252737': null,
+      '72287340': null,
+      '72297142': null,
+      '73643555': null,
+      '74164948': null,
+      '74287776': null,
+      '74670111': null,
+      '76091621': null,
+      '76115779': null,
+      '76530289': null,
+      '76610280': null,
+      '76761318': null,
+      '78261149': null,
+      '78745812': null,
+      '78782749': null,
+      '78834646': null,
+      '78896991': null,
+      '79278081': null,
+      '79350890': null,
+      '80692357': null,
+      '81634656': null,
+      '82401358': null,
+      '82420100': null,
+      '83482917': null,
+      '83627511': null,
+      '83645107': null,
+      '83668146': null,
+      '83695461': null,
+      '83768865': null,
+      '83812286': null,
+      '83833156': null,
+      '83862592': null,
+      '83876882': null,
+      '83945184': null,
+      '83984622': null,
+      '84004537': null,
+      '84034078': null,
+      '84815706': null,
+      '84976769': null,
+      '85027835': null,
+      '85062767': null,
+      '85310397': null,
+      '85358822': null,
+      '85392275': null,
+      '85415521': null,
+      '85430266': null,
+      '85458141': null,
+      '85477895': null,
+      '85496777': null,
+      '85543063': null,
+      '85612377': null,
+      '85625255': null,
+      '85644548': null,
+      '85664746': null,
+      '86340855': null,
+      '88840969': null,
+      '89509642': null,
+      '89537954': null,
+      '89795822': null,
+      '89829219': null,
+      '89874622': null,
+      '89908222': null,
+      '90322727': null,
+      '90602834': null,
+      '91584240': null,
+      '91794699': null,
+      '91799441': null,
+      '91915464': null,
+      '92538000': null,
+      '92772709': null,
+      '93086138': null,
+      '93636338': null,
+      '93975093': null,
+      '94014787': null,
+      '94039565': null,
+      '94060453': null,
+      '94080396': null,
+      '95084672': null,
+      '96552049': null,
+      '97298198': null,
+      '97400965': null,
+      '97424309': null,
+      '97443023': null,
+      '97469162': null,
+      '97489394': null,
+      '97540888': null,
+      '97556355': null,
+      '97577508': null,
+      '97596157': [Object],
+      '97618246': [Object],
+      '97636602': [Object],
+      '97658306': null,
+      '97711776': null,
+      '97732229': null,
+      '97817082': null,
+      '97892170': null,
+      '97913373': null,
+      '97933171': null,
+      '97985337': null,
+      '98095233': null,
+      '98120346': null,
+      '98168104': null,
+      '98196634': null,
+      '98246883': null,
+      '98268342': null,
+      '98289359': null,
+      '98311176': null,
+      '98356994': null,
+      '98473308': null,
+      '98546110': null,
+      '98633132': null,
+      '98682973': null,
+      '98794515': null,
+      '98816496': null,
+      '98890873': null,
+      '99105741': null,
+      '99157120': null,
+      '99243861': null,
+      '99262920': null,
+      '99325355': null,
+      '100081531': null,
+      '100297510': null,
+      '100647997': null,
+      '100706897': null,
+      '101099521': null,
+      '101125256': null,
+      '101151531': null,
+      '101175499': null,
+      '101198029': null,
+      '101239818': null,
+      '101931343': null,
+      '102012264': null,
+      '102450012': null,
+      '102502835': null,
+      '102534269': null,
+      '103169861': null,
+      '103500457': null
+    },
+    likeData: false,
+    width: 1447,
+    height: 2160,
+    pageCount: 1,
+    bookmarkCount: 11681,
+    likeCount: 6957,
+    commentCount: 26,
+    responseCount: 0,
+    viewCount: 51179,
+    bookStyle: 0,
+    isHowto: false,
+    isOriginal: false,
+    imageResponseOutData: [],
+    imageResponseData: [],
+    imageResponseCount: 0,
+    pollData: null,
+    seriesNavData: null,
+    descriptionBoothId: null,
+    descriptionYoutubeId: null,
+    comicPromotion: null,
+    fanboxPromotion: {
+      userName: 'ワイズスピーク@単行本発売中！',
+      userImageUrl: 'https://i.pximg.net/user-profile/img/2017/08/11/19/18/51/13020245_fdd8b7bacebcb472693c42084d417d5b_170.jpg',
+      contentUrl: 'https://www.pixiv.net/fanbox/creator/1047320?utm_campaign=www_artwork&amp;utm_medium=site_flow&amp;utm_source=pixiv',
+      description: 'フリーのイラストレーター、漫画家のワイズスピークと申します。\n' +
+        '『ワイズスピーク』は、「こがさきゆいな」と「ようめい」の二人組のユニットです。\n' +
+        '同人活動はサークル『やみつき本舗』にて行っています。\n' +
+        '\n' +
+        '試行錯誤しながら運用していけたらいいなーと思っています！\n' +
+        '\n' +
+        '\n' +
+        '※どのプランでもすべての記事をお読み頂けます。\n' +
+        '\n' +
+        '\n' +
+        'お仕事履歴\n' +
+        '\n' +
+        '全年齢\n' +
+        'Fate/Grand Order電撃コミックアンソロジー11\n' +
+        '同12\n' +
+        '同13\n' +
+        '同14\n' +
+        '同16\n' +
+        '\n' +
+        '成人向け\n' +
+        'コミックアンスリウム \n' +
+        '2018 4月号\n' +
+        '2018 9月号\n' +
+        '2019 2月号\n' +
+        '2019 5月号\n' +
+        '2019 10月号\n' +
+        '\n' +
+        '合同企画\n' +
+        '『おさななじみと。』\n' +
+        '『Melty H』\n' +
+        '『最終制服女史』\n' +
+        '\n' +
+        'イベント関係\n' +
+        'コスホリック23イメージイラスト\n' +
+        'メロンブックス　女身くじ第四弾【乳くじ】HAPPY NEW(乳) YEAR『中乳』',
+      imageUrl: 'https://pixiv.pximg.net/c/520x280_90_a2_g5/fanbox/public/images/creator/1047320/cover/TUfJ0UEoBDxN8knpQIXrHqu4.jpeg',
+      imageUrlMobile: 'https://pixiv.pximg.net/c/520x280_90_a2_g5/fanbox/public/images/creator/1047320/cover/TUfJ0UEoBDxN8knpQIXrHqu4.jpeg',
+      hasAdultContent: true
+    },
+    contestBanners: [],
+    isBookmarkable: true,
+    bookmarkData: null,
+    contestData: null,
+    zoneConfig: {
+      responsive: [Object],
+      rectangle: [Object],
+      '500x500': [Object],
+      header: [Object],
+      footer: [Object],
+      expandedFooter: [Object],
+      logo: [Object],
+      relatedworks: [Object]
+    },
+    extraData: { meta: [Object] },
+    titleCaptionTranslation: { workTitle: null, workCaption: null },
+    isUnlisted: false,
+    request: null,
+    commentOff: 0,
+    aiType: 0
+  }
+}
+```
+
+
+#### meta-preload-dataのinterface化
 
 
 ```TypeScript 
 interface iMetaPreloadData {
     timestamp: string;
     illust: iIllustData;
+    user: [key: string]: {
+        userId: string;
+        name: string;
+    };
 };
 
 interface iIllustData {
@@ -1073,6 +1642,25 @@ interface iIllustData {
         bookmarkCount: number;
         likeCount:number;
     };
+};
+```
+
+#### tags
+
+artworkpageのcontentのjsonファイルのtagsの為のinterface
+
+```TypeScript
+interface iTgasList {
+    tag: string;
+    locked: boolean;
+    deletable: boolean;
+    userId: string;
+};
+interface iTgas {
+    authorId: string;
+    isLocked: boolean;
+    tags: iTagList[];
+    writable: boolean;
 };
 ```
 
