@@ -1,32 +1,14 @@
 /***********************************************
  * NEW COMMAND: "bookmark"
  * 
- * LIKE THIS.
- * ```bash
- * $ node index.ts bookmark \
- *  --amountOfBookmarkOver=5000 \
- *  --tag=COWBOYBEBOP \
- *  --author=awesomeCreator \
- * ```
- * 
- * TODO: 
- * - モジュール化するにあたって
- * - wrapHandlerは機能するか確認
  * *********************************************/ 
  import type yargs from 'yargs';
+ import type { iOptions, iCommandBuild } from '../commandTypes';
  // import Yargs from 'yargs/yargs';
  
  const bookmarkOptionList = ["bookmarkOver", "tag", "author"];
  
-export interface iBookmarkOptions {
-     bookmarkOver?: number;
-     tags?: string[];
-     userName?: string;
- };
- 
- type iCommandBuild<T> = {
-     [Property in keyof T]: yargs.Options;
- };
+export type iBookmarkOptions = Partial<iOptions>;
  
  const command = "bookmark";
  const description = "Bookmark artwork if it satifies given command options.";
@@ -74,11 +56,11 @@ export interface iBookmarkOptions {
 //  -- USAGE --
 // import type yargs from 'yargs';
 // import { bookmarkCommand } from './parser';
-// import type { iBookmarkOptions } from './parser';
+// import type { iOptions } from './parser';
 // import Yargs from 'yargs/yargs';
 
 // (function() {
-//     const commands = {} as iBookmarkOptions;
+//     const commands = {} as iOptions;
 //     Yargs(process.argv.splice(2)).command(
 //         bookmarkCommand.command,
 //         bookmarkCommand.description,

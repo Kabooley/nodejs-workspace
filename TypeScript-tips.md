@@ -26,6 +26,8 @@ TODO: TypeScriptの書籍を買え！
 
 [オーバーロード](#オーバーロード)
 
+[interfaceからオプショナルだけを排除する](#interfaceからオプショナルだけを排除する)
+
 
 ## TypeScriptはprivate指定子でスコープを制御してくれるわけではない
 
@@ -1320,3 +1322,4 @@ const usage = function(command: iCommands, page: puppeteer.Page) {
     }
 };
 ```
+

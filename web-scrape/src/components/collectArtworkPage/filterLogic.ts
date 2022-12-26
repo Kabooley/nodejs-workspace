@@ -11,14 +11,8 @@
 import type { iFilterLogic } from '../Collect';
 import type { iIllustData } from './typeOfArtworkPage';
 import array from '../../utilities/array';
-
-// TODO: 後でコマンド関係を別ファイルへまとめること
-interface iOptions {
-    bookmarkOver?: number;
-    tags?: string[];
-    userName?: string;
-    keyword: string;
-};
+import type { iOptions } from '../../commandParser/commandTypes';
+import { resolveTags } from './resolveTags';
 
 
 /***
@@ -42,8 +36,7 @@ export const filterLogic: iFilterLogic<iIllustData> = (data: iIllustData, option
     }
     if(options.tags !== undefined && options.tags.length) {
         result = result 
-        && // TODO: 配列同士の比較。TODO: tagsは本当に{}型なのか？調査。
-        array.includesAll(tags, options.tags)
+        && array.includesAll(resolveTags(data), options.tags)
     }
     // 
     // 後から追加可能

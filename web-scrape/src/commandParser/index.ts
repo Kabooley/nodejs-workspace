@@ -8,9 +8,8 @@
  * **********************************************************/ 
  import yargs from 'yargs/yargs';
  import type { Argv } from 'yargs'
- import type { iBookmarkOptions } from './commandModules/bookmarkCommand';
+ import type { iOptions } from './commandTypes';
  import { bookmarkCommand } from './commandModules/bookmarkCommand';
- import type { iCollectOptions } from './commandModules/collectCommand';
  import { collectCommand } from './commandModules/collectCommand';
  
  // yargs()が返すオブジェクト
@@ -32,7 +31,7 @@
  }>;
  
  // Contains options.
- const options = {} as iOptions;
+ const options = {} as iPartialOptions;
  
  // NOTE: Commands array below must be modified if you add or remove.
  const demandCommands: string[] = ["collect", "bookmark"];
@@ -133,11 +132,11 @@
  
  checkDemandCommands(order);
 
- interface iOptions extends iCollectOptions, iBookmarkOptions {};
+ type iPartialOptions = Partial<iOptions>;
 
  export interface iOrders {
     commands: (string | number)[];
-    options: iOptions;
+    options: iPartialOptions;
  };
  
 

@@ -1,22 +1,11 @@
 import type yargs from 'yargs';
-
-type iCommandBuild<T> = {
-    [Property in keyof T]: yargs.Options;
-};
-
-export interface iCollectOptions {
-    keyword: string;
-    tags?: string[];
-    bookmarkOver?: number;
-    userName?: string;
-};
-
+import type { iOptions, iCommandBuild } from '../commandTypes';
 
 const optionList = ["keyword", "bookmarkOver", "tag", "author"];
 
 const command = "collect";
 const description = "collect <command>";
-const builder: iCommandBuild<iCollectOptions> = {
+const builder: iCommandBuild<iOptions> = {
     keyword: {
         describe: "",
         demandOption: true,
