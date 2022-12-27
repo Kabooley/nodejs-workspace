@@ -1,3 +1,7 @@
+/********************************************************
+ * NOTE: Deprecated. Replaced to `setupParallelSequences.ts`
+ * 
+ * *****************************************************/ 
 import type puppeteer from 'puppeteer';
 import type { iIllustMangaDataElement, iBodyIncludesIllustManga } from '../constants/illustManga';
 import type { iCollectOptions } from '../commandParser/commandModules/collectCommand';

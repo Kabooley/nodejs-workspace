@@ -2,8 +2,8 @@
  * param:
  * *******************************************************/ 
 import type puppeteer from 'puppeteer';
-import type { iCollectOptions } from '../../commandParser/commandModules/collectCommand';
 import type { iIllustData } from './typeOfArtworkPage';
+import type { iOptions } from '../../commandParser/commandTypes';
 import { Navigation } from '../Navigation';
 import { Collect } from '../Collect';
 import { AssembleParallelPageSequences } from '../AssembleParallelPageSequences-2';
@@ -22,21 +22,21 @@ import type { iCommands } from '../../action/Action';
 
 // GLOBAL
 const artworkPageUrl: string = "https://www.pixiv.net/artworks/{{id}}";
-const validOptions: (keyof iCollectOptions)[] = ["keyword", "bookmarkOver"];
+const validOptions: (keyof iOptions)[] = ["keyword", "bookmarkOver"];
 
 /***
  * Contains `keyword` and necessary properties in this module from options.
  * Unnecessary properties in options are excluded.
  * */ 
  const optionsProxy = (function() {
-    let options = {} as iCollectOptions;
+    let options = {} as iOptions;
     return {
-        set: function(v: iCollectOptions) {
+        set: function(v: iOptions) {
             options = {
                 ...options, ...v
             };
         },
-        get: function(): iCollectOptions {
+        get: function(): iOptions {
             return options;
         }
     };
@@ -51,10 +51,10 @@ export const setupCollectingArtworkPage = async (
     numberOfProcess: number,
     idTable: string[],
     command: iCommands,
-    options: iCollectOptions
+    options: iOptions
 ) => {
     optionsProxy.set({
-        ...filterOnlyMatchedKey<iCollectOptions>(options, validOptions), 
+        ...filterOnlyMatchedKey<iOptions>(options, validOptions), 
         ...({keyword: options.keyword})
     });
     const assembler = new AssembleParallelPageSequences<iIllustData>(
@@ -65,7 +65,6 @@ export const setupCollectingArtworkPage = async (
     try {
         await assembler.initialize();
         
-        // assembler.setNavigationProcess(navigationProcess);
         assembler.setResolvingProcess(resolveProcess);
         assembler.setSolutionProcess(solutionProcess);
         assembler.setErrorHandlingProcess(errorHandlingProcess);
@@ -118,10 +117,10 @@ export const setupCollectingArtworkPage = async (
 //     browser: puppeteer.Browser,
 //     numberOfProcess: number,
 //     idTable: string[],
-//     options: iCollectOptions
+//     options: iOptions
 // ) => {
 //     optionsProxy.set({
-//         ...filterOnlyMatchedKey<iCollectOptions>(options, validOptions), 
+//         ...filterOnlyMatchedKey<iOptions>(options, validOptions), 
 //         ...({keyword: options.keyword})
 //     });
 //     const assembler = new AssembleParallelPageSequences<iIllustData>(

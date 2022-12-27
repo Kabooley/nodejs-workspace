@@ -1,6 +1,4 @@
 /******************************************************************
- * NOTE: Deprecated: This content is replaced to index.ts.
- * 
  * `collect byKeyword` command task genearation.
  * 
  * `collect byKeyword` commandに基づく一連の処理を逐次処理として組み立てる。
@@ -32,17 +30,18 @@
  * - 検索結果ページから取得するのはiIllustMangaDataElement型データの`id`プロパティであるとハードコーディングしている
  * ****************************************************************/ 
 import type puppeteer from 'puppeteer';
-import type { iSequentialAsyncTask } from '../utilities/TaskQueue';
-import type { iIllustManga, iBodyIncludesIllustManga } from '../constants/illustManga';
-import type { iCollectOptions } from '../commandParser/commandModules/collectCommand';
-import { search } from './search';
-import { Navigation } from './Navigation';
-import { retrieveDeepProp } from '../utilities/objectModifier';
+import type { iSequentialAsyncTask } from '../../utilities/TaskQueue';
+import type { iIllustManga, iBodyIncludesIllustManga } from '../../constants/illustManga';
+import { search } from '../search';
+import { Navigation } from '../Navigation';
+import { retrieveDeepProp } from '../../utilities/objectModifier';
 import { decideNumberOfProcess } from './decideNumberOfProcess';
 import {assemblingResultPageCollectProcess} from './assemblingResultPageCollectProcess';
-import mustache from '../utilities/mustache';
+import mustache from '../../utilities/mustache';
 // import array from '../utilities/array';
 // import type { iFilterLogic  } from './Collect';
+
+import type { iOptions } from '../../commandParser/commandTypes';
 
 let tasks: iSequentialAsyncTask[] = [];
 const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}}?word={{keyword}}&order=date_d&mode=all&p={{i}}&s_mode=s_tag&type=all&lang=ja";
@@ -52,9 +51,9 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
  * 
  * */ 
 const optionsProxy = (function() {
-    let options = {} as iCollectOptions;
+    let options = {} as iOptions;
     return {
-        set: function(v: iCollectOptions) {
+        set: function(v: iOptions) {
             options = {
                 ...options, ...v
             };
@@ -75,7 +74,7 @@ const optionsProxy = (function() {
 export const setupCollectByKeywordTaskQueue = (
     browser: puppeteer.Browser,
     page: puppeteer.Page, 
-    options: iCollectOptions
+    options: iOptions
     ): iSequentialAsyncTask[] => {
     // DEBUG:
     console.log("setupCollectByKeywordTaskQueue()");
@@ -121,27 +120,3 @@ export const setupCollectByKeywordTaskQueue = (
     // これ以降のtask追加は呼び出し側に任せる
     return tasks;
 };
-
-
-// --- LEGACY ---
-
-/***
- * filterLogic for AssembleParallelPageSequences.filter() function.
- * 
- * Apropriates for iCollectOptions.
- * */ 
-//  const filterLogic: iFilterLogic<iIllustMangaDataElement> = (e: iIllustMangaDataElement) => {
-//     let result: boolean = true;
-//     const options = optionsProxy.get();
-
-//     // うまい方法見つからんので、
-//     // iCollectOptionsのbookmarkOver以外のプロパティが指定してあれば
-//     // ここでハードコーディングで検査機能を追記する
-//     if(options.tags !== undefined && e['tags'] !== undefined) {
-//         result = result && array.includesAll(e['tags'], options.tags);
-//     }
-//     if(options.userName !== undefined && e['userName'] !== undefined) {
-//         result = result && (e['userName'] === options.userName);
-//     }
-//     return result;
-// };
