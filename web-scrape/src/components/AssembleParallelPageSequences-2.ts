@@ -2,12 +2,13 @@
  * Ver:2
  * branch: feat-action-integlation
  * 
- * NOTE:
- * - Collect要らないかも...
+ * NOTE: update
+ * - `Collect`不要にした
+ * 
  * ******************************************************************/ 
 import type puppeteer from 'puppeteer';
-import type { Collect, iFilterLogic } from './Collect';
 import type { Navigation } from './Navigation';
+// import type { Collect, iFilterLogic } from './Collect';
 
 export type iResponsesResolveCallback<T> = (responses: (puppeteer.HTTPResponse | any)[], params?: any) => T[] | Promise<T[]>;
 
@@ -47,7 +48,7 @@ export class AssembleParallelPageSequences<T> {
         private browser: puppeteer.Browser, 
         private concurrency: number,
         public navigation: Navigation,
-        private collector: Collect<T>
+        // private collector: Collect<T>
     ){
         this.collected = [];
         this.collectedProperties = [];
@@ -56,7 +57,7 @@ export class AssembleParallelPageSequences<T> {
         this.errorHandlingProcess = undefined;
         this.navigationTrigger = undefined;
         // Methods binding. 
-        // NOTE: bind()は元の関数の関数の型をanyにしてしなうとのこと...
+        // NOTE: bind()は元の関数の関数の型をanyにしてしまうとのこと...
         // https://typescript-jp.gitbook.io/deep-dive/main-1/bind
         // しかし型推論をみるにそんなことはないんだけどね
         this._generatePageInstances = this._generatePageInstances.bind(this);
@@ -65,9 +66,6 @@ export class AssembleParallelPageSequences<T> {
         this.getPageInstance = this.getPageInstance.bind(this);
         this.getSequences = this.getSequences.bind(this);
         this.setResponseFilter = this.setResponseFilter.bind(this);
-        this.collect = this.collect.bind(this);
-        this.collectProperties = this.collectProperties.bind(this);
-        this.filter = this.filter.bind(this);
         this.run = this.run.bind(this);
         this.getCollected = this.getCollected.bind(this);
         this.getCollectedProperties = this.getCollectedProperties.bind(this);
@@ -81,12 +79,20 @@ export class AssembleParallelPageSequences<T> {
         this.setSolutionProcess = this.setSolutionProcess.bind(this);
         this.setErrorHandlingProcess = this.setErrorHandlingProcess.bind(this);
         this.action = undefined;
+        this.setAction = this.setAction.bind(this);
+        this.executeAction = this.executeAction.bind(this);
+        this.pushCollectingData = this.pushCollectingData.bind(this);
+        this.pushCollectingProperty = this.pushCollectingProperty.bind(this);
         
         // this.responsesResolver = undefined;
         // this.navigationProcess = undefined;
         // this.setNavigationProcess = this.setNavigationProcess.bind(this);
         // this.resolveResponses = this.resolveResponses.bind(this);
         // this.setResponsesResolver = this.setResponsesResolver.bind(this);
+        // this.collect = this.collect.bind(this);
+        // this.collectProperties = this.collectProperties.bind(this);
+        // this.filter = this.filter.bind(this);
+
     };
 
 
@@ -136,65 +142,6 @@ export class AssembleParallelPageSequences<T> {
         this.navigation.resetFilter(filter);
     };
     
-    // /**
-    //  * Set resolver for returned value from navigation process.
-    //  * Callback must get all parameter from previous process.
-    //  * So callback can be any function to suit any case.
-    //  * 
-    //  * 
-    //  * */ 
-    // setResponsesResolver(resolver: iResponsesResolveCallback<T>): void {
-    //     this.responsesResolver = resolver;
-    // };
-
-    // /***
-    //  * Call this.responsesResolver if it's not undefined.
-    //  * 
-    //  * */ 
-    // resolveResponses(responses: (puppeteer.HTTPResponse | any)[], params?: any): T[] | Promise<T[]> {
-    //     if(this.responsesResolver) return this.responsesResolver(responses, params); 
-    //     else throw new Error("");
-    // }
-
-    /***
-     * Collect properties from data by specifying key which is keyof T.
-     * */ 
-    collectProperties(data: T[], key: keyof T): void {
-        this.collector.setData(data);
-        if(key !== undefined) {
-            this.collectedProperties = [...this.collectedProperties, ...this.collector.collectProperties(key)];
-        }
-    };
-
-    /***
-     * 
-     * なんだか意味のないことをしているなぁ
-     * NOTE: Nothing returns.
-     * */ 
-    collect(data: T[]): void {
-        this.collector.setData(data);
-        this.collected = [...this.collected, ...this.collector.getData()];
-    }
-
-    /***
-     * @param {T[]} data - 
-     * @param {keyof T} key - The property name of data parameter.
-     * @param {iFilterLogic} filterLogic - Filter logic that is required by Collect.filter().
-     * 
-     * T: {id: number, name: string, age: number}
-     * data: [
-     *  {id: 123, name: "Jango", age: 25},
-     *  {id: 456, name: "Junko", age: 24},
-     *  {id: 789, name: "Jaguar", age: 23},
-     *  ...
-     * ]
-     * key: 'id'
-     * filterLogic:
-     * */ 
-    filter(data: T[], filterLogic: iFilterLogic<T>): T[] {
-        this.collector.setData(data);
-        return this.collector.filter(filterLogic);
-    };
 
     run(): Promise<void[]> {
         return Promise.all(this.sequences);
@@ -250,10 +197,6 @@ export class AssembleParallelPageSequences<T> {
         //     this.browser = undefined;
         // }
     };
-
-    // ----
-    // NOTE: new added
-    // ---
 
     /***
      * Set up single task of sequence.
@@ -313,6 +256,14 @@ export class AssembleParallelPageSequences<T> {
     };
     executeAction(data: T): Promise<any> | any {
         if(this.action !== undefined) return this.action(data);
+    };
+
+    // NOTE: Added instead of this.collector
+    pushCollectingData(data: T): void {
+        this.collected.push(data);
+    };
+    pushCollectingProperty(prop: T[keyof T]): void {
+        this.collectedProperties.push(prop);
     }
 
     // --- LEGACY ---
@@ -321,4 +272,66 @@ export class AssembleParallelPageSequences<T> {
 	// setNavigationProcess(navigationProcess: iAssemblerNavigationProcess<T>) {
 	// 	this.navigationProcess = navigationProcess.bind(this);
 	// };
+
+    
+    // /**
+    //  * Set resolver for returned value from navigation process.
+    //  * Callback must get all parameter from previous process.
+    //  * So callback can be any function to suit any case.
+    //  * 
+    //  * 
+    //  * */ 
+    // setResponsesResolver(resolver: iResponsesResolveCallback<T>): void {
+    //     this.responsesResolver = resolver;
+    // };
+
+    // /***
+    //  * Call this.responsesResolver if it's not undefined.
+    //  * 
+    //  * */ 
+    // resolveResponses(responses: (puppeteer.HTTPResponse | any)[], params?: any): T[] | Promise<T[]> {
+    //     if(this.responsesResolver) return this.responsesResolver(responses, params); 
+    //     else throw new Error("");
+    // }
+
+    
+    // /***
+    //  * Collect properties from data by specifying key which is keyof T.
+    //  * */ 
+    // collectProperties(data: T[], key: keyof T): void {
+    //     this.collector.setData(data);
+    //     if(key !== undefined) {
+    //         this.collectedProperties = [...this.collectedProperties, ...this.collector.collectProperties(key)];
+    //     }
+    // };
+
+    // /***
+    //  * 
+    //  * なんだか意味のないことをしているなぁ
+    //  * NOTE: Nothing returns.
+    //  * */ 
+    // collect(data: T[]): void {
+    //     this.collector.setData(data);
+    //     this.collected = [...this.collected, ...this.collector.getData()];
+    // }
+
+    // /***
+    //  * @param {T[]} data - 
+    //  * @param {keyof T} key - The property name of data parameter.
+    //  * @param {iFilterLogic} filterLogic - Filter logic that is required by Collect.filter().
+    //  * 
+    //  * T: {id: number, name: string, age: number}
+    //  * data: [
+    //  *  {id: 123, name: "Jango", age: 25},
+    //  *  {id: 456, name: "Junko", age: 24},
+    //  *  {id: 789, name: "Jaguar", age: 23},
+    //  *  ...
+    //  * ]
+    //  * key: 'id'
+    //  * filterLogic:
+    //  * */ 
+    // filter(data: T[], filterLogic: iFilterLogic<T>): T[] {
+    //     this.collector.setData(data);
+    //     return this.collector.filter(filterLogic);
+    // };
 };

@@ -8,7 +8,7 @@
  * **********************************************************/ 
  import yargs from 'yargs/yargs';
  import type { Argv } from 'yargs'
- import type { iOptions } from './commandTypes';
+ import type { iOptions, iPartialOptions } from './commandTypes';
  import { bookmarkCommand } from './commandModules/bookmarkCommand';
  import { collectCommand } from './commandModules/collectCommand';
  
@@ -29,6 +29,7 @@
      _: (string | number)[];
      $0: string;
  }>;
+ 
  
  // Contains options.
  const options = {} as iPartialOptions;
@@ -132,11 +133,10 @@
  
  checkDemandCommands(order);
 
- type iPartialOptions = Partial<iOptions>;
-
  export interface iOrders {
     commands: (string | number)[];
     options: iPartialOptions;
+    // options: iOptions;
  };
  
 

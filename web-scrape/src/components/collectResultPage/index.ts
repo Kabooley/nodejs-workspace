@@ -1,33 +1,15 @@
 /******************************************************************
- * `collect byKeyword` command task genearation.
+ * `collect byKeyword`で実行するべき内容のうち、
+ * キーワード検索結果すべてから各artworkのidを取得するプロセスを
+ * 構築する。
  * 
- * `collect byKeyword` commandに基づく一連の処理を逐次処理として組み立てる。
- * 
- * 最終的にTaskQueue::sequentialAsyncTasks()へtasks:iSequentialAsyncTask[]として渡されて
- * そこでpromiseチェーン化される。
- * なのでここではtasksを生成する。
- * 
- * Promiseチェーンからなる逐次処理に、
- * あらかじめ定められているタスクを追加していく。
- * 逐次処理のPromiseチェーンが組み立てられたらそのPromiseを返す。
- * 
- * task:
- * - fill search form by keyword
- * - navigate to keyword search result page
- * - get its http response
- * - parse its http response
- * - generate collecting process
- * - return collected data
- *  
- * 
- * TODO:
- * - 今のところ`collect byKeyword`に特化している
- * - エラーハンドリング
- * - `then(() => foo().then(() => bar()))`という使い型は問題がないかのか検証
- * - 機能の分割（1ファイル1機能を守る）
- * 
- * NOTE:
- * - 検索結果ページから取得するのはiIllustMangaDataElement型データの`id`プロパティであるとハードコーディングしている
+ * Process:
+ * - Fill search form with keyword option.
+ * - Navigate to result
+ * - Get search result from HTTP Response.
+ * - Analyse HTTP Response body to decide number of process to do.
+ * - Set up each processes.
+ * - Run processes parallelly.
  * ****************************************************************/ 
 import type puppeteer from 'puppeteer';
 import type { iSequentialAsyncTask } from '../../utilities/TaskQueue';
@@ -36,19 +18,19 @@ import { search } from '../search';
 import { Navigation } from '../Navigation';
 import { retrieveDeepProp } from '../../utilities/objectModifier';
 import { decideNumberOfProcess } from './decideNumberOfProcess';
-import {assemblingResultPageCollectProcess} from './assemblingResultPageCollectProcess';
 import mustache from '../../utilities/mustache';
-// import array from '../utilities/array';
-// import type { iFilterLogic  } from './Collect';
-
-import type { iOptions } from '../../commandParser/commandTypes';
+import { setupParallelSequences } from './setupParallelSequences';
+/**
+ * TODO: iOptionsにすべきか、iPartialOptionsにすべきか
+ * 
+ * */ 
+import type { iPartialOptions, iOptions } from '../../commandParser/commandTypes';
 
 let tasks: iSequentialAsyncTask[] = [];
 const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}}?word={{keyword}}&order=date_d&mode=all&p={{i}}&s_mode=s_tag&type=all&lang=ja";
 
-/***
- * Command `collectbyKeyword`'s options will be stored.
- * 
+/**
+ * Command options will be stored.
  * */ 
 const optionsProxy = (function() {
     let options = {} as iOptions;
@@ -65,7 +47,6 @@ const optionsProxy = (function() {
 })();
 
 
-
 /****
  * Set up tasks which required by "collectByKeyword" command and return tasks.
  * The tasks are sequential
@@ -76,8 +57,9 @@ export const setupCollectByKeywordTaskQueue = (
     page: puppeteer.Page, 
     options: iOptions
     ): iSequentialAsyncTask[] => {
+
     // DEBUG:
-    console.log("setupCollectByKeywordTaskQueue()");
+    console.log("Start: setupCollectByKeywordTaskQueue()");
 
     optionsProxy.set(options);
 
@@ -86,37 +68,50 @@ export const setupCollectByKeywordTaskQueue = (
     // 1. fill search form with keyword.
     tasks.push(() => search(page, optionsProxy.get().keyword));
     // 2. Navigate to keyword search result page.
-    tasks.push(() => {
-
-        // DEBUG:
-        console.log("Navigate to search result page...");
-
-        const navigation = new Navigation();
-        navigation.resetFilter((res: puppeteer.HTTPResponse) => 
-            res.status() === 200 
-            && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: 1})
-        );
-        navigation.resetWaitForOptions({waitUntil: ["load", "networkidle2"]});
-        return navigation.navigateBy(page, page.keyboard.press('Enter'))
-    });
+    tasks.push(setupNavigation);
+    tasks.push((navigation: Navigation) => navigation.navigateBy(page, page.keyboard.press('Enter')));
     // 3. Check the response includes required data.
     tasks.push((res: (puppeteer.HTTPResponse | any)[]) => res.shift().json() as iBodyIncludesIllustManga);
     // 4. Resolve HTTPResponse body to specific type.
-    tasks.push((responseBody: iBodyIncludesIllustManga): iIllustManga => {
-                
-        // DEBUG:
-        console.log("Resolving navigation http response body...");
-
-        const resolved = retrieveDeepProp<iIllustManga>(["body", "illustManga"], responseBody);
-        // このthen()ハンドラは同期関数なのでスローは補足される
-        if(resolved === undefined) throw new Error("");
-        return resolved;
-    });
+    tasks.push(resolve);
     // 5. Define numberOfProcess according to number of result. 
     tasks.push(decideNumberOfProcess);
     // 6. setup collect process according to number of process.
     tasks.push((p: {numberOfProcess: number, numberOfPages: number}) => 
-        assemblingResultPageCollectProcess(browser, p.numberOfProcess, p.numberOfPages, optionsProxy.get()));
-    // これ以降のtask追加は呼び出し側に任せる
+        setupParallelSequences(browser, p.numberOfProcess, p.numberOfPages, optionsProxy.get()));
     return tasks;
 };
+
+/**
+ * setupCollectByKeywordTaskQueue()で呼び出されるtaskの一つ。
+ * Navigationの準備をする。
+ * */ 
+const setupNavigation = (): Navigation => {
+
+    // DEBUG:
+    console.log("Navigate to result page of keyword search...");
+
+    const navigation = new Navigation();
+    navigation.resetFilter((res: puppeteer.HTTPResponse) => 
+        res.status() === 200 
+        && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: 1})
+    );
+    navigation.resetWaitForOptions({waitUntil: ["load", "networkidle2"]});
+    return navigation;
+};
+
+
+/**
+ * setupCollectByKeywordTaskQueue()で呼び出されるtaskの一つ。
+ * Navigationの戻り値からiIllustManga[]ヲ取り出して返す。 
+ * */ 
+const resolve = (responseBody: iBodyIncludesIllustManga): iIllustManga => {
+                
+    // DEBUG:
+    console.log("Resolving navigation http response body...");
+
+    const resolved = retrieveDeepProp<iIllustManga>(["body", "illustManga"], responseBody);
+    // このthen()ハンドラは同期関数なのでスローは補足される
+    if(resolved === undefined) throw new Error("");
+    return resolved;
+}

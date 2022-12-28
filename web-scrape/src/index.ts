@@ -14,9 +14,11 @@ import { orders, iOrders } from './commandParser/index';
 import type { iSequentialAsyncTask } from './utilities/TaskQueue';
 import { sequentialAsyncTasks } from './utilities/TaskQueue';
 import { Navigation } from './components/Navigation';
-import { setupCollectByKeywordTaskQueue } from './components/setupCollectByKeywordTaskQueue';
-import type { iCollectOptions } from './commandParser/commandModules/collectCommand';
+// import { setupCollectByKeywordTaskQueue } from './components/setupCollectByKeywordTaskQueue';
+// import type { iCollectOptions } from './commandParser/commandModules/collectCommand';
 // import { login } from './components/login';
+
+import { setupCollectByKeywordTaskQueue } from './components/collectResultPage';
 
 
 // 
@@ -79,7 +81,12 @@ const setupTaskQueue = (order: iOrders) => {
             // 
             console.log("Set up tasks according to command 'collect byeKeyword'");
 
-            taskQueue = [...setupCollectByKeywordTaskQueue(instances.getBrowser(), instances.getPage(), {...options} as iCollectOptions)];
+            taskQueue = [...setupCollectByKeywordTaskQueue(
+                instances.getBrowser(), 
+                instances.getPage(), 
+                // {...options} as iCollectOptions)
+                ...options
+            ];
         break;
         case 'collectfromBookmark':
             // TODO: Define taskQueue implementation.

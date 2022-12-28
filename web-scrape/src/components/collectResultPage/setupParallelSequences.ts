@@ -3,20 +3,16 @@
  * 
  * *****************************************************/ 
 import type puppeteer from 'puppeteer';
-import type { iIllustMangaDataElement, iBodyIncludesIllustManga } from '../../constants/illustManga';
+import type { iIllustMangaDataElement } from '../../constants/illustManga';
 import type { iOptions } from '../../commandParser/commandTypes';
 import { Navigation } from '../Navigation';
-import { Collect } from '../Collect';
 import { AssembleParallelPageSequences } from '../AssembleParallelPageSequences-2';
-import { retrieveDeepProp } from '../../utilities/objectModifier';
 import mustache from '../../utilities/mustache';
 // process definition
 import { resolveProcess } from './resolveProcess';
 import { solutionProcess } from './solutionProcess';
 import { errorHandlingProcess } from './errorHandlingProcess';
 
-// Property that assembler will collect.
-const key: keyof iIllustMangaDataElement = "id";
 // URL of each search result page. 
 const url: string = "https://www.pixiv.net/tags/{{keyword}}/artworks?p={{i}}&s_mode=s_tag";
 // URL that used in page.waitForResponse().
@@ -41,21 +37,6 @@ const optionsProxy = (function() {
 })();
 
 
-
-type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
-
-/***
- * 
- * 
- * */ 
- const resolver: iResponsesResolveCallback<iIllustMangaDataElement> = async (responses: (puppeteer.HTTPResponse | any)[]) => {
-    const response = await responses.shift().json() as iBodyIncludesIllustManga;
-    const resolved: iIllustMangaDataElement[] = retrieveDeepProp<iIllustMangaDataElement[]>(["body", "illustManga", "data"], response);
-    if(resolved === undefined) throw new Error("");
-    return resolved;
-};
-
-
 /***
  * numberOfPagesだけHTTPResponseを取得して、その結果を配列に収める
  * numberOfProcessだけ並列処理させる。
@@ -68,7 +49,7 @@ type iResponsesResolveCallback<T> = (params: any) => T[] | Promise<T[]>;
  * 
  * 
  * */ 
-export const assemblingResultPageCollectProcess = async (
+export const setupParallelSequences = async (
     browser: puppeteer.Browser, 
     numberOfProcess: number, 
     numberOfPages: number,
@@ -77,15 +58,14 @@ export const assemblingResultPageCollectProcess = async (
 
                 
     // DEBUG:
-    console.log("assemblingCollectProcess()");
+    console.log("Start: assemblingCollectProcess()");
 
     optionsProxy.set({...options});
 
     // NOTE: Code outside of try block is for catch block to scope instance.
     const assembler = new AssembleParallelPageSequences<iIllustMangaDataElement>(
         browser, numberOfProcess, 
-        new Navigation(), 
-        new Collect<iIllustMangaDataElement>()
+        new Navigation()
     );
 
     try {
@@ -94,37 +74,29 @@ export const assemblingResultPageCollectProcess = async (
         assembler.setSolutionProcess(solutionProcess);
         assembler.setErrorHandlingProcess(errorHandlingProcess);
 
-
         // DEBUG:
         console.log("generating assembler parallel process...");
         
         for(let currentPage = 1; currentPage <= numberOfPages; currentPage++) {
-            /***
-             * 毎ループ更新されるものとは？
-             * 
-             * navigateするurl
-             * page.waitForResponse()のフィルターURL
-             * 
-             * 
-             * */ 
             const circulator: number = currentPage % numberOfProcess;
-            const _url: string = mustache(url, {kwyword: encodeURIComponent(optionsProxy.get().keyword), i: currentPage});
+            const _url: string = mustache(filterUrl, {kwyword: encodeURIComponent(optionsProxy.get().keyword), i: currentPage});
+            
             assembler.setResponseFilter(
                 function httpResponseFilter(res: puppeteer.HTTPResponse) {
                     return res.status() === 200 && res.url() === _url;
                 }
             );
+
             assembler.setNavigationTrigger(
                 function trigger(page: puppeteer.Page) {
                     return page.goto(url, { waitUntil: [ "load", "networkidle2"] });
             });
             
-
             assembler.setupSequence(circulator);
         };
         
         // DEBUG:
-        console.log("generating has been done.");
+        console.log("Done. Assembling collect result page process");
 
         return assembler.run()
             .then(() => assembler.getCollectedProperties())

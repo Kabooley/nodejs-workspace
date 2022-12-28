@@ -18,6 +18,10 @@ export const resolveProcess: iAssemblerResolveProcess<iIllustMangaDataElement> =
     index: number,
     responses: (puppeteer.HTTPResponse | any[])[]
 ) {
+    
+    // DEBUG:
+    console.log(`Resolving process ${index}`);
+
     const element = responses.shift() as puppeteer.HTTPResponse;
     if(element === undefined) throw new Error("");
     const r = await element.json() as iBodyIncludesIllustManga;

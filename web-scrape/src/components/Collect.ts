@@ -7,10 +7,10 @@
  * Collectはどんなデータ型をthis.dataとして抱えることになるのかに関心があり、
  * CollectのメソッドはT
  * *******************************************************************/ 
-import type { iOptions } from '../commandParser/commandTypes';
+// import type { iOptions } from '../commandParser/commandTypes';
 
-//  export type iFilterLogic<T> = (e: T) => boolean;
- export type iFilterLogic<T> = (e: T, options: iOptions) => boolean;
+ export type iFilterLogic<T> = (e: T) => boolean;
+//  export type iFilterLogic<T> = (e: T, options: iOptions) => boolean;
 
  /***
   * @type {T} - Type of the array element object.
@@ -52,6 +52,8 @@ import type { iOptions } from '../commandParser/commandTypes';
      /**
       * RESET data.
       * Remove reference of previous data.
+      * 
+      * NOTE: 無くしたい。
       * */ 
      setData(data: T[]): void {
          this.data = [];

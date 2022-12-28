@@ -1,5 +1,8 @@
 import type yargs from 'yargs';
 
+
+export type iPartialOptions = Partial<iOptions>;
+
 /**
  * Common options for every command.
  * */ 
