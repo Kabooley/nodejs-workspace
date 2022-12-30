@@ -3,7 +3,7 @@
  * This method will be used as Promise.then() handler.
  * 
  * **************************************************************/ 
-import type { iIllustManga } from '../constants/illustManga';
+import type { iIllustManga } from '../../constants/illustManga';
 
 /***
  * Get http response body data 

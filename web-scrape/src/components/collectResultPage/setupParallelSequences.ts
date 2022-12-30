@@ -4,14 +4,14 @@
  * *****************************************************/ 
 import type puppeteer from 'puppeteer';
 import type { iIllustMangaDataElement } from '../../constants/illustManga';
-import type { iOptions } from '../../commandParser/commandTypes';
+import type { iPartialOptions } from '../../commandParser/commandTypes';
 import { Navigation } from '../Navigation';
 import { AssembleParallelPageSequences } from '../AssembleParallelPageSequences-2';
 import mustache from '../../utilities/mustache';
 // process definition
 import { resolveProcess } from './resolveProcess';
-import { solutionProcess } from './solutionProcess';
 import { errorHandlingProcess } from './errorHandlingProcess';
+import { generateSolutionProcess } from './solutionPrcess/solutionProcess';
 
 // URL of each search result page. 
 const url: string = "https://www.pixiv.net/tags/{{keyword}}/artworks?p={{i}}&s_mode=s_tag";
@@ -23,14 +23,14 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
  * Unnecessary properties in options are excluded.
  * */ 
 const optionsProxy = (function() {
-    let options = {} as iOptions;
+    let options = {} as iPartialOptions;
     return {
-        set: function(v: iOptions) {
+        set: function(v: iPartialOptions) {
             options = {
                 ...options, ...v
             };
         },
-        get: function(): iOptions {
+        get: function(): iPartialOptions {
             return options;
         }
     };
@@ -53,7 +53,7 @@ export const setupParallelSequences = async (
     browser: puppeteer.Browser, 
     numberOfProcess: number, 
     numberOfPages: number,
-    options: iOptions
+    options: iPartialOptions
     ) => {
 
                 
@@ -70,8 +70,16 @@ export const setupParallelSequences = async (
 
     try {
         await assembler.initialize();
+
+        // TODO: 冗長なので関数にまとめたい --
+        const solutionProcess = new generateSolutionProcess<iIllustMangaDataElement>();
+        solutionProcess.setKey("id");
+        // TODO: 今のところfilterLogicがは必要ないのだが、後々generate()するときに必須になる...
+        solutionProcess.setFilterLogic(filterLogic);
+        // ---
+
         assembler.setResolvingProcess(resolveProcess);
-        assembler.setSolutionProcess(solutionProcess);
+        assembler.setSolutionProcess(solutionProcess.generate());
         assembler.setErrorHandlingProcess(errorHandlingProcess);
 
         // DEBUG:
@@ -79,7 +87,7 @@ export const setupParallelSequences = async (
         
         for(let currentPage = 1; currentPage <= numberOfPages; currentPage++) {
             const circulator: number = currentPage % numberOfProcess;
-            const _url: string = mustache(filterUrl, {kwyword: encodeURIComponent(optionsProxy.get().keyword), i: currentPage});
+            const _url: string = mustache(filterUrl, {kwyword: encodeURIComponent(optionsProxy.get().keyword!), i: currentPage});
             
             assembler.setResponseFilter(
                 function httpResponseFilter(res: puppeteer.HTTPResponse) {

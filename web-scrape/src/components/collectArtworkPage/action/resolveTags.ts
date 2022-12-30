@@ -2,9 +2,9 @@
  * Solve iIllustData.tags: {} to iIllustData.tags.tags.tags: iTags[]
  * 
  * *********************************************************/ 
-import type { iIllustData, iTags } from './typeOfArtworkPage';
-import { retrieveDeepProp } from '../../utilities/objectModifier';
-import { Collect } from '../Collect';
+import type { iIllustData, iTags } from '../typeOfArtworkPage';
+import { retrieveDeepProp } from '../../../utilities/objectModifier';
+import { Collect } from '../../Collect';
 
 export const resolveTags = (data: iIllustData): string[] => {
     const tags: iTags[] =  retrieveDeepProp<iTags[]>(["tags", "tags", "tags"], data);

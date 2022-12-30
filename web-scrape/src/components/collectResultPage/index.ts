@@ -21,10 +21,10 @@ import { decideNumberOfProcess } from './decideNumberOfProcess';
 import mustache from '../../utilities/mustache';
 import { setupParallelSequences } from './setupParallelSequences';
 /**
- * TODO: iOptionsにすべきか、iPartialOptionsにすべきか
+ * TODO: iPartialOptionsにすべきか、iPartialOptionsにすべきかまだ定かでない
  * 
  * */ 
-import type { iPartialOptions, iOptions } from '../../commandParser/commandTypes';
+import type { iPartialOptions } from '../../commandParser/commandTypes';
 
 let tasks: iSequentialAsyncTask[] = [];
 const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}}?word={{keyword}}&order=date_d&mode=all&p={{i}}&s_mode=s_tag&type=all&lang=ja";
@@ -33,9 +33,9 @@ const filterUrl: string = "https://www.pixiv.net/ajax/search/artworks/{{keyword}
  * Command options will be stored.
  * */ 
 const optionsProxy = (function() {
-    let options = {} as iOptions;
+    let options = {} as iPartialOptions;
     return {
-        set: function(v: iOptions) {
+        set: function(v: iPartialOptions) {
             options = {
                 ...options, ...v
             };
@@ -55,18 +55,21 @@ const optionsProxy = (function() {
 export const setupCollectByKeywordTaskQueue = (
     browser: puppeteer.Browser,
     page: puppeteer.Page, 
-    options: iOptions
+    options: iPartialOptions
     ): iSequentialAsyncTask[] => {
 
     // DEBUG:
     console.log("Start: setupCollectByKeywordTaskQueue()");
+
+    // NOTE: keywordは必須のはずなので
+    if(options.keyword === undefined) throw new Error("Command option `keyword` is necessary but there is no such value.");
 
     optionsProxy.set(options);
 
     // setting up task queue.
     // 
     // 1. fill search form with keyword.
-    tasks.push(() => search(page, optionsProxy.get().keyword));
+    tasks.push(() => search(page, optionsProxy.get().keyword!));
     // 2. Navigate to keyword search result page.
     tasks.push(setupNavigation);
     tasks.push((navigation: Navigation) => navigation.navigateBy(page, page.keyboard.press('Enter')));
@@ -94,7 +97,7 @@ const setupNavigation = (): Navigation => {
     const navigation = new Navigation();
     navigation.resetFilter((res: puppeteer.HTTPResponse) => 
         res.status() === 200 
-        && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword), i: 1})
+        && res.url() === mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword!), i: 1})
     );
     navigation.resetWaitForOptions({waitUntil: ["load", "networkidle2"]});
     return navigation;

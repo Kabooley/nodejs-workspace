@@ -7,10 +7,10 @@
  * Collectはどんなデータ型をthis.dataとして抱えることになるのかに関心があり、
  * CollectのメソッドはT
  * *******************************************************************/ 
-// import type { iOptions } from '../commandParser/commandTypes';
+import type { iPartialOptions } from '../commandParser/commandTypes';
 
- export type iFilterLogic<T> = (e: T) => boolean;
-//  export type iFilterLogic<T> = (e: T, options: iOptions) => boolean;
+//  export type iFilterLogic<T> = (e: T) => boolean;
+ export type iFilterLogic<T> = (e: T, options: iPartialOptions) => boolean;
 
  /***
   * @type {T} - Type of the array element object.
@@ -65,8 +65,8 @@
      * Returns true if element `e` is passed filterLogic test.
      * 
      * */  
-    filter(filterLogic: iFilterLogic<T>): T[] {
-        return this.data.filter((e: T) => filterLogic(e));
+    filter(filterLogic: iFilterLogic<T>, options: iPartialOptions): T[] {
+        return this.data.filter((e: T) => filterLogic(e, options));
     };  
  };
 

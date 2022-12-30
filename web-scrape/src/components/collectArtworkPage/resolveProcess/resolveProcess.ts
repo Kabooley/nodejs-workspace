@@ -1,7 +1,7 @@
 import type puppeteer from 'puppeteer';
-import type { iMetaPreloadData, iIllustData } from './typeOfArtworkPage';
-import type { iAssemblerResolveProcess } from '../AssembleParallelPageSequences-2';
-import type { AssembleParallelPageSequences } from '../AssembleParallelPageSequences-2';
+import type { iMetaPreloadData, iIllustData } from '../typeOfArtworkPage';
+import type { iAssemblerResolveProcess } from '../../AssembleParallelPageSequences-2';
+import type { AssembleParallelPageSequences } from '../../AssembleParallelPageSequences-2';
 import * as jsdom from 'jsdom';
 
 

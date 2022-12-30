@@ -3,40 +3,40 @@
  * *******************************************************/ 
 import type puppeteer from 'puppeteer';
 import type { iIllustData } from './typeOfArtworkPage';
-import type { iOptions } from '../../commandParser/commandTypes';
+import type { iPartialOptions } from '../../commandParser/commandTypes';
 import { Navigation } from '../Navigation';
-import { Collect } from '../Collect';
 import { AssembleParallelPageSequences } from '../AssembleParallelPageSequences-2';
 import { filterOnlyMatchedKey } from '../../utilities/Filter';
 import { httpResponseFilter } from './httpResponseFilter';
 // process definition
-import { resolveProcess } from './resolveProcess';
-import { solutionProcess } from './solutionProcess';
+import { resolveProcess } from './resolveProcess/resolveProcess';
+import { GenerateSolutionProcess } from './solutionProcess/solutionProcess';
 import { errorHandlingProcess } from './errorHandlingProcess';
 import mustache from '../../utilities/mustache';
 // Relate to Action process
-import { assignAction } from './assignAction';
-import { generateDownloadOptions } from './generateDownloadOptions';
+import { assignAction } from './action/assignAction';
+import { generateDownloadOptions } from './action/generateDownloadOptions';
+import { filterLogic } from './filterLogic';
 import type { iCommands } from '../../action/Action';
 
 
 // GLOBAL
 const artworkPageUrl: string = "https://www.pixiv.net/artworks/{{id}}";
-const validOptions: (keyof iOptions)[] = ["keyword", "bookmarkOver"];
+const validOptions: (keyof iPartialOptions)[] = ["keyword", "bookmarkOver"];
 
 /***
  * Contains `keyword` and necessary properties in this module from options.
  * Unnecessary properties in options are excluded.
  * */ 
  const optionsProxy = (function() {
-    let options = {} as iOptions;
+    let options = {} as iPartialOptions;
     return {
-        set: function(v: iOptions) {
+        set: function(v: iPartialOptions) {
             options = {
                 ...options, ...v
             };
         },
-        get: function(): iOptions {
+        get: function(): iPartialOptions {
             return options;
         }
     };
@@ -51,22 +51,29 @@ export const setupCollectingArtworkPage = async (
     numberOfProcess: number,
     idTable: string[],
     command: iCommands,
-    options: iOptions
+    options: iPartialOptions
 ) => {
+    if(options.keyword === undefined) throw new Error("Command option `keyword` is necessary but there is no such a value.");
+
     optionsProxy.set({
-        ...filterOnlyMatchedKey<iOptions>(options, validOptions), 
+        ...filterOnlyMatchedKey<iPartialOptions>(options, validOptions), 
         ...({keyword: options.keyword})
     });
     const assembler = new AssembleParallelPageSequences<iIllustData>(
-        browser, numberOfProcess, 
-        new Navigation(), new Collect<iIllustData>()
+        browser, numberOfProcess, new Navigation()
     );
 
     try {
         await assembler.initialize();
+
+        // TODO: ここが冗長なので関数としてまとめたい...
+        const generatorSolutionProcess = new GenerateSolutionProcess<iIllustData>();
+        generatorSolutionProcess.setOptions(optionsProxy.get());
+        generatorSolutionProcess.setFilterLogic(filterLogic);
+        // ---
         
         assembler.setResolvingProcess(resolveProcess);
-        assembler.setSolutionProcess(solutionProcess);
+        assembler.setSolutionProcess(generatorSolutionProcess.generateSolutionProcess());
         assembler.setErrorHandlingProcess(errorHandlingProcess);
 
         let counter: number = 1;
@@ -117,10 +124,10 @@ export const setupCollectingArtworkPage = async (
 //     browser: puppeteer.Browser,
 //     numberOfProcess: number,
 //     idTable: string[],
-//     options: iOptions
+//     options: iPartialOptions
 // ) => {
 //     optionsProxy.set({
-//         ...filterOnlyMatchedKey<iOptions>(options, validOptions), 
+//         ...filterOnlyMatchedKey<iPartialOptions>(options, validOptions), 
 //         ...({keyword: options.keyword})
 //     });
 //     const assembler = new AssembleParallelPageSequences<iIllustData>(

@@ -1,7 +1,7 @@
 import type puppeteer from 'puppeteer';
-import type { iCommands } from '../../action/Action';
-import type { iDownloadOptionGenerator } from '../../action/index';
-import { downloader, bookmarker } from '../../action/index';
+import type { iCommands } from '../../../action/Action';
+import type { iDownloadOptionGenerator } from '../../../action/index';
+import { downloader, bookmarker } from '../../../action/index';
 
 type iActionClosure<T> = (data: T) => Promise<any> | any;
 
@@ -20,9 +20,13 @@ export const assignAction = <T>(
     selector: string, 
     optionGenerator: iDownloadOptionGenerator<T>
     ): iActionClosure<T> => {
-    switch(command) {
-        case "bookmark": return bookmarker(page, selector);
-        case "download": return downloader(optionGenerator);
-        default: throw new Error("No such a action command");
-    }
+        
+        // DEBUG:
+        console.log(`assignAction: ${command}`);
+
+        switch(command) {
+            case "bookmark": return bookmarker(page, selector);
+            case "download": return downloader(optionGenerator);
+            default: throw new Error("No such a action command");
+        }
 };

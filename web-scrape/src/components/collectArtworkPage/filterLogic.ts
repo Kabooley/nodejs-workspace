@@ -11,8 +11,8 @@
 import type { iFilterLogic } from '../Collect';
 import type { iIllustData } from './typeOfArtworkPage';
 import array from '../../utilities/array';
-import type { iOptions } from '../../commandParser/commandTypes';
-import { resolveTags } from './resolveTags';
+import type { iPartialOptions } from '../../commandParser/commandTypes';
+import { resolveTags } from './action/resolveTags';
 
 
 /***
@@ -24,9 +24,8 @@ import { resolveTags } from './resolveTags';
  * optionsのすべてがdataに含まれているときだけtrueを返すので
  * filterLogicの内容はiFilterLogic<T>のT型にのみ依存する。
  * 
- * TODO: 呼出もとでどうやってoptionsを渡すのか未解決である
 * */ 
-export const filterLogic: iFilterLogic<iIllustData> = (data: iIllustData, options: iOptions) => {
+export const filterLogic: iFilterLogic<iIllustData> = (data: iIllustData, options: iPartialOptions) => {
     let result: boolean = true;
     // const { bookmarkOver, tags, userName, keyword } = options;
     const { bookmarkCount, tags } = data;
@@ -44,18 +43,3 @@ export const filterLogic: iFilterLogic<iIllustData> = (data: iIllustData, option
     // 
     return result;
 };
-
-
-
-/***
- * @param {iIllustData[]} data - 
- * @return {boolean}
- * 
- * すべての条件を満たしたらtrue
- * optionsをfilterLogicへ渡すために、クロージャにしている。
- * 
- * 何をフィルタリングしたいのかは場合に因るので内容はハードコーディングである。
- * */
-// export const generateFilterLogic = (options: iCollectOptions): iFilterLogic<iIllustData> => {
-//     return filterLogic;
-// };

@@ -2,9 +2,9 @@ import type * as fs from 'fs';
 import * as path from 'path';
 import * as url from 'url';
 import type * as http from 'http';
-import type { iIllustData } from './typeOfArtworkPage';
-import type { iDownloadOptionGenerator } from '../../action';
-import type { StreamOptions } from '../../action/Action';
+import type { iIllustData } from '../typeOfArtworkPage';
+import type { iDownloadOptionGenerator } from '../../../action';
+import type { StreamOptions } from '../../../action/Action';
 
 
 /***
