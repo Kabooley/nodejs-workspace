@@ -59,7 +59,7 @@ export const setupCollectByKeywordTaskQueue = (
     ): iSequentialAsyncTask[] => {
 
     // DEBUG:
-    console.log("Start: setupCollectByKeywordTaskQueue()");
+    console.log("setupCollectByKeywordTaskQueue(): start");
 
     // NOTE: keywordは必須のはずなので
     if(options.keyword === undefined) throw new Error("Command option `keyword` is necessary but there is no such value.");
@@ -92,7 +92,7 @@ export const setupCollectByKeywordTaskQueue = (
 const setupNavigation = (): Navigation => {
 
     // DEBUG:
-    console.log("Navigate to result page of keyword search...");
+    console.log("setupNavigation(): Navigate to result page of keyword search...");
 
     const navigation = new Navigation();
     navigation.resetFilter((res: puppeteer.HTTPResponse) => 
@@ -111,7 +111,7 @@ const setupNavigation = (): Navigation => {
 const resolve = (responseBody: iBodyIncludesIllustManga): iIllustManga => {
                 
     // DEBUG:
-    console.log("Resolving navigation http response body...");
+    console.log("resolve(): Resolving navigation http response body...");
 
     const resolved = retrieveDeepProp<iIllustManga>(["body", "illustManga"], responseBody);
     // このthen()ハンドラは同期関数なのでスローは補足される

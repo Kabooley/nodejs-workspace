@@ -75,7 +75,7 @@ export const setupParallelSequences = async (
         const solutionProcess = new generateSolutionProcess<iIllustMangaDataElement>();
         solutionProcess.setKey("id");
         // TODO: 今のところfilterLogicがは必要ないのだが、後々generate()するときに必須になる...
-        solutionProcess.setFilterLogic(filterLogic);
+        solutionProcess.setFilterLogic(function() {return true;});
         // ---
 
         assembler.setResolvingProcess(resolveProcess);

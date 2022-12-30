@@ -3,7 +3,7 @@ import { selectors } from '../constants/selectors';
 
 export const search = (page: puppeteer.Page, keyword: string): Promise<void> => {
     // DEBUG:
-    console.log(`Filling search keyword: ${keyword}`);
+    console.log(`search(): Filling search keyword: '${keyword}'`);
     
     return page.type(selectors.searchBox, keyword, { delay: 100 })
 };

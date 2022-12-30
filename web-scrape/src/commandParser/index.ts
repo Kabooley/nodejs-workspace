@@ -8,7 +8,7 @@
  * **********************************************************/ 
  import yargs from 'yargs/yargs';
  import type { Argv } from 'yargs'
- import type { iOptions, iPartialOptions } from './commandTypes';
+ import type { iPartialOptions } from './commandTypes';
  import { bookmarkCommand } from './commandModules/bookmarkCommand';
  import { collectCommand } from './commandModules/collectCommand';
  

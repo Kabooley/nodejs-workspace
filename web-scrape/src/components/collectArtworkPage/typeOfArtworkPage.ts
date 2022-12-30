@@ -3,10 +3,6 @@
  * 
  * iMetaPreloadData > iIllust > iIllustData
  * *****************************************************/
-import type { string } from "yargs";
-
- 
-
 export interface iMetaPreloadData {
     timestamp: string;
     illust: iIllust;

@@ -22,6 +22,8 @@ export const resolveProcess: iAssemblerResolveProcess<iIllustData> = async funct
     index: number,
     responses: (puppeteer.HTTPResponse | any)[]
 ) {
+    // DEBUG:
+    console.log(`${index} resolveProcess`);
     // src/components/collectArtworkPage/httpResponseResolver.tsと同じ
     // 
     // Pop out first element of responses.

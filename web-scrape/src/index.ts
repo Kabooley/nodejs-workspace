@@ -4,6 +4,7 @@
  * TODO:
  * - 機能の分割（1ファイル1機能）
  * instancesモジュールとか別ファイルに切り出していいよね。
+ * - ログの文面の統一化。どこの何なのかさっぱりだ。
  * 
  * NOTE:
  * - いつもログインなしでセッションが続いているわけではないので再ログインは手動でコード修正
@@ -16,7 +17,7 @@ import { sequentialAsyncTasks } from './utilities/TaskQueue';
 import { Navigation } from './components/Navigation';
 // import { setupCollectByKeywordTaskQueue } from './components/setupCollectByKeywordTaskQueue';
 // import type { iCollectOptions } from './commandParser/commandModules/collectCommand';
-// import { login } from './components/login';
+import { login } from './components/login';
 
 import { setupCollectByKeywordTaskQueue } from './components/collectResultPage';
 
@@ -74,19 +75,21 @@ const instances = (function() {
 
 
 const setupTaskQueue = (order: iOrders) => {
+
+    // DEBUG: 
+    console.log("setupTaskQueue():");
+
     const { commands, options } = order;
     switch(commands.join('')) {
         case 'collectbyKeyword':
             // DEBUG:
-            // 
-            console.log("Set up tasks according to command 'collect byeKeyword'");
+            console.log("case: 'collect byKeyword'");
 
             taskQueue = [...setupCollectByKeywordTaskQueue(
                 instances.getBrowser(), 
                 instances.getPage(), 
-                // {...options} as iCollectOptions)
-                ...options
-            ];
+                {...options}
+            )];
         break;
         case 'collectfromBookmark':
             // TODO: Define taskQueue implementation.
@@ -103,39 +106,44 @@ const setupTaskQueue = (order: iOrders) => {
 (async function() {
     try {
         // DEBUG:
-        console.log("Let's begin.");
+        console.log("index.ts: Let's begin.");
+        console.log("index.ts: Received Commands...");
         console.log(orders);
 
         await instances.initialize();
         const page = instances.getPage();
         const navigation = new Navigation();
         
-        // Incase need to login.
-        // await login(page, { username: username, password: password});
+        // Incase need to login ---
+        // await login(page, { 
+        //     username: "ichitose.fourseasons@gmail.com", 
+        //     password: "LockDanteSlash11_"
+        // });
+        // ----
         
         const navigateResult: (puppeteer.HTTPResponse | any)[] = await navigation.navigateBy(page, page.goto("https://www.pixiv.net/", { waitUntil: ["load", "networkidle2"]}));
         const response: puppeteer.HTTPResponse = navigateResult.pop();
         if(response.status() !== 200) throw new Error("Error: Failed to navigate to 'https://www.pixiv.net/'");
 
         // DEBUG:
-        console.log("GO");
+        console.log("index.ts: GO");
 
         setupTaskQueue(orders);
 
         // DEBUG: 
-        console.log("Tasks are generated.");
+        console.log("index.ts: Tasks are generated.");
 
         const result = await sequentialAsyncTasks(taskQueue);
 
-        // TODO: 型が(iIllustMangaDataElement[keyof iIllustMangaDataElement])[]みたいなものになる...ように型情報の修正
         // DEBUG:
+        console.log("index.ts: result...");
         console.log(result);
     }
     catch(e) {
         console.error(e);
     }
     finally {
-        console.log("Browser and page instances are closed explicitly");
+        console.log("index.ts: Browser and page instances are closed explicitly");
         await instances.getPage()!.screenshot({type: "png", path: "./dist/finallyErrorHandler.png"});
         await instances.closeAll();
     }

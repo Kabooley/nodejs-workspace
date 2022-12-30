@@ -16,7 +16,7 @@ import type { iIllustManga } from '../../constants/illustManga';
 export const decideNumberOfProcess = (illustManga: iIllustManga) => {
             
     // DEBUG:
-    console.log("Decide number of process...");
+    console.log("decideNumberOfProcess()");
 
     const { data, total } = illustManga;
 
@@ -38,8 +38,8 @@ export const decideNumberOfProcess = (illustManga: iIllustManga) => {
     };
 
     // DEBUG:
-    console.log(data.length);
-    console.log(total);
+    console.log(`data.length: ${data.length}`);
+    console.log(`total: ${total}`);
     console.log(`number of process: ${numberOfProcess}, number of pages: ${numberOfPages}`);
 
     return {

@@ -17,6 +17,8 @@ export const downloader = <T>(optionGenerator: iDownloadOptionGenerator<T>): iAc
 
 export const bookmarker = <T>(page: puppeteer.Page, selector: string): iActionClosure<T> => {
     return function(data: T): Promise<void> {
+        // TODO: dataは不要なんだけど消費しなくてはならない
+        console.log(`bookmarker ${data}`);
         return new Action().bookmark(page, selector);
     }
 };
