@@ -17,7 +17,7 @@ import { sequentialAsyncTasks } from './utilities/TaskQueue';
 import { Navigation } from './components/Navigation';
 // import { setupCollectByKeywordTaskQueue } from './components/setupCollectByKeywordTaskQueue';
 // import type { iCollectOptions } from './commandParser/commandModules/collectCommand';
-import { login } from './components/login';
+// import { login } from './components/login';
 
 import { setupCollectByKeywordTaskQueue } from './components/collectResultPage';
 
@@ -116,8 +116,8 @@ const setupTaskQueue = (order: iOrders) => {
         
         // Incase need to login ---
         // await login(page, { 
-        //     username: "ichitose.fourseasons@gmail.com", 
-        //     password: "LockDanteSlash11_"
+        //     username: "", 
+        //     password: ""
         // });
         // ----
         

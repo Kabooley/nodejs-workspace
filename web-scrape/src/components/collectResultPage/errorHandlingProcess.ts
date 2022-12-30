@@ -12,7 +12,7 @@ export const errorHandlingProcess: iAssemblerErrorHandlingProcess = function(
     index: number
 ) {
     // DEBUG:
-    console.error(`Error: @Sequences-${index}. ${error.message}`);
-    this.finally();
+    console.error(`errorHandlingProcess(): @Sequences-${index}. ${error.message}`);
+    // this.finally();
     throw error;
 };

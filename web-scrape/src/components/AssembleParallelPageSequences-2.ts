@@ -158,15 +158,21 @@ export class AssembleParallelPageSequences<T> {
     /***
      * NOTE: Error handler for this.run(). Not for each sequence chain.
      * Handler for each sequence chain is this.errorHandlingProcess.
+     * 
+     * sequenceNumberイランカモ...
      * */ 
-    errorHandler(e: Error, occuredSequenceNumber?: number) {
-        const message: string = e.message + (occuredSequenceNumber === undefined ? "" : occuredSequenceNumber);
+    errorHandler(e: Error, sequenceNumber?: number) {
+        // DEBUG:
+        console.error(`Error: @setupParallelSequence::run().catch()`);
+
+        const message: string = e.message + '' 
+            + (sequenceNumber === undefined ? "" : sequenceNumber);
         console.error(message);
         
         // DEBUG: Shoot screen shot when got error.
-        if(occuredSequenceNumber !== undefined 
-            && this.getPageInstance(occuredSequenceNumber) !== undefined)
-                this.getPageInstance(occuredSequenceNumber)!.screenshot({type: "png", path: `./dist/assemblerErrorHandlerInSequence-${occuredSequenceNumber}.png`})
+        if(sequenceNumber !== undefined 
+            && this.getPageInstance(sequenceNumber) !== undefined)
+                this.getPageInstance(sequenceNumber)!.screenshot({type: "png", path: `./dist/assemblerErrorHandlerInSequence-${sequenceNumber}.png`})
         
         this.finally();
         throw e;
@@ -244,6 +250,10 @@ export class AssembleParallelPageSequences<T> {
 
     // NOTE: New added. 12/18
     navigationProcess(circulator: number): Promise<(puppeteer.HTTPResponse | any)[]> {
+        // DEBUG:
+        console.log(`navigationProcess():`);
+        console.log(this.getPageInstance(circulator)!);
+
         return this.navigation.navigateBy(
             this.getPageInstance(circulator)!,
             this.navigationTrigger!(this.getPageInstance(circulator)!)

@@ -112,6 +112,7 @@ const resolve = (responseBody: iBodyIncludesIllustManga): iIllustManga => {
                 
     // DEBUG:
     console.log("resolve(): Resolving navigation http response body...");
+    console.log(responseBody);
 
     const resolved = retrieveDeepProp<iIllustManga>(["body", "illustManga"], responseBody);
     // このthen()ハンドラは同期関数なのでスローは補足される
