@@ -87,13 +87,16 @@ export const setupParallelSequences = async (
         
         for(let currentPage = 1; currentPage <= numberOfPages; currentPage++) {
             const circulator: number = currentPage % numberOfProcess;
-            const _url: string = mustache(filterUrl, {kwyword: encodeURIComponent(optionsProxy.get().keyword!), i: currentPage});
+            const _url: string = mustache(filterUrl, {keyword: encodeURIComponent(optionsProxy.get().keyword!), i: currentPage});
             
             assembler.setResponseFilter(
                 function httpResponseFilter(res: puppeteer.HTTPResponse) {
                     return res.status() === 200 && res.url() === _url;
                 }
             );
+
+            // DEBUG: 
+            console.log(`setupParallelSequences()::set filter url: ${_url}`);
 
             assembler.setNavigationTrigger(
                 function trigger(page: puppeteer.Page) {

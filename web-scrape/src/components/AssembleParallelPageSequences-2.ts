@@ -251,7 +251,7 @@ export class AssembleParallelPageSequences<T> {
     // NOTE: New added. 12/18
     navigationProcess(circulator: number): Promise<(puppeteer.HTTPResponse | any)[]> {
         // DEBUG:
-        console.log(`navigationProcess():`);
+        console.log(`${circulator} navigationProcess():`);
         console.log(this.getPageInstance(circulator)!);
 
         return this.navigation.navigateBy(
