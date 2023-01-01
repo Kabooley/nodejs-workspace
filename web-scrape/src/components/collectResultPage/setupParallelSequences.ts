@@ -91,7 +91,8 @@ export const setupParallelSequences = async (
             
             assembler.setResponseFilter(
                 function httpResponseFilter(res: puppeteer.HTTPResponse) {
-                    return res.status() === 200 && res.url() === _url;
+                    // return res.status() === 200 && res.url() === _url;
+                    return res.status() === 200 && res.url().includes(_url);
                 }
             );
 
