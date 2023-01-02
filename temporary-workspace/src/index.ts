@@ -45,6 +45,7 @@ const oldUrl = `https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?wo
             // }
             // これは通る
             // URLの問題だなこりゃ
+            // NOTE: `puppeteerはfetch requestを傍受できない問題`
             (res: puppeteer.HTTPResponse) => {
                 return res.status() === 200 && res.url().includes("https://www.pixiv.net/");
             }
@@ -55,6 +56,15 @@ const oldUrl = `https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?wo
         //     }
         // )
             
+        // DEBUG:検証１ page.on()でfetch requestを傍受できるのかやってみる
+        // 結果、fetch requestは傍受できなかった
+        // page.on('request', (e: puppeteer.HTTPRequest) => {
+        //     console.log("page.on request");
+        //     if(e.url().includes("www.pixiv.net/ajax/search/artworks/")){
+        //         console.log(e);
+        //     }
+        // });
+
         const navigateResult: (puppeteer.HTTPResponse | any)[] = await navigator.navigateBy(
             page, 
             page.goto(

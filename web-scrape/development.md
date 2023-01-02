@@ -890,6 +890,57 @@ const body = await response.json();
 // 以降、bodyを分解して指定データが入っていることを調べる
 ```
 
+#### page.waitForREsponse()でfetchリクエストを傍受できなくなった
+
+```TypeScript
+    const navigator = new Navigation();
+    navigator.resetFilter(
+        // failed: フルURL
+        // function filter(res: puppeteer.HTTPResponse) {
+        //     return res.status() === 200 && res.url().includes("https://www.pixiv.net/ajax/search/artworks/%E3%82%AC%E3%83%AB%E3%83%91%E3%83%B310000users%E5%85%A5%E3%82%8A?word=%E3%82%AC%E3%83%AB%E3%83%91%E3%83%B310000users%E5%85%A5%E3%82%8A&order=date_d&mode=all&p=1&s_mode=s_tag&type=all&lang=ja");
+        // }
+        // failed:
+        // function filter(res: puppeteer.HTTPResponse) {
+        //     return res.status() === 200 && res.url().includes("https://www.pixiv.net/ajax/search/artworks/%E3%82%AC%E3%83%AB%E3%83%91%E3%83%B310000users%E5%85%A5%E3%82%8A");
+        // }
+        // failed: short url ver and arrow function
+        // (res: puppeteer.HTTPResponse) => {
+        //     return res.status() === 200 && res.url().includes("https://www.pixiv.net/ajax/search/artworks/%E3%82%AC%E3%83%AB%E3%83%91%E3%83%B310000users%E5%85%A5%E3%82%8A");
+        // }
+        // これは通る
+        (res: puppeteer.HTTPResponse) => {
+            return res.status() === 200 && res.url().includes("https://www.pixiv.net/");
+        }
+    );
+```
+
+以前はできていたのに...
+
+参考：
+
+https://github.com/puppeteer/puppeteer/issues/4695
+
+https://github.com/puppeteer/puppeteer/issues/4041#issuecomment-469496322
+
+NOTE: **puppeteerはServiceWorkerやWebWorkerからのrequestを傍受することはできない**とのこと
+
+なのでpage.on()しても`page.waitForResponse()`しても永遠に傍受できないfetch requestが存在するのである。
+
+（そしてそのrequestが必要なのである）
+
+追記：
+
+次のやりかただと傍受できたとの報告
+
+https://github.com/puppeteer/puppeteer/issues/4041#issuecomment-1267944025
+
+#### ではどうやってキーワード検索結果を取得すべきか
+
+DOMで取得
+他のhttp request（response)を取得する
+
+
+
 #### illustManga.dataに挟まれる広告要素
 
 ```JSON
