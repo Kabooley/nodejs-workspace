@@ -16,6 +16,7 @@ export const createWorkerSession = async (page: puppeteer.Page) => {
         await client.send("Network.enable");
         // サービスワーカへのバイパスを有効化します
         await client.send("Network.setBypassServiceWorker", { bypass: true });
+        // await page._client.send("Network.setBypassServiceWorker", { bypass: true });
 
         client.on('Network.targetCreated', () => console.log("Network.targetCreated"));
         client.on('Network.targetCrashed', () => console.log("Network.targetCrashed"));

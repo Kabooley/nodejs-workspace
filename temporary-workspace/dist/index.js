@@ -137,12 +137,12 @@ var browserOptions = {
                     // )
                     // DEBUG:検証１ page.on()でfetch requestを傍受できるのかやってみる
                     // 結果、fetch requestは傍受できなかった
-                    // page.on('request', (e: puppeteer.HTTPRequest) => {
-                    //     console.log("page.on request");
-                    //     if(e.url().includes("www.pixiv.net/ajax/search/artworks/")){
-                    //         console.log(e);
-                    //     }
-                    // });
+                    page.on('request', function (e) {
+                        console.log("page.on request");
+                        if (e.url().includes("www.pixiv.net/ajax/search/artworks/")) {
+                            console.log(e);
+                        }
+                    });
                     console.log("navigating...");
                     return [4 /*yield*/, navigator_1.navigateBy(page, page.goto("https://www.pixiv.net/tags/%E3%82%AC%E3%83%AB%E3%83%91%E3%83%B310000users%E5%85%A5%E3%82%8A/artworks?p=1&s_mode=s_tag", { waitUntil: ["load", "networkidle2"] }))];
                 case 5:

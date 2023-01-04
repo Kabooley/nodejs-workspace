@@ -63,6 +63,7 @@ var createWorkerSession = function (page) { return __awaiter(void 0, void 0, voi
             case 3:
                 // サービスワーカへのバイパスを有効化します
                 _a.sent();
+                // await page._client.send("Network.setBypassServiceWorker", { bypass: true });
                 client.on('Network.targetCreated', function () { return console.log("Network.targetCreated"); });
                 client.on('Network.targetCrashed', function () { return console.log("Network.targetCrashed"); });
                 client.on('Network.targetDestroyed', function () { return console.log("Network.targetDestroyed"); });

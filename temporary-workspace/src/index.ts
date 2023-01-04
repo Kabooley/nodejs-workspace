@@ -59,12 +59,13 @@ const browserOptions: puppeteer.PuppeteerLaunchOptions = {
             
         // DEBUG:検証１ page.on()でfetch requestを傍受できるのかやってみる
         // 結果、fetch requestは傍受できなかった
-        // page.on('request', (e: puppeteer.HTTPRequest) => {
-        //     console.log("page.on request");
-        //     if(e.url().includes("www.pixiv.net/ajax/search/artworks/")){
-        //         console.log(e);
-        //     }
-        // });
+        page.on('request', (e: puppeteer.HTTPRequest) => {
+            console.log("page.on request");
+            console.log(e.url());
+            if(e.url().includes("www.pixiv.net/ajax/search/artworks/")){
+                console.log(e);
+            }
+        });
 
         console.log("navigating...");
 
