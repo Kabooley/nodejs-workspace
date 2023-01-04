@@ -1,5 +1,6 @@
 import * as puppeteer from 'puppeteer';
 import { Navigation } from './Navigation';
+import { createWorkerSession } from './target';
 
 const initialize = async (browser: puppeteer.Browser): Promise<puppeteer.Page> => {
     const page: puppeteer.Page | undefined = (await browser.pages())[0];
@@ -16,7 +17,6 @@ const browserOptions: puppeteer.PuppeteerLaunchOptions = {
     slowMo: 150,
 };
 
-const oldUrl = `https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?word={{escapedKeyword}}`;
 
 (async function() {
     
@@ -29,6 +29,9 @@ const oldUrl = `https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?wo
         //         username: "",
         //         password: ""
         // });
+
+        await createWorkerSession(page);
+
         const navigator = new Navigation();
         navigator.resetFilter(
             // failed: フルURL
@@ -43,8 +46,6 @@ const oldUrl = `https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?wo
             // (res: puppeteer.HTTPResponse) => {
             //     return res.status() === 200 && res.url().includes("https://www.pixiv.net/ajax/search/artworks/%E3%82%AC%E3%83%AB%E3%83%91%E3%83%B310000users%E5%85%A5%E3%82%8A");
             // }
-            // これは通る
-            // URLの問題だなこりゃ
             // NOTE: `puppeteerはfetch requestを傍受できない問題`
             (res: puppeteer.HTTPResponse) => {
                 return res.status() === 200 && res.url().includes("https://www.pixiv.net/");
@@ -65,12 +66,16 @@ const oldUrl = `https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?wo
         //     }
         // });
 
+        console.log("navigating...");
+
         const navigateResult: (puppeteer.HTTPResponse | any)[] = await navigator.navigateBy(
             page, 
             page.goto(
                 "https://www.pixiv.net/tags/%E3%82%AC%E3%83%AB%E3%83%91%E3%83%B310000users%E5%85%A5%E3%82%8A/artworks?p=1&s_mode=s_tag", 
                 { waitUntil: ["load", "networkidle2"]}
         ));
+
+        console.log("navigation has been done.");
 
         for(const r of navigateResult) {
             console.log(r);
@@ -83,6 +88,7 @@ const oldUrl = `https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?wo
         console.error(e);
     }
     finally {
+        console.log("Close page and browser instances.");
         await page.close();
         await browser.close();
     }

@@ -61,6 +61,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var puppeteer = __importStar(require("puppeteer"));
 var Navigation_1 = require("./Navigation");
+var target_1 = require("./target");
 var initialize = function (browser) { return __awaiter(void 0, void 0, void 0, function () {
     var page;
     return __generator(this, function (_a) {
@@ -84,7 +85,6 @@ var browserOptions = {
     handleSIGINT: true,
     slowMo: 150,
 };
-var oldUrl = "https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?word={{escapedKeyword}}";
 (function () {
     return __awaiter(this, void 0, void 0, function () {
         var browser, page, navigator_1, navigateResult, _i, navigateResult_1, r, e_1;
@@ -98,7 +98,20 @@ var oldUrl = "https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?word
                     page = _a.sent();
                     _a.label = 3;
                 case 3:
-                    _a.trys.push([3, 5, 7, 10]);
+                    _a.trys.push([3, 6, 8, 11]);
+                    // await login(page, 
+                    //     {
+                    //         username: "",
+                    //         password: ""
+                    // });
+                    return [4 /*yield*/, (0, target_1.createWorkerSession)(page)];
+                case 4:
+                    // await login(page, 
+                    //     {
+                    //         username: "",
+                    //         password: ""
+                    // });
+                    _a.sent();
                     navigator_1 = new Navigation_1.Navigation();
                     navigator_1.resetFilter(
                     // failed: フルURL
@@ -113,8 +126,6 @@ var oldUrl = "https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?word
                     // (res: puppeteer.HTTPResponse) => {
                     //     return res.status() === 200 && res.url().includes("https://www.pixiv.net/ajax/search/artworks/%E3%82%AC%E3%83%AB%E3%83%91%E3%83%B310000users%E5%85%A5%E3%82%8A");
                     // }
-                    // これは通る
-                    // URLの問題だなこりゃ
                     // NOTE: `puppeteerはfetch requestを傍受できない問題`
                     function (res) {
                         return res.status() === 200 && res.url().includes("https://www.pixiv.net/");
@@ -125,37 +136,42 @@ var oldUrl = "https://www.pixiv.net/ajax/search/artworks/{{escapedKeyword}}?word
                     //     }
                     // )
                     // DEBUG:検証１ page.on()でfetch requestを傍受できるのかやってみる
-                    page.on('request', function (e) {
-                        console.log("page.on request");
-                        if (e.url().includes("www.pixiv.net/ajax/search/artworks/")) {
-                            console.log(e);
-                        }
-                    });
+                    // 結果、fetch requestは傍受できなかった
+                    // page.on('request', (e: puppeteer.HTTPRequest) => {
+                    //     console.log("page.on request");
+                    //     if(e.url().includes("www.pixiv.net/ajax/search/artworks/")){
+                    //         console.log(e);
+                    //     }
+                    // });
+                    console.log("navigating...");
                     return [4 /*yield*/, navigator_1.navigateBy(page, page.goto("https://www.pixiv.net/tags/%E3%82%AC%E3%83%AB%E3%83%91%E3%83%B310000users%E5%85%A5%E3%82%8A/artworks?p=1&s_mode=s_tag", { waitUntil: ["load", "networkidle2"] }))];
-                case 4:
+                case 5:
                     navigateResult = _a.sent();
+                    console.log("navigation has been done.");
                     for (_i = 0, navigateResult_1 = navigateResult; _i < navigateResult_1.length; _i++) {
                         r = navigateResult_1[_i];
                         console.log(r);
                         console.log(r.url());
                         console.log(r.status());
                     }
-                    return [3 /*break*/, 10];
-                case 5:
+                    return [3 /*break*/, 11];
+                case 6:
                     e_1 = _a.sent();
                     return [4 /*yield*/, page.screenshot({ type: "png", path: "./dist/error.png" })];
-                case 6:
+                case 7:
                     _a.sent();
                     console.error(e_1);
-                    return [3 /*break*/, 10];
-                case 7: return [4 /*yield*/, page.close()];
+                    return [3 /*break*/, 11];
                 case 8:
-                    _a.sent();
-                    return [4 /*yield*/, browser.close()];
+                    console.log("Close page and browser instances.");
+                    return [4 /*yield*/, page.close()];
                 case 9:
                     _a.sent();
+                    return [4 /*yield*/, browser.close()];
+                case 10:
+                    _a.sent();
                     return [7 /*endfinally*/];
-                case 10: return [2 /*return*/];
+                case 11: return [2 /*return*/];
             }
         });
     });

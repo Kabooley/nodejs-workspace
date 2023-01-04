@@ -934,12 +934,22 @@ NOTE: **puppeteerはServiceWorkerやWebWorkerからのrequestを傍受するこ�
 
 https://github.com/puppeteer/puppeteer/issues/4041#issuecomment-1267944025
 
+要はChrome dev toolsのセッションを開いて、セッション中に傍受されたネットワークリクエストを取得するという方法をとるらしい
+
+#### `puppeteer.Page.target()`
+
+`Target class`:
+
+
+
 #### ではどうやってキーワード検索結果を取得すべきか
 
 DOMで取得
 他のhttp request（response)を取得する
 
+他のhttp requestは取得できない
 
+とはいえDOMからだとついにid情報がわからなくなっている
 
 #### illustManga.dataに挟まれる広告要素
 
