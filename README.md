@@ -281,6 +281,21 @@ $ nodenv install 0.10.26
 
 完了
 
+#### nodenvでNode.jsのバージョンを切り替える
+
+```bash
+# インストールされているNode.jsのバージョン一覧
+$ nodenv versions
+  15.14.0
+  16.3.0
+
+# ローカル（カレントディレクトリ配下）で利用するNode.jsのバージョンを設定する
+$ nodenv local 15.14.0
+
+# グローバル（システム全体）で利用するNode.jsのバージョンを設定する
+$ nodenv global 16.3.0
+```
+
 #### Ubuntu起動のたびに`exec $SHELL -l`しないといけない
 
 起動のたびに、`anyenv`ってなに？という旨のエラーが発生する。
